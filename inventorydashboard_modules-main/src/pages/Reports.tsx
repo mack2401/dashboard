@@ -41,6 +41,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
+import ComparisonAnalytics from "../components/reports/ComparisonAnalytics";
 
 // --- Types ---
 export interface PurchasedProductSummary {
@@ -846,6 +847,9 @@ const Reports: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* MOM and YOY Sales & Volume Comparison Analytics */}
+      <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
 
       {/* Visual Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
