@@ -785,17 +785,9 @@ const Dashboard: React.FC = () => {
               <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Package className="w-6 h-6" />
               </div>
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
-                  Stock & Catalog
-                </span>
-                <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-sky-600 transition-colors">
-                  Inventory
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Manage components, quantities & alerts
-                </p>
-              </div>
+              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-sky-600 transition-colors">
+                Inventory
+              </h3>
             </div>
             <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -814,17 +806,9 @@ const Dashboard: React.FC = () => {
               <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Receipt className="w-6 h-6" />
               </div>
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600">
-                  Invoices & Estimates
-                </span>
-                <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-emerald-600 transition-colors">
-                  Billing
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  Generate bills, GST & print transactions
-                </p>
-              </div>
+              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-emerald-600 transition-colors">
+                Billing
+              </h3>
             </div>
             <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -843,17 +827,9 @@ const Dashboard: React.FC = () => {
               <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <TrendingUp className="w-6 h-6" />
               </div>
-              <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-violet-600">
-                  Financial Analytics
-                </span>
-                <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-violet-600 transition-colors">
-                  PNL
-                </h3>
-                <p className="text-xs text-gray-500 mt-0.5">
-                  View profit, loss, margins & revenues
-                </p>
-              </div>
+              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-violet-600 transition-colors">
+                PNL
+              </h3>
             </div>
             <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
@@ -884,9 +860,6 @@ const Dashboard: React.FC = () => {
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                 {formatCurrency(allTimeTotalSales)}
               </div>
-              <p className="text-xs text-gray-500">
-                Combined revenue across all billing records
-              </p>
             </div>
 
             <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 shadow-2xs border border-sky-100">
