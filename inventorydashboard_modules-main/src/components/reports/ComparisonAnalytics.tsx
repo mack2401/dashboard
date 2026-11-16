@@ -97,6 +97,12 @@ const formatINR = (val: number): string =>
     maximumFractionDigits: 0,
   })}`;
 
+const formatMonthShortYear = (monthIndex: number, year: number): string => {
+  const shortName = (MONTH_NAMES[monthIndex] || "").slice(0, 3).toUpperCase();
+  const shortYear = String(year).slice(-2);
+  return `${shortName} '${shortYear}`;
+};
+
 export default function ComparisonAnalytics({
   bills,
   enquiries,
@@ -398,8 +404,8 @@ export default function ComparisonAnalytics({
       overallQtyPct,
       growthDaysCount,
       declineDaysCount,
-      m1Label: `${MONTH_NAMES[m1Month]} ${m1Year}`,
-      m2Label: `${MONTH_NAMES[m2Month]} ${m2Year}`,
+      m1Label: formatMonthShortYear(m1Month, m1Year),
+      m2Label: formatMonthShortYear(m2Month, m2Year),
     };
   }, [allSales, m1Year, m1Month, m2Year, m2Month]);
 
@@ -542,22 +548,22 @@ export default function ComparisonAnalytics({
           `${momData.m1Label} Values (₹)`,
           `${momData.m2Label} Values (₹)`,
           "Value Diff (₹)",
-          "Value % Change",
+          "Value %",
           `${momData.m1Label} Quantity`,
           `${momData.m2Label} Quantity`,
           "Quantity Diff",
-          "Quantity % Change",
+          "Qty %",
         ]
       : [
           "Month",
           `${yoyData.y1Label} Values (₹)`,
           `${yoyData.y2Label} Values (₹)`,
           "Value Diff (₹)",
-          "Value % Change",
+          "Value %",
           `${yoyData.y1Label} Quantity`,
           `${yoyData.y2Label} Quantity`,
           "Quantity Diff",
-          "Quantity % Change",
+          "Qty %",
         ];
 
     const dataRows = isMOM
@@ -837,7 +843,7 @@ export default function ComparisonAnalytics({
     XLSX.utils.book_append_sheet(wb, ws, sheetName);
 
     const filename = isMOM
-      ? `Values_Volume_MOM_${momData.m1Label.replace(/\s+/g, "_")}_vs_${momData.m2Label.replace(/\s+/g, "_")}.xlsx`
+      ? `Values_Volume_MOM_${momData.m1Label.replace(/'/g, "").replace(/\s+/g, "_")}_vs_${momData.m2Label.replace(/'/g, "").replace(/\s+/g, "_")}.xlsx`
       : `Values_Volume_YOY_${yoyData.y1Label}_vs_${yoyData.y2Label}.xlsx`;
 
     XLSX.writeFile(wb, filename);
@@ -1300,13 +1306,13 @@ export default function ComparisonAnalytics({
                     {momData.m2Label} Values
                   </th>
                   <th className="py-3 px-3 text-right">Value Diff (₹)</th>
-                  <th className="py-3 px-3 text-center bg-blue-50/30 text-blue-900">Value % Change</th>
+                  <th className="py-3 px-3 text-center bg-blue-50/30 text-blue-900">Value %</th>
                   <th className="py-3 px-3 text-right">{momData.m1Label} Qty</th>
                   <th className="py-3 px-3 text-right bg-emerald-50/60 text-emerald-900">
                     {momData.m2Label} Qty
                   </th>
                   <th className="py-3 px-3 text-right">Qty Diff</th>
-                  <th className="py-3 px-3 text-center bg-emerald-50/30 text-emerald-900">Qty % Change</th>
+                  <th className="py-3 px-3 text-center bg-emerald-50/30 text-emerald-900">Qty %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-700">
@@ -1387,13 +1393,13 @@ export default function ComparisonAnalytics({
                     {yoyData.y2Label} Values
                   </th>
                   <th className="py-3 px-3 text-right">Value Diff (₹)</th>
-                  <th className="py-3 px-3 text-center bg-indigo-50/30 text-indigo-900">Value % Change</th>
+                  <th className="py-3 px-3 text-center bg-indigo-50/30 text-indigo-900">Value %</th>
                   <th className="py-3 px-3 text-right">{yoyData.y1Label} Qty</th>
                   <th className="py-3 px-3 text-right bg-emerald-50/60 text-emerald-900">
                     {yoyData.y2Label} Qty
                   </th>
                   <th className="py-3 px-3 text-right">Qty Diff</th>
-                  <th className="py-3 px-3 text-center bg-emerald-50/30 text-emerald-900">Qty % Change</th>
+                  <th className="py-3 px-3 text-center bg-emerald-50/30 text-emerald-900">Qty %</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-700">
