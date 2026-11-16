@@ -1175,82 +1175,273 @@ const InventoryManagement: React.FC = () => {
       }
 
       const worksheet = workbook.Sheets[firstSheetName];
-      const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+      const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
 
-      if (rawRows.length === 0) {
+      if (matrix.length === 0) {
         alert('The uploaded Excel sheet contains no data.');
         setIsImporting(false);
         return;
       }
 
-      const getRowVal = (row: any, ...keys: string[]) => {
-        const rowKeys = Object.keys(row);
-        for (const k of keys) {
-          const foundKey = rowKeys.find(rk => rk.trim().toLowerCase() === k.trim().toLowerCase());
-          if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
-            return row[foundKey];
+      const cleanText = (raw: any): string => {
+        if (raw === undefined || raw === null) return '';
+        return String(raw).replace(/[\r\n\t]+/g, ' ').replace(/\s+/g, ' ').trim();
+      };
+
+      const parseQuantity = (raw: any): number => {
+        if (raw === undefined || raw === null || raw === '') return 0;
+        if (typeof raw === 'number') return isNaN(raw) ? 0 : Math.max(0, raw);
+        const s = String(raw).trim();
+        if (!s || s === '-') return 0;
+        
+        // Handle Excel date auto-conversions like 2026-01-02 (often from typing "1-2" in quantity)
+        if (/^\d{4}-\d{2}-\d{2}/.test(s)) {
+          const parts = s.split('-');
+          const lastNum = parseInt(parts[2], 10);
+          return isNaN(lastNum) ? 1 : lastNum;
+        }
+
+        // Extract first numeric group (e.g. "12 in box" -> 12, "2ir re" -> 2)
+        const m = s.match(/\d+(\.\d+)?/);
+        if (m) {
+          const n = parseFloat(m[0]);
+          return isNaN(n) ? 0 : Math.max(0, n);
+        }
+        return 0;
+      };
+
+      const parsePrice = (raw: any): number | undefined => {
+        if (raw === undefined || raw === null || raw === '') return undefined;
+        if (typeof raw === 'number') return isNaN(raw) ? undefined : raw;
+        const cleaned = String(raw).replace(/[^0-9.-]/g, '');
+        if (!cleaned) return undefined;
+        const n = parseFloat(cleaned);
+        return isNaN(n) ? undefined : n;
+      };
+
+      const detectHeaderRow = (row: any[]) => {
+        if (!Array.isArray(row)) return null;
+        const strRow = row.map(cell => cleanText(cell).toLowerCase());
+
+        const hasComp = strRow.some(c => 
+          c.includes('component name') || 
+          c.includes('product name') || 
+          c === 'product' || 
+          c === 'item name' || 
+          c === 'items'
+        );
+        const hasQty = strRow.some(c => c.includes('quantity') || c === 'qty' || c === 'soh' || c.includes('stock'));
+        const hasPrice = strRow.some(c => c.includes('price') || c.includes('cost'));
+        const hasCategory = strRow.some(c => c.includes('category'));
+
+        if (hasComp && (hasQty || hasPrice || hasCategory)) {
+          let colName = -1, colSku = -1, colSpec = -1, colCategory = -1, colHsn = -1;
+          let colQty = -1, colCostPrice = -1, colSellingPrice = -1, colStandardPrice = -1, colStatus = -1;
+          let colThreshold = -1, colDesc = -1;
+
+          strRow.forEach((c, idx) => {
+            const isTotalOrValue = c.includes('value') || c.includes('total') || c.includes('amount');
+
+            if (c.includes('component name') || c.includes('product name') || c === 'item name' || c === 'product') colName = idx;
+            else if (c.includes('sku') || c === 'code') colSku = idx;
+            else if (c.includes('spec')) colSpec = idx;
+            else if (c.includes('category') || c === 'group') colCategory = idx;
+            else if (c.includes('hsn')) colHsn = idx;
+            else if (!isTotalOrValue && (c.includes('quantity') || c === 'qty' || c === 'soh' || c.includes('stock'))) colQty = idx;
+            else if (!isTotalOrValue && (c === 'cost price' || c.includes('purchase price') || c === 'cost' || c.includes('buying price'))) colCostPrice = idx;
+            else if (!isTotalOrValue && (c === 'standard price')) colStandardPrice = idx;
+            else if (!isTotalOrValue && (c === 'selling price' || c.includes('sale price') || (c === 'price' && colCostPrice !== idx && colStandardPrice !== idx))) {
+              colSellingPrice = idx;
+            }
+            else if (c.includes('moving status') || c === 'status') colStatus = idx;
+            else if (c.includes('threshold') || c.includes('low stock')) colThreshold = idx;
+            else if (c.includes('desc') || c.includes('notes')) colDesc = idx;
+          });
+
+          return { colName, colSku, colSpec, colCategory, colHsn, colQty, colCostPrice, colSellingPrice, colStandardPrice, colStatus, colThreshold, colDesc };
+        }
+        return null;
+      };
+
+      interface ParsedRowItem {
+        name: string;
+        baseName: string;
+        sku?: string;
+        specification?: string;
+        category?: string;
+        hsnCode?: string;
+        quantity: number;
+        purchasePrice?: number;
+        sellingPrice?: number;
+        lowStockThreshold?: number;
+        description?: string;
+        sourceRow: number;
+      }
+
+      const extractedItems: ParsedRowItem[] = [];
+      let currentHeader: any = null;
+      let inNonListedSection = false;
+
+      for (let r = 0; r < matrix.length; r++) {
+        const row = matrix[r];
+        if (!Array.isArray(row) || row.every(cell => cleanText(cell) === '')) continue;
+
+        // Check if row is a header
+        const headerCheck = detectHeaderRow(row);
+        if (headerCheck) {
+          currentHeader = headerCheck;
+          inNonListedSection = false;
+          continue;
+        }
+
+        // Check for "non listed items" section
+        const rowText = row.map(c => cleanText(c).toLowerCase()).join(' ');
+        if (rowText.includes('non listed items')) {
+          inNonListedSection = true;
+          currentHeader = null;
+          // Row itself might contain: ["", "", "non listed items", "aruino uno case", 2]
+          const pName = cleanText(row[3]);
+          if (pName && pName.toLowerCase() !== 'non listed items') {
+            extractedItems.push({
+              name: pName,
+              baseName: pName,
+              quantity: parseQuantity(row[4]),
+              category: 'Non Listed Items',
+              sourceRow: r + 1,
+            });
+          }
+          continue;
+        }
+
+        if (inNonListedSection) {
+          const pName = cleanText(row[3]);
+          if (pName) {
+            // Check if bullet taxonomy list starts
+            if (pName.startsWith('·') || pName.startsWith('Â·') || /^\d+\./.test(pName)) {
+              inNonListedSection = false;
+              continue;
+            }
+            extractedItems.push({
+              name: pName,
+              baseName: pName,
+              quantity: parseQuantity(row[4]),
+              category: 'Non Listed Items',
+              sourceRow: r + 1,
+            });
+            continue;
           }
         }
-        return undefined;
-      };
+
+        // Skip category reference taxonomy (bullet items at bottom)
+        const firstCol = cleanText(row[0]);
+        if (firstCol.startsWith('·') || firstCol.startsWith('Â·') || /^\d+\.\s+[A-Za-z]/.test(firstCol)) {
+          continue;
+        }
+
+        // If we have an active header, parse this data row
+        if (currentHeader && currentHeader.colName >= 0) {
+          const rawName = cleanText(row[currentHeader.colName]);
+          const rawSku = currentHeader.colSku >= 0 ? cleanText(row[currentHeader.colSku]) : '';
+          const rawSpec = currentHeader.colSpec >= 0 ? cleanText(row[currentHeader.colSpec]) : '';
+          const rawCategory = currentHeader.colCategory >= 0 ? cleanText(row[currentHeader.colCategory]) : '';
+          const rawHsn = currentHeader.colHsn >= 0 ? cleanText(row[currentHeader.colHsn]) : '';
+          const rawQty = currentHeader.colQty >= 0 ? row[currentHeader.colQty] : '';
+          const rawCost = currentHeader.colCostPrice >= 0 ? row[currentHeader.colCostPrice] : '';
+          const rawStandard = currentHeader.colStandardPrice >= 0 ? row[currentHeader.colStandardPrice] : '';
+          const rawSelling = currentHeader.colSellingPrice >= 0 ? row[currentHeader.colSellingPrice] : '';
+          const rawThreshold = currentHeader.colThreshold >= 0 ? row[currentHeader.colThreshold] : '';
+          const rawDesc = currentHeader.colDesc >= 0 ? cleanText(row[currentHeader.colDesc]) : '';
+
+          if (!rawName && !rawSku) continue;
+
+          // Disambiguate name if specification exists and not in name
+          let finalName = rawName;
+          if (rawSpec && !finalName.toLowerCase().includes(rawSpec.toLowerCase())) {
+            finalName = `${rawName} (${rawSpec})`;
+          }
+
+          const purchasePrice = parsePrice(rawCost) !== undefined ? parsePrice(rawCost) : parsePrice(rawStandard);
+          const sellingPrice = parsePrice(rawSelling);
+          const quantity = parseQuantity(rawQty);
+          const threshold = parsePrice(rawThreshold);
+
+          extractedItems.push({
+            name: finalName,
+            baseName: rawName,
+            sku: rawSku,
+            specification: rawSpec,
+            category: rawCategory || 'General',
+            hsnCode: rawHsn,
+            quantity,
+            purchasePrice,
+            sellingPrice,
+            lowStockThreshold: threshold,
+            description: rawDesc,
+            sourceRow: r + 1,
+          });
+        }
+      }
 
       const matchedProducts: { product: Product; newSOH: number; newPurchasePrice?: number; newSellingPrice?: number; rowData: any }[] = [];
       const newProducts: any[] = [];
       const matchedProductIds = new Set<string>();
 
-      rawRows.forEach((row) => {
-        const rowName = getRowVal(row, 'Product Name', 'Product', 'Item Name', 'Name');
-        const rowSku = getRowVal(row, 'SKU', 'sku', 'Item Code', 'Code');
-        const rowHsn = getRowVal(row, 'HSN Code', 'HSN', 'hsnCode', 'hsn');
-        const rowCategory = getRowVal(row, 'Category', 'category');
-        const rowSoh = getRowVal(row, 'SOH', 'Stock on Hand', 'Stock', 'Total Quantity', 'Quantity', 'Qty', 'Current Stock');
-        const rowPurchasePrice = getRowVal(row, 'Purchase Price', 'purchase_price', 'Cost Price', 'Cost', 'Buying Price');
-        const rowSellingPrice = getRowVal(row, 'Selling Price', 'selling_price', 'Sale Price', 'Selling', 'Current Price', 'Price');
-        const rowThreshold = getRowVal(row, 'Low Stock Threshold', 'Low Stock', 'Threshold');
-        const rowDesc = getRowVal(row, 'Description', 'Desc', 'Notes');
-
-        if (!rowName && !rowSku) return;
-
-        const parsedSOH = rowSoh !== undefined && !isNaN(Number(rowSoh)) ? Math.max(0, Number(rowSoh)) : 0;
-        const parsedPurchasePrice = rowPurchasePrice !== undefined && !isNaN(Number(rowPurchasePrice)) ? Number(rowPurchasePrice) : undefined;
-        const parsedSellingPrice = rowSellingPrice !== undefined && !isNaN(Number(rowSellingPrice)) ? Number(rowSellingPrice) : undefined;
-        const parsedThreshold = rowThreshold !== undefined && !isNaN(Number(rowThreshold)) ? Number(rowThreshold) : undefined;
-
+      extractedItems.forEach((item) => {
         let matched: Product | undefined;
-        if (rowSku) {
-          matched = products.find(p => p.sku && p.sku.trim().toLowerCase() === String(rowSku).trim().toLowerCase());
+
+        // 1. Match by SKU
+        if (item.sku) {
+          matched = products.find(p => p.sku && p.sku.trim().toLowerCase() === item.sku!.toLowerCase() && !matchedProductIds.has(p.id));
         }
-        if (!matched && rowName) {
-          matched = products.find(p => p.name.trim().toLowerCase() === String(rowName).trim().toLowerCase());
+
+        // 2. Match by exact full name
+        if (!matched && item.name) {
+          matched = products.find(p => p.name.trim().toLowerCase() === item.name.toLowerCase() && !matchedProductIds.has(p.id));
+        }
+
+        // 3. Match by base name if no spec conflict
+        if (!matched && item.baseName) {
+          matched = products.find(p => p.name.trim().toLowerCase() === item.baseName.toLowerCase() && !matchedProductIds.has(p.id));
+        }
+
+        // 4. Match by alphanumeric similarity (handles minor spacing/punctuation differences)
+        if (!matched && item.name) {
+          const rowAlpha = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (rowAlpha.length >= 4) {
+            matched = products.find(p => {
+              const pAlpha = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+              return pAlpha === rowAlpha && !matchedProductIds.has(p.id);
+            });
+          }
         }
 
         if (matched) {
           matchedProductIds.add(matched.id);
           matchedProducts.push({
             product: matched,
-            newSOH: parsedSOH,
-            newPurchasePrice: parsedPurchasePrice,
-            newSellingPrice: parsedSellingPrice,
+            newSOH: item.quantity,
+            newPurchasePrice: item.purchasePrice !== undefined ? item.purchasePrice : matched.currentPrice,
+            newSellingPrice: item.sellingPrice !== undefined ? item.sellingPrice : matched.purchasePrice,
             rowData: {
-              name: rowName || matched.name,
-              sku: rowSku || matched.sku,
-              hsnCode: rowHsn !== undefined ? String(rowHsn).trim() : matched.hsnCode,
-              category: rowCategory !== undefined ? String(rowCategory).trim() : matched.category,
-              lowStockThreshold: parsedThreshold !== undefined ? parsedThreshold : matched.lowStockThreshold,
-              description: rowDesc !== undefined ? String(rowDesc).trim() : matched.description,
+              name: item.name || matched.name,
+              sku: item.sku || matched.sku,
+              hsnCode: item.hsnCode || matched.hsnCode,
+              category: item.category || matched.category,
+              lowStockThreshold: item.lowStockThreshold !== undefined ? item.lowStockThreshold : matched.lowStockThreshold,
+              description: item.description || matched.description,
             }
           });
         } else {
           newProducts.push({
-            name: rowName ? String(rowName).trim() : (rowSku ? `Item ${rowSku}` : 'New Product'),
-            sku: rowSku ? String(rowSku).trim() : `SKU-${Date.now().toString().slice(-4)}`,
-            hsnCode: rowHsn ? String(rowHsn).trim() : '',
-            category: rowCategory ? String(rowCategory).trim() : 'General',
-            totalQuantity: parsedSOH,
-            currentPrice: parsedPurchasePrice !== undefined ? parsedPurchasePrice : (parsedSellingPrice || 0),
-            purchasePrice: parsedSellingPrice !== undefined ? parsedSellingPrice : undefined,
-            lowStockThreshold: parsedThreshold !== undefined ? parsedThreshold : 10,
-            description: rowDesc ? String(rowDesc).trim() : '',
+            name: item.name,
+            sku: item.sku || `SKU-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 900 + 100)}`,
+            hsnCode: item.hsnCode || '',
+            category: item.category || 'General',
+            totalQuantity: item.quantity,
+            currentPrice: item.purchasePrice || 0,
+            purchasePrice: item.sellingPrice !== undefined ? item.sellingPrice : undefined,
+            lowStockThreshold: item.lowStockThreshold || 10,
+            description: item.description || (item.specification ? `Spec: ${item.specification}` : ''),
           });
         }
       });
@@ -1259,7 +1450,7 @@ const InventoryManagement: React.FC = () => {
 
       setImportSummary({
         fileName: file.name,
-        totalRows: rawRows.length,
+        totalRows: extractedItems.length,
         matchedProducts,
         newProducts,
         missedProducts,
