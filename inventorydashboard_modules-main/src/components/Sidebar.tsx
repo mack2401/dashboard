@@ -16,7 +16,8 @@ import {
   Settings,
   GraduationCap,
   BarChart3,
-  Receipt
+  Receipt,
+  TrendingUp
 } from "lucide-react";
 import { useAuth } from "../App"; 
 
@@ -29,6 +30,7 @@ const Sidebar = () => {
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={18} /> },
     { name: "Enquiries", path: "/enquiries", icon: <Calculator size={18} /> },
     { name: "Bills", path:"/bills", icon:<Receipt size={18}/>},
+    { name: "PNL", path: "/pnl", icon: <TrendingUp size={18} /> },
     { name: "Tasks", path:"/task", icon:<ListTodo size={18}/>},
     { name: "Dropped", path: "/dropped", icon: <Calculator size={18} /> },
     { name: "Inventory", path:"/inventory", icon:<Package size={18}/>},
@@ -38,9 +40,7 @@ const Sidebar = () => {
   ];
   
   const managementItems = [
-    { name: "Add Admin", path: "/admin/add-admin", icon: <ShieldCheck size={18} /> },
-    { name: "Add Manager", path: "/admin/add-manager", icon: <Users size={18} /> },
-    { name: "Add Staff", path: "/admin/add-staff", icon: <Users size={18} /> },
+    { name: "Manage Users", path: "/admin/manage-users", icon: <Users size={18} /> },
     { name: "Manage Teams", path: "/manage-teams", icon: <UsersRound size={18} /> },
   ];
 

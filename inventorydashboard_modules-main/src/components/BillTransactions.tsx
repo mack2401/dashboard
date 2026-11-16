@@ -1,14 +1,22 @@
 // components/BillTransactions.tsx - Updated with Proforma Invoice print view
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   collection,
   query,
   where,
   getDocs,
   orderBy,
+  onSnapshot,
+  doc,
+  getDoc,
 } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
+import { 
+  getAuth, 
+  onAuthStateChanged, 
+  EmailAuthProvider, 
+  reauthenticateWithCredential 
+} from "firebase/auth";
 import type { User } from "firebase/auth";
 import { db } from "../firebase";
 import { billService } from "../services/billService";
@@ -17,6 +25,7 @@ import type { Bill } from "../services/billService";
 import {
   FileText,
   Eye,
+  EyeOff,
   Printer,
   Download,
   Search,
@@ -37,6 +46,8 @@ import {
   Building2,
   Calendar,
   Layers,
+  Lock,
+  ShoppingBag,
 } from "lucide-react";
 
 interface MaterialItem {
@@ -89,6 +100,15 @@ const defaultTerms: TermsCondition[] = [
   { id: 3, text: "Quote Validity: 2 days" },
 ];
 
+const formatContactNumber = (contact?: string | number): string => {
+  if (!contact) return "-";
+  const str = String(contact).trim();
+  if (!str) return "-";
+  // Remove spaces, hyphens, and dots between numbers to make it a single continuous number
+  const cleaned = str.replace(/[\s\-\.]+/g, "");
+  return cleaned || "-";
+};
+
 const BillTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<BillTransaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<BillTransaction[]>([]);
@@ -101,15 +121,29 @@ const BillTransactions: React.FC = () => {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [billToDelete, setBillToDelete] = useState<BillTransaction | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteAdminPassword, setDeleteAdminPassword] = useState("");
+  const [showDeleteAdminPassword, setShowDeleteAdminPassword] = useState(false);
+  const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
+  const savedSearchTermRef = useRef<string>("");
 
   // Dynamic filter state variables
   const [billTypeFilter, setBillTypeFilter] = useState<"all" | "gst" | "gst_cgst_sgst" | "gst_igst" | "non_gst">("all");
-  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "approved" | "quotation" | "proforma" | "dropped">("all");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "approved" | "quotation" | "dropped">("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
   const [statistics, setStatistics] = useState({
+    purchaseValue: 0,
+    sellValue: 0,
+    netMargin: 0,
+    marginPercentage: 0,
+    refundValue: 0,
+    refundCount: 0,
+    activeBillsCount: 0,
+    paidSellValue: 0,
+    purchaseItemsCount: 0,
+
     totalBills: 0,
     paidBillsCount: 0,
     quoteBillsCount: 0,
@@ -125,6 +159,9 @@ const BillTransactions: React.FC = () => {
     quotedAmount: 0,
     averageBillValue: 0,
   });
+  const [productsMap, setProductsMap] = useState<Map<string, any>>(new Map());
+  const [productsByName, setProductsByName] = useState<Map<string, any>>(new Map());
+  const [productsList, setProductsList] = useState<any[]>([]);
   const [authUser, setAuthUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<string>("staff");
   const [authLoading, setAuthLoading] = useState(true);
@@ -160,6 +197,146 @@ const BillTransactions: React.FC = () => {
 
     return () => unsubscribe();
   }, []);
+
+  // Real-time synchronization with products collection in inventory dashboard
+  useEffect(() => {
+    const productsRef = collection(db, "products");
+    const unsubscribe = onSnapshot(
+      productsRef,
+      (snapshot) => {
+        const pMap = new Map<string, any>();
+        const pNameMap = new Map<string, any>();
+        const pList: any[] = [];
+
+        snapshot.forEach((doc) => {
+          const data = doc.data();
+
+          // Exactly resolve purchase price as done in InventoryManagement.tsx
+          let resolvedPurchasePrice = 0;
+          if (data.currentPrice !== undefined && data.currentPrice !== null && !isNaN(Number(data.currentPrice))) {
+            resolvedPurchasePrice = Number(data.currentPrice);
+          } else if (data.stockEntries && Array.isArray(data.stockEntries) && data.stockEntries.length > 0) {
+            const lastEntry = data.stockEntries[data.stockEntries.length - 1];
+            if (lastEntry && lastEntry.unitPrice !== undefined && !isNaN(Number(lastEntry.unitPrice))) {
+              resolvedPurchasePrice = Number(lastEntry.unitPrice);
+            }
+          } else if (data.price !== undefined && data.price !== null && !isNaN(Number(data.price))) {
+            resolvedPurchasePrice = Number(data.price);
+          } else if (data.unitprice !== undefined && data.unitprice !== null && !isNaN(Number(data.unitprice))) {
+            resolvedPurchasePrice = Number(data.unitprice);
+          }
+
+          const prodObj = {
+            id: doc.id,
+            ...data,
+            currentPrice: resolvedPurchasePrice,
+            purchasePrice: data.purchasePrice !== undefined && data.purchasePrice !== null && !isNaN(Number(data.purchasePrice))
+              ? Number(data.purchasePrice)
+              : resolvedPurchasePrice,
+          };
+
+          pMap.set(doc.id, prodObj);
+          pList.push(prodObj);
+
+          if (data.name) {
+            const trimmedLower = String(data.name).trim().toLowerCase();
+            pNameMap.set(trimmedLower, prodObj);
+
+            // Alphanumeric normalized (e.g. "arduinounor3" matches "Arduino Uno R3")
+            const alphaNum = trimmedLower.replace(/[^a-z0-9]/g, "");
+            if (alphaNum && alphaNum !== trimmedLower) {
+              pNameMap.set(alphaNum, prodObj);
+            }
+          }
+
+          if (data.sku) {
+            const skuLower = String(data.sku).trim().toLowerCase();
+            pNameMap.set(skuLower, prodObj);
+          }
+        });
+
+        console.log(`[BillTransactions] Synced ${snapshot.size} inventory products from dashboard.`);
+        setProductsMap(pMap);
+        setProductsByName(pNameMap);
+        setProductsList(pList);
+      },
+      (err) => {
+        console.error("Error subscribing to products catalog in BillTransactions:", err);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [authUser]);
+
+  // Comprehensive inventory product matcher
+  const findInventoryProduct = (item: any): any | null => {
+    if (!item) return null;
+
+    // 1. Direct ID match
+    if (item.productId && productsMap.has(item.productId)) {
+      return productsMap.get(item.productId);
+    }
+
+    // 2. Exact cleaned name match
+    const rawName = String(item.productName || item.name || "").trim().toLowerCase();
+    if (!rawName) return null;
+
+    if (productsByName.has(rawName)) {
+      return productsByName.get(rawName);
+    }
+
+    // 3. Alphanumeric stripped name match
+    const alphaNum = rawName.replace(/[^a-z0-9]/g, "");
+    if (alphaNum && productsByName.has(alphaNum)) {
+      return productsByName.get(alphaNum);
+    }
+
+    // 4. SKU match
+    const rawSku = String(item.sku || item.productId || "").trim().toLowerCase();
+    if (rawSku && productsByName.has(rawSku)) {
+      return productsByName.get(rawSku);
+    }
+
+    // 5. Substring / inclusion match in productsList
+    for (const prod of productsList) {
+      if (!prod.name) continue;
+      const pName = String(prod.name).trim().toLowerCase();
+      if (pName === rawName) return prod;
+      if (pName.length >= 4 && (rawName.includes(pName) || pName.includes(rawName))) {
+        return prod;
+      }
+    }
+
+    // 6. Multi-token word overlap matching (>= 60% words match)
+    const itemTokens = rawName.split(/[\s\-_,./]+/).filter((t) => t.length > 2);
+    if (itemTokens.length > 0) {
+      let bestMatch: any = null;
+      let maxOverlap = 0;
+
+      for (const prod of productsList) {
+        if (!prod.name) continue;
+        const prodTokens = String(prod.name).trim().toLowerCase().split(/[\s\-_,./]+/).filter((t) => t.length > 2);
+        if (prodTokens.length === 0) continue;
+
+        let overlap = 0;
+        for (const t of itemTokens) {
+          if (prodTokens.includes(t)) overlap++;
+        }
+
+        const matchRatio = overlap / Math.min(itemTokens.length, prodTokens.length);
+        if (matchRatio >= 0.6 && overlap > maxOverlap) {
+          maxOverlap = overlap;
+          bestMatch = prod;
+        }
+      }
+
+      if (bestMatch) {
+        return bestMatch;
+      }
+    }
+
+    return null;
+  };
 
   // Fetch user role when auth user changes
   useEffect(() => {
@@ -310,12 +487,13 @@ const BillTransactions: React.FC = () => {
           let enquiryData: any = null;
           let paymentSubStatus = "N/A";
 
-          if (bill.enquiryEnqId) {
+          const enqIdToFind = bill.enquiryEnqId || bill.enquiryId;
+          if (enqIdToFind) {
             try {
               const enquiriesRef = collection(db, "enquiries");
               const enquiryQuery = query(
                 enquiriesRef,
-                where("enqId", "==", bill.enquiryEnqId)
+                where("enqId", "==", enqIdToFind)
               );
               const enquirySnapshot = await getDocs(enquiryQuery);
 
@@ -323,6 +501,17 @@ const BillTransactions: React.FC = () => {
                 enquiryData = enquirySnapshot.docs[0].data();
                 paymentSubStatus = enquiryData?.paymentSubStatus || "N/A";
                 console.log(`Found paymentSubStatus for bill ${bill.id}: ${paymentSubStatus}`);
+              } else {
+                // Try finding by Firestore doc id
+                try {
+                  const docSnap = await getDoc(doc(db, "enquiries", enqIdToFind));
+                  if (docSnap.exists()) {
+                    enquiryData = docSnap.data();
+                    paymentSubStatus = enquiryData?.paymentSubStatus || "N/A";
+                  }
+                } catch (e) {
+                  // doc id lookup failed, ignore
+                }
               }
             } catch (err) {
               console.error(`Error fetching enquiry for bill ${bill.id}:`, err);
@@ -335,9 +524,42 @@ const BillTransactions: React.FC = () => {
           const companyName = bill.billedTo?.name || enquiryData?.companyDetails?.companyName || "";
           const placeOfSupply = bill.placeOfSupply || bill.billedTo?.state || enquiryData?.state || "Tamil Nadu";
 
+          // Safely parse bill items if stored as JSON string
+          let billItems = bill.items;
+          if (typeof billItems === "string") {
+            try {
+              billItems = JSON.parse(billItems);
+            } catch (e) {
+              billItems = [];
+            }
+          }
+
+          if ((!billItems || !Array.isArray(billItems) || billItems.length === 0) && enquiryData) {
+            try {
+              let parsed = enquiryData.materials || enquiryData.products || enquiryData.items;
+              if (typeof parsed === "string") {
+                parsed = JSON.parse(parsed);
+              }
+              if (Array.isArray(parsed)) {
+                billItems = parsed.map((m: any) => ({
+                  productId: m.productId || m.id,
+                  productName: m.productName || m.name || "Item",
+                  quantity: Number(m.quantity) || 1,
+                  price: Number(m.price) || 0,
+                  total: Number(m.totalAmount || m.total || (Number(m.price || 0) * Number(m.quantity || 1))),
+                  purchasePrice: m.purchasePrice !== undefined ? Number(m.purchasePrice) : undefined,
+                  hsn: m.hsn || m.hsnCode || "",
+                }));
+              }
+            } catch (e) {
+              console.warn("Could not parse enquiry materials for bill:", bill.id, e);
+            }
+          }
+
           if (!enquiryData) {
             return {
               ...bill,
+              items: Array.isArray(billItems) ? billItems : [],
               status: "quotation" as const,
               paymentStatus: "pending" as const,
               paymentType: "N/A",
@@ -351,16 +573,12 @@ const BillTransactions: React.FC = () => {
 
           const productStatus = enquiryData?.status || "";
           const paymentStatus = enquiryData?.paymentStatus || "";
-          const isProformaInvoice = bill.isProformaInvoice || enquiryData?.isProformaInvoice || false;
 
-          let status: "quotation" | "paid" | "proforma" | "dropped" = "quotation";
+          let status: "quotation" | "paid" | "dropped" = "quotation";
           let transactionPaymentStatus: "pending" | "completed" = "pending";
 
           if (productStatus.toLowerCase() === "dropped" || enquiryData?.status?.toLowerCase() === "dropped") {
             status = "dropped";
-            transactionPaymentStatus = "pending";
-          } else if (isProformaInvoice) {
-            status = "proforma";
             transactionPaymentStatus = "pending";
           } else if (
             productStatus === "Approved" ||
@@ -374,12 +592,14 @@ const BillTransactions: React.FC = () => {
             status = "paid";
             transactionPaymentStatus = "completed";
           } else {
+            // Proforma details and quotations are all unified under quotation
             status = "quotation";
             transactionPaymentStatus = "pending";
           }
 
           return {
             ...bill,
+            items: Array.isArray(billItems) ? billItems : [],
             status,
             paymentStatus: transactionPaymentStatus,
             paymentType: paymentSubStatus,
@@ -430,7 +650,7 @@ const BillTransactions: React.FC = () => {
 
   useEffect(() => {
     calculateStatistics();
-  }, [filteredTransactions]);
+  }, [filteredTransactions, productsMap, productsByName, productsList]);
 
   const filterTransactions = () => {
     let filtered = [...transactions];
@@ -473,13 +693,11 @@ const BillTransactions: React.FC = () => {
       filtered = filtered.filter((b) => !b.isGST);
     }
 
-    // 3. Order Status Filter (All, Approved/Paid, Quotation, Proforma, Dropped)
+    // 3. Order Status Filter (All, Approved/Paid, Quotation, Dropped)
     if (orderStatusFilter === "approved") {
       filtered = filtered.filter((b) => b.status === "paid");
     } else if (orderStatusFilter === "quotation") {
       filtered = filtered.filter((b) => b.status === "quotation");
-    } else if (orderStatusFilter === "proforma") {
-      filtered = filtered.filter((b) => b.status === "proforma");
     } else if (orderStatusFilter === "dropped") {
       filtered = filtered.filter((b) => b.status === "dropped");
     }
@@ -525,7 +743,8 @@ const BillTransactions: React.FC = () => {
           ? b.createdAt.toDate()
           : null;
         if (!d || isNaN(d.getTime())) return false;
-        const yyyy = d.getFullYear();
+        const yyyy
+        = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, "0");
         return `${yyyy}-${mm}` === monthFilter;
       });
@@ -536,6 +755,14 @@ const BillTransactions: React.FC = () => {
   };
 
   const calculateStatistics = () => {
+    let purchaseVal = 0;
+    let sellVal = 0;
+    let refundVal = 0;
+    let refundCnt = 0;
+    let activeBillsCnt = 0;
+    let paidSellVal = 0;
+    let purchaseItemsCnt = 0;
+
     let totalTaxable = 0;
     let totalCGST = 0;
     let totalSGST = 0;
@@ -558,19 +785,132 @@ const BillTransactions: React.FC = () => {
       const sgst = Number(bill.sgst || 0);
       const igst = Number(bill.igst || 0);
       const shipping = Number(bill.shippingCharges || 0);
-      const total = Number(bill.totalAmount || subtotal + cgst + sgst + igst + shipping);
+      const billTotal = Number(
+        bill.totalAmount !== undefined && bill.totalAmount !== null
+          ? bill.totalAmount
+          : subtotal + cgst + sgst + igst + shipping
+      );
 
       totalTaxable += subtotal;
       totalCGST += cgst;
       totalSGST += sgst;
       totalIGST += igst;
       totalShipping += shipping;
-      totalGrandRevenue += total;
+      totalGrandRevenue += billTotal;
+
+      // Check if this record is dropped / cancelled / refunded
+      const isDroppedOrRefunded =
+        bill.status === "dropped" ||
+        bill.paymentStatus === "refunded" ||
+        (bill as any).refunded === true ||
+        (typeof bill.paymentSubStatus === "string" && bill.paymentSubStatus.toLowerCase().includes("refund")) ||
+        (typeof bill.enquiryStatus === "string" && bill.enquiryStatus.toLowerCase() === "dropped");
+
+      if (isDroppedOrRefunded) {
+        refundVal += billTotal;
+        refundCnt++;
+      } else {
+        sellVal += billTotal;
+        activeBillsCnt++;
+        if (isPaid) {
+          paidSellVal += billTotal;
+        }
+
+        // Calculate Purchase Value for this active bill record
+        let billPurchase = 0;
+        let billItemsQty = 0;
+
+        // Resolve items array safely (handle JSON strings if any)
+        let itemsList: any[] = bill.items;
+        if (typeof itemsList === "string") {
+          try {
+            itemsList = JSON.parse(itemsList);
+          } catch (e) {
+            itemsList = [];
+          }
+        }
+        if (!Array.isArray(itemsList) || itemsList.length === 0) {
+          const altItems = (bill as any).materials || (bill as any).products;
+          if (Array.isArray(altItems)) {
+            itemsList = altItems;
+          } else if (typeof altItems === "string") {
+            try {
+              itemsList = JSON.parse(altItems);
+            } catch (e) {
+              itemsList = [];
+            }
+          }
+        }
+
+        if (Array.isArray(itemsList) && itemsList.length > 0) {
+          // Sum up item purchase costs from inventory catalog or explicit item cost
+          for (const item of itemsList) {
+            const qty = Number(item.quantity) || 1;
+            billItemsQty += qty;
+
+            // 1. Check if item has explicit purchase price
+            const explicitItemCost =
+              (item as any).purchasePrice ??
+              (item as any).costPrice ??
+              (item as any).cost ??
+              (item as any).buyingPrice;
+
+            if (
+              explicitItemCost !== undefined &&
+              explicitItemCost !== null &&
+              !isNaN(Number(explicitItemCost)) &&
+              Number(explicitItemCost) > 0
+            ) {
+              billPurchase += Number(explicitItemCost) * qty;
+              continue;
+            }
+
+            // 2. Comprehensive matching with live inventory dashboard products
+            const matchedProd = findInventoryProduct(item);
+            if (matchedProd) {
+              // In products collection, currentPrice is the unit purchase cost
+              const unitCost = Number(matchedProd.currentPrice ?? matchedProd.purchasePrice ?? 0);
+              if (unitCost > 0) {
+                billPurchase += unitCost * qty;
+                continue;
+              }
+            }
+          }
+        }
+
+        // If no item-level purchase cost was found, fall back to explicit bill-level cost if available
+        if (billPurchase === 0) {
+          const explicitBillCost = (bill as any).purchaseValue ?? (bill as any).totalCost;
+          if (
+            explicitBillCost !== undefined &&
+            explicitBillCost !== null &&
+            !isNaN(Number(explicitBillCost)) &&
+            Number(explicitBillCost) > 0
+          ) {
+            billPurchase = Number(explicitBillCost);
+          }
+        }
+
+        purchaseVal += billPurchase;
+        purchaseItemsCnt += billItemsQty;
+      }
     });
 
+    const netMarg = sellVal - purchaseVal;
+    const margPct = sellVal > 0 ? (netMarg / sellVal) * 100 : 0;
     const totalGST = totalCGST + totalSGST + totalIGST;
 
     setStatistics({
+      purchaseValue: purchaseVal,
+      sellValue: sellVal,
+      netMargin: netMarg,
+      marginPercentage: margPct,
+      refundValue: refundVal,
+      refundCount: refundCnt,
+      activeBillsCount: activeBillsCnt,
+      paidSellValue: paidSellVal,
+      purchaseItemsCount: purchaseItemsCnt,
+
       totalBills: filteredTransactions.length,
       paidBillsCount: paidCount,
       quoteBillsCount: quoteCount,
@@ -593,7 +933,7 @@ const BillTransactions: React.FC = () => {
     setEditingBankDetails(false);
     setEditingTerms(false);
     // Load terms from bill or use defaults
-    const billTerms = (bill as any).terms || (bill.status === "proforma" ? defaultTerms : defaultTerms);
+    const billTerms = (bill as any).terms || defaultTerms;
     setEditBankDetails((bill as any).bankDetails || defaultBankDetails);
     setEditTerms(Array.isArray(billTerms) ? billTerms : defaultTerms);
     setEditIncludeSignature((bill as any).includeSignature !== undefined ? (bill as any).includeSignature : true);
@@ -619,8 +959,22 @@ const BillTransactions: React.FC = () => {
       setTimeout(() => setError(null), 3000);
       return;
     }
+    savedSearchTermRef.current = searchTerm;
     setBillToDelete(bill);
+    setDeleteAdminPassword("");
+    setShowDeleteAdminPassword(false);
+    setDeletePasswordError(null);
     setShowDeleteConfirm(true);
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setBillToDelete(null);
+    setDeleteAdminPassword("");
+    setShowDeleteAdminPassword(false);
+    setDeletePasswordError(null);
+    // Restore search term in case browser credential manager autofill injected text into search
+    setSearchTerm(savedSearchTermRef.current || "");
   };
 
   const handleConfirmDelete = async () => {
@@ -632,14 +986,52 @@ const BillTransactions: React.FC = () => {
       setBillToDelete(null);
       return;
     }
-    
+
+    if (!deleteAdminPassword.trim()) {
+      setDeletePasswordError("Please enter your admin password to confirm deletion.");
+      return;
+    }
+
     setDeleting(true);
+    setDeletePasswordError(null);
+
+    // Verify admin password with Firebase Auth
+    try {
+      const authInstance = getAuth();
+      const currentUser = authInstance.currentUser || authUser;
+      if (!currentUser || !currentUser.email) {
+        setDeletePasswordError("No signed-in admin user found. Please reload and log in again.");
+        setDeleting(false);
+        return;
+      }
+
+      const credential = EmailAuthProvider.credential(currentUser.email, deleteAdminPassword);
+      await reauthenticateWithCredential(currentUser, credential);
+    } catch (authErr: any) {
+      console.error("Admin password reauthentication failed:", authErr);
+      const code = authErr?.code;
+      if (
+        code === "auth/wrong-password" ||
+        code === "auth/invalid-credential" ||
+        code === "auth/invalid-password"
+      ) {
+        setDeletePasswordError("Incorrect admin password. Deletion cancelled.");
+      } else if (code === "auth/too-many-requests") {
+        setDeletePasswordError("Too many failed attempts. Please try again later.");
+      } else {
+        setDeletePasswordError(authErr.message || "Failed to verify admin password.");
+      }
+      setDeleting(false);
+      return;
+    }
+    
     try {
       if (billToDelete.id) {
         await billService.deleteBill(billToDelete.id);
       }
       setShowDeleteConfirm(false);
       setBillToDelete(null);
+      setDeleteAdminPassword("");
       await fetchTransactions();
     } catch (error) {
       console.error("Error deleting bill:", error);
@@ -648,6 +1040,7 @@ const BillTransactions: React.FC = () => {
           await billService.softDeleteBill(billToDelete.id);
           setShowDeleteConfirm(false);
           setBillToDelete(null);
+          setDeleteAdminPassword("");
           await fetchTransactions();
           return;
         }
@@ -1026,12 +1419,6 @@ const BillTransactions: React.FC = () => {
   // Print bill format (existing)
   const handlePrintBill = () => {
     if (!selectedBill) return;
-    
-    // Check if it's a proforma invoice
-    if (selectedBill.status === "proforma") {
-      handlePrintProformaInvoice(selectedBill);
-      return;
-    }
     
     const isQuotation = selectedBill.status === "quotation";
     const isPaid = selectedBill.paymentStatus === "completed";
@@ -1558,6 +1945,13 @@ const BillTransactions: React.FC = () => {
                 </div>
               </div>
 
+              ${selectedBill.notes ? `
+              <div class="notes-section">
+                <strong>Notes:</strong><br>
+                ${selectedBill.notes.replace(/\n/g, '<br>')}
+              </div>
+              ` : ''}
+
               <div class="terms-section">
                 <div class="terms-title">Terms & Conditions:</div>
                 <ul class="terms-list">
@@ -1609,8 +2003,9 @@ const BillTransactions: React.FC = () => {
 
   const handleExportCSV = () => {
     const headers = [
-      "Invoice #",
+      "S.No.",
       "Enquiry ID",
+      "Invoice #",
       "Invoice Date",
       "Customer / Company Name",
       "Contact Number",
@@ -1630,7 +2025,7 @@ const BillTransactions: React.FC = () => {
       "Generated By",
     ];
 
-    const csvData = filteredTransactions.map((bill) => {
+    const csvData = filteredTransactions.map((bill, index) => {
       const d = bill.billDate?.toDate
         ? bill.billDate.toDate()
         : bill.billDate
@@ -1657,11 +2052,12 @@ const BillTransactions: React.FC = () => {
           : "None";
 
       return [
-        `"${bill.invoiceNumber || ""}"`,
+        index + 1,
         `"${bill.enquiryEnqId || ""}"`,
+        `"${bill.invoiceNumber || ""}"`,
         `"${dateStr}"`,
         `"${(customerDisp || "").replace(/"/g, '""')}"`,
-        `"${bill.customerContact || ""}"`,
+        `"${formatContactNumber(bill.customerContact)}"`,
         `"${bill.gstin || "URP"}"`,
         `"${bill.placeOfSupply || "Tamil Nadu"}"`,
         `"${billTypeStr}"`,
@@ -1700,7 +2096,6 @@ const BillTransactions: React.FC = () => {
   const getStatusBadgeColor = (status: string, type: "status" | "payment") => {
     if (type === "status") {
       if (status === "paid") return "bg-green-100 text-green-800";
-      if (status === "proforma") return "bg-purple-100 text-purple-800";
       if (status === "dropped") return "bg-red-100 text-red-800";
       return "bg-yellow-100 text-yellow-800";
     } else {
@@ -1710,7 +2105,6 @@ const BillTransactions: React.FC = () => {
 
   const getStatusDisplay = (status: string) => {
     if (status === "paid") return "Approved";
-    if (status === "proforma") return "Proforma";
     if (status === "dropped") return "Dropped";
     return "Quotation";
   };
@@ -1735,7 +2129,6 @@ const BillTransactions: React.FC = () => {
   const allCount = transactions.length;
   const invoiceCount = transactions.filter((b) => b.status === "paid").length;
   const quotationCount = transactions.filter((b) => b.status === "quotation").length;
-  const proformaCount = transactions.filter((b) => b.status === "proforma").length;
   const droppedCount = transactions.filter((b) => b.status === "dropped").length;
 
   if (authLoading || loading) {
@@ -1772,7 +2165,7 @@ const BillTransactions: React.FC = () => {
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Bill Transactions</h2>
             <p className="text-sm text-gray-500 mt-1">
-              View and manage your generated invoices, quotations, and proforma invoices
+              View and manage your generated invoices and quotations
               <span className={`ml-2 px-2 py-1 rounded-full text-xs capitalize ${getRoleBadgeColor(userRole)}`}>
                 {userRole}
               </span>
@@ -1793,6 +2186,88 @@ const BillTransactions: React.FC = () => {
               <Download className="w-4 h-4" />
               Export CSV
             </button>
+          </div>
+        </div>
+
+        {/* Top Summary Statistics Cards (Purchase Value, Sell Value, Net Margin, Refund Value) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {/* 1. Purchase Value */}
+          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Purchase Value</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  ₹{statistics.purchaseValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-gray-500 mt-0.5 font-medium">
+                  {statistics.purchaseItemsCount > 0
+                    ? `${statistics.purchaseItemsCount} items billed`
+                    : "Total cost of goods"}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
+                <ShoppingBag className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* 2. Sell Value */}
+          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sell Value</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  ₹{statistics.sellValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-blue-600 mt-0.5 font-medium">
+                  {statistics.activeBillsCount} Active {statistics.activeBillsCount === 1 ? "Bill" : "Bills"} &bull; ₹{statistics.paidSellValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Paid
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                <TrendingUp className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* 3. Net Margin */}
+          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Margin</p>
+                <p className="text-2xl font-bold mt-1">
+                  <span className={statistics.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                    ₹{statistics.netMargin.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </span>
+                </p>
+                <p className="text-xs mt-0.5 font-medium">
+                  <span className={statistics.marginPercentage >= 0 ? "text-emerald-700 font-semibold" : "text-rose-600 font-semibold"}>
+                    {statistics.marginPercentage >= 0 ? "+" : ""}{statistics.marginPercentage.toFixed(1)}% margin
+                  </span>{" "}
+                  &bull; {statistics.netMargin >= 0 ? "Net Profit" : "Net Loss"}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
+                <IndianRupee className="w-5 h-5" />
+              </div>
+            </div>
+          </div>
+
+          {/* 4. Refund Value */}
+          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Refund Value</p>
+                <p className="text-2xl font-bold text-amber-600 mt-1">
+                  ₹{statistics.refundValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5 font-medium">
+                  {statistics.refundCount} Dropped / Cancelled {statistics.refundCount === 1 ? "Bill" : "Bills"}
+                </p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
+                <RotateCcw className="w-5 h-5" />
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1828,16 +2303,6 @@ const BillTransactions: React.FC = () => {
           >
             Quotation ({quotationCount})
           </button>
-          <button
-            onClick={() => setOrderStatusFilter("proforma")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              orderStatusFilter === "proforma"
-                ? "bg-purple-600 text-white shadow-sm ring-2 ring-purple-600 ring-offset-1"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-            }`}
-          >
-            Proforma ({proformaCount})
-          </button>
           {droppedCount > 0 && (
             <button
               onClick={() => setOrderStatusFilter("dropped")}
@@ -1857,7 +2322,7 @@ const BillTransactions: React.FC = () => {
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200/80 pb-3">
             <div className="flex items-center gap-2">
               <Filter className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-semibold text-gray-800">Dynamic Bill Filters</span>
+              <span className="text-sm font-semibold text-gray-800">Filters</span>
               {(billTypeFilter !== "all" ||
                 orderStatusFilter !== "all" ||
                 monthFilter !== "all" ||
@@ -1901,7 +2366,12 @@ const BillTransactions: React.FC = () => {
               </label>
               <div className="relative">
                 <input
-                  type="text"
+                  type="search"
+                  name="billing_search_filter_query"
+                  id="billing_search_filter_query"
+                  autoComplete="off"
+                  data-lpignore="true"
+                  data-form-type="other"
                   placeholder="Customer, Company, GSTIN, Inv #..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -1951,7 +2421,6 @@ const BillTransactions: React.FC = () => {
                 <option value="all">All</option>
                 <option value="approved">Approved</option>
                 <option value="quotation">Quotation</option>
-                <option value="proforma">Proforma</option>
                 <option value="dropped">Dropped</option>
               </select>
             </div>
@@ -2004,178 +2473,153 @@ const BillTransactions: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 p-6 bg-gray-50 border-b">
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Records</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">{statistics.totalBills}</p>
-              <p className="text-xs text-gray-400 mt-0.5 font-medium">
-                {statistics.gstBillsCount} GST (B2B) &bull; {statistics.totalBills - statistics.gstBillsCount} Non-GST
-              </p>
-            </div>
-            <FileText className="w-8 h-8 text-blue-500" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Taxable Value</p>
-              <p className="text-2xl font-bold text-gray-800 mt-1">
-                ₹{statistics.taxableValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5 font-medium">Base Amount (Excl. Tax)</p>
-            </div>
-            <IndianRupee className="w-8 h-8 text-indigo-500" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">GST Collected</p>
-              <p className="text-2xl font-bold text-purple-600 mt-1">
-                ₹{statistics.totalGST.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-purple-600 mt-0.5 font-medium">
-                CGST+SGST: ₹{(statistics.totalCGST + statistics.totalSGST).toLocaleString("en-IN", { maximumFractionDigits: 0 })} &bull; IGST: ₹{statistics.totalIGST.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-              </p>
-            </div>
-            <TrendingUp className="w-8 h-8 text-purple-500" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-lg p-4 shadow-sm border border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Amount</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">
-                ₹{statistics.totalRevenue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-xs text-green-600 mt-0.5 font-medium">
-                {statistics.paidBillsCount} Paid ({((statistics.paidBillsCount / (statistics.totalBills || 1)) * 100).toFixed(0)}%)
-              </p>
-            </div>
-            <CheckCircle className="w-8 h-8 text-green-500" />
-          </div>
-        </div>
-      </div>
-
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[1000px]">
-          <thead className="bg-gray-50">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-100/90 border-b-2 border-gray-200">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Invoice #</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Enquiry ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Date</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap max-w-[150px]">Customer</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Contact</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Amount</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Status</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Payment</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Payment Type</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Generated By</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase whitespace-nowrap">Actions</th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap w-10">
+                S.No.
+              </th>
+              <th className="px-2.5 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Enquiry ID
+              </th>
+              <th className="px-2.5 py-3 text-left text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Invoice #
+              </th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Date
+              </th>
+              <th className="px-2.5 py-3 text-left text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Customer
+              </th>
+              <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Contact
+              </th>
+              <th className="px-2.5 py-3 text-right text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Amount
+              </th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Status
+              </th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Payment
+              </th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Payment Type
+              </th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
+                Generated By
+              </th>
+              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap w-14">
+                Actions
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
             {currentItems.length > 0 ? (
-              currentItems.map((bill) => (
-                <tr key={bill.id} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900">{bill.invoiceNumber}</div>
-                    <div className="text-xs text-gray-500">ID: {bill.billId?.slice(-6) || bill.id?.slice(-6)}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-1">
-                      <Hash className="w-3 h-3 text-gray-400" />
-                      <span className="text-sm font-mono text-blue-600">
+              currentItems.map((bill, index) => {
+                const serialNumber = indexOfFirstItem + index + 1;
+                return (
+                  <tr key={bill.id} className="hover:bg-gray-50/80 transition-colors">
+                    <td className="px-2 py-2.5 whitespace-nowrap text-center text-xs font-bold text-gray-600">
+                      {serialNumber}
+                    </td>
+                    <td className="px-2.5 py-2.5 whitespace-nowrap text-center">
+                      <span className="text-xs font-mono font-semibold text-blue-600">
                         {bill.enquiryEnqId || "N/A"}
                       </span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {(() => {
-                      const d = bill.billDate?.toDate
-                        ? bill.billDate.toDate()
-                        : bill.billDate
-                        ? new Date(bill.billDate)
-                        : bill.createdAt?.toDate
-                        ? bill.createdAt.toDate()
-                        : null;
-                      return d && !isNaN(d.getTime()) ? d.toLocaleDateString("en-IN") : "N/A";
-                    })()}
-                  </td>
-                  <td className="px-6 py-4 max-w-[150px]">
-                    <div className="text-sm font-medium text-gray-900 truncate" title={bill.customerName}>
-                      {bill.customerName}
-                    </div>
-                    {bill.gstin ? (
-                      <div className="text-[11px] font-mono text-purple-700 bg-purple-50 px-1 rounded inline-block border border-purple-200 mt-0.5" title={`GSTIN: ${bill.gstin}`}>
-                        GST: {bill.gstin}
+                    </td>
+                    <td className="px-2.5 py-2.5 whitespace-nowrap">
+                      <div className="text-xs font-semibold text-gray-900">{bill.invoiceNumber}</div>
+                      <div className="text-[10px] text-gray-400 font-mono">ID: {bill.billId?.slice(-6) || bill.id?.slice(-6)}</div>
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap text-xs text-gray-600 text-center font-medium">
+                      {(() => {
+                        const d = bill.billDate?.toDate
+                          ? bill.billDate.toDate()
+                          : bill.billDate
+                          ? new Date(bill.billDate)
+                          : bill.createdAt?.toDate
+                          ? bill.createdAt.toDate()
+                          : null;
+                        return d && !isNaN(d.getTime()) ? d.toLocaleDateString("en-IN") : "N/A";
+                      })()}
+                    </td>
+                    <td className="px-2.5 py-2.5 max-w-[130px]">
+                      <div className="text-xs font-semibold text-gray-900 truncate" title={bill.customerName}>
+                        {bill.customerName}
                       </div>
-                    ) : (
-                      <div className="text-xs text-gray-500 truncate" title={bill.customerCity}>
-                        {bill.customerCity}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {bill.customerContact}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 text-right font-semibold">
-                    ₹{(bill.totalAmount || 0).toLocaleString("en-IN", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeColor(bill.status, "status")}`}>
-                      {getStatusDisplay(bill.status)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getStatusBadgeColor(bill.paymentStatus, "payment")}`}>
-                      {bill.paymentStatus === "completed" ? "Paid" : "Not Paid"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-800">
-                      {bill.paymentType || "N/A"}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`px-2 py-1 text-xs rounded-full ${getRoleBadgeColor(bill.createdByRole)}`}>
-                      {bill.assignedToName}
-                    </span>
-                    <div className="text-xs text-gray-500 mt-1 capitalize">{bill.createdByRole}</div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <div className="flex items-center justify-center gap-3">
-                      <button
-                        onClick={() => handleViewBill(bill)}
-                        className="text-blue-600 hover:text-blue-800 p-1 rounded hover:bg-blue-50"
-                        title="View Bill"
-                      >
-                        <Eye className="w-5 h-5" />
-                      </button>
-                      {hasDeleteAccess && (
+                      {bill.gstin ? (
+                        <div className="text-[10px] font-mono text-purple-700 bg-purple-50 px-1 py-0.5 rounded border border-purple-200 truncate max-w-[115px] mt-0.5" title={`GSTIN: ${bill.gstin}`}>
+                          GST: {bill.gstin}
+                        </div>
+                      ) : bill.customerCity ? (
+                        <div className="text-[10px] text-gray-400 truncate mt-0.5" title={bill.customerCity}>
+                          {bill.customerCity}
+                        </div>
+                      ) : null}
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap text-xs text-gray-600 font-mono">
+                      {formatContactNumber(bill.customerContact)}
+                    </td>
+                    <td className="px-2.5 py-2.5 whitespace-nowrap text-xs text-gray-900 text-right font-bold tabular-nums">
+                      ₹{(bill.totalAmount || 0).toLocaleString("en-IN", {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      })}
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-800">
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          bill.status === "paid" ? "bg-emerald-500" :
+                          bill.status === "dropped" ? "bg-rose-400" : "bg-amber-500"
+                        }`} />
+                        {getStatusDisplay(bill.status)}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap text-center">
+                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
+                        bill.paymentStatus === "completed" ? "text-emerald-700" : "text-amber-700"
+                      }`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${
+                          bill.paymentStatus === "completed" ? "bg-emerald-500" : "bg-amber-500"
+                        }`} />
+                        {bill.paymentStatus === "completed" ? "Paid" : "Not Paid"}
+                      </span>
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap text-center text-xs text-gray-700 font-medium">
+                      {bill.paymentType || "-"}
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap text-center">
+                      <div className="text-xs text-gray-800 font-medium">{bill.assignedToName || "-"}</div>
+                      <div className="text-[10px] text-gray-400 capitalize">{bill.createdByRole}</div>
+                    </td>
+                    <td className="px-2 py-2.5 whitespace-nowrap text-center w-14">
+                      <div className="flex items-center justify-center gap-1.5">
                         <button
-                          onClick={() => handleDeleteClick(bill)}
-                          className="text-red-600 hover:text-red-800 p-1 rounded hover:bg-red-50"
-                          title="Delete Bill"
+                          onClick={() => handleViewBill(bill)}
+                          className="text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50 cursor-pointer transition"
+                          title="View Bill"
                         >
-                          <Trash2 className="w-5 h-5" />
+                          <Eye className="w-4 h-4" />
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
-            ) : (
+                        {hasDeleteAccess && (
+                          <button
+                            onClick={() => handleDeleteClick(bill)}
+                            className="text-red-600 hover:text-red-800 p-1 rounded-md hover:bg-red-50 cursor-pointer transition"
+                            title="Delete Bill"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
+          ) : (
               <tr>
-                <td colSpan={11} className="text-center py-12">
+                <td colSpan={12} className="text-center py-12">
                   <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
                   <p className="text-base font-medium text-gray-700">No bill transactions match your filters</p>
                   <p className="text-xs text-gray-400 mt-1">Try adjusting your Bill type, Order status, or Month filters</p>
@@ -2262,34 +2706,28 @@ const BillTransactions: React.FC = () => {
               </div>
 
               <div className={`mb-6 p-4 rounded-lg ${
-                selectedBill.status === "proforma" ? "bg-purple-50 border border-purple-200" :
                 selectedBill.paymentStatus === "completed" ? "bg-green-50 border border-green-200" : 
                 "bg-yellow-50 border border-yellow-200"
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    {selectedBill.status === "proforma" ? (
-                      <FileText className="w-5 h-5 text-purple-600" />
-                    ) : selectedBill.paymentStatus === "completed" ? (
+                    {selectedBill.paymentStatus === "completed" ? (
                       <CheckCircle className="w-5 h-5 text-green-600" />
                     ) : (
                       <AlertCircle className="w-5 h-5 text-yellow-600" />
                     )}
                     <span className={`font-semibold ${
-                      selectedBill.status === "proforma" ? "text-purple-800" :
                       selectedBill.paymentStatus === "completed" ? "text-green-800" : 
                       "text-yellow-800"
                     }`}>
-                      {selectedBill.status === "proforma" ? "Proforma Invoice" : "Payment Status:"}
+                      Payment Status:
                     </span>
                   </div>
                   <span className={`px-3 py-1 rounded-full font-semibold ${
-                    selectedBill.status === "proforma" ? "bg-purple-100 text-purple-800" :
                     selectedBill.paymentStatus === "completed" ? "bg-green-100 text-green-800" : 
                     "bg-yellow-100 text-yellow-800"
                   }`}>
-                    {selectedBill.status === "proforma" ? "PROFORMA" :
-                     selectedBill.paymentStatus === "completed" ? "PAID" : "NOT PAID"}
+                    {selectedBill.paymentStatus === "completed" ? "PAID" : "NOT PAID"}
                   </span>
                 </div>
                 <div className="mt-2 text-sm">
@@ -2534,14 +2972,6 @@ const BillTransactions: React.FC = () => {
                 )}
               </div>
 
-              {/* Notes Section for Proforma */}
-              {selectedBill.status === "proforma" && selectedBill.notes && (
-                <div className="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200">
-                  <h4 className="font-semibold mb-2">Notes</h4>
-                  <p className="text-sm text-gray-700 whitespace-pre-line">{selectedBill.notes}</p>
-                </div>
-              )}
-
               <div className="bg-gray-50 p-4 rounded-lg mb-6">
                 <h4 className="font-semibold mb-3">Tax Summary</h4>
                 <div className="space-y-2">
@@ -2595,10 +3025,10 @@ const BillTransactions: React.FC = () => {
                 </div>
               </div>
 
-              {selectedBill.notes && selectedBill.status !== "proforma" && (
-                <div className="bg-blue-50 p-4 rounded-lg mb-6">
+              {selectedBill.notes && (
+                <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-200">
                   <h4 className="font-semibold mb-2">Notes</h4>
-                  <p className="text-sm text-gray-700">{selectedBill.notes}</p>
+                  <p className="text-sm text-gray-700 whitespace-pre-line">{selectedBill.notes}</p>
                 </div>
               )}
             </div>
@@ -2626,7 +3056,7 @@ const BillTransactions: React.FC = () => {
                   className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-medium"
                 >
                   <Printer className="w-4 h-4" />
-                  {selectedBill.status === "proforma" ? "Print Proforma" : "Print Bill"}
+                  Print Bill
                 </button>
                 <button
                   onClick={() => setSelectedBill(null)}
@@ -2640,53 +3070,125 @@ const BillTransactions: React.FC = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal with Admin Password Verification */}
       {showDeleteConfirm && billToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-md p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="bg-red-100 p-2 rounded-full">
-                <AlertCircle className="w-6 h-6 text-red-600" />
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={handleCancelDelete}
+        >
+          <div 
+            className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6 border border-gray-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <form onSubmit={(e) => { e.preventDefault(); handleConfirmDelete(); }} autoComplete="off">
+              {/* Hidden decoy fields to trap browser password managers from touching the page's search input */}
+              <input type="text" name="decoy_user_field" style={{ display: "none" }} tabIndex={-1} autoComplete="username" />
+              <input type="password" name="decoy_pwd_field" style={{ display: "none" }} tabIndex={-1} autoComplete="current-password" />
+
+              <div className="flex items-center gap-3 mb-4">
+                <div className="bg-red-100 p-2.5 rounded-xl text-red-600">
+                  <AlertCircle className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+                  <p className="text-xs text-gray-500">Admin authorization required</p>
+                </div>
               </div>
-              <h3 className="text-lg font-semibold">Confirm Delete</h3>
-            </div>
-            <p className="text-gray-600 mb-2">Are you sure you want to delete this bill transaction?</p>
-            <p className="text-sm text-gray-500 mb-6">
-              <strong>Invoice:</strong> {billToDelete.invoiceNumber}<br />
-              <strong>Enquiry ID:</strong> {billToDelete.enquiryEnqId || "N/A"}<br />
-              <strong>Customer:</strong> {billToDelete.customerName}<br />
-              <strong>Amount:</strong> ₹{billToDelete.totalAmount?.toFixed(2)}<br />
-              <strong className="text-red-600">This action cannot be undone. The transaction will be permanently removed.</strong>
-            </p>
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => {
-                  setShowDeleteConfirm(false);
-                  setBillToDelete(null);
-                }}
-                className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300"
-                disabled={deleting}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleConfirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center gap-2"
-                disabled={deleting}
-              >
-                {deleting ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    Deleting...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="w-4 h-4" />
-                    Delete Transaction
-                  </>
+
+              <div className="p-3.5 bg-gray-50 rounded-xl border border-gray-200 mb-4 text-xs space-y-1.5 text-gray-700">
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Invoice #:</span>
+                  <span className="font-semibold text-gray-900">{billToDelete.invoiceNumber}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Enquiry ID:</span>
+                  <span className="font-mono text-blue-600 font-semibold">{billToDelete.enquiryEnqId || "N/A"}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Customer:</span>
+                  <span className="font-semibold text-gray-900 truncate max-w-[200px]">{billToDelete.customerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-500 font-medium">Total Amount:</span>
+                  <span className="font-bold text-gray-900">₹{(billToDelete.totalAmount || 0).toFixed(2)}</span>
+                </div>
+              </div>
+
+              {/* Admin Password Input */}
+              <div className="mb-5">
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-red-600" />
+                  Enter your Admin Password ({authUser?.email || "Signed-in Admin"}):
+                </label>
+                <div className="relative">
+                  <input
+                    type={showDeleteAdminPassword ? "text" : "password"}
+                    name="admin_delete_auth_secret_key"
+                    id="admin_delete_auth_secret_key"
+                    autoComplete="new-password"
+                    data-lpignore="true"
+                    data-form-type="other"
+                    placeholder="Enter your login password to delete"
+                    value={deleteAdminPassword}
+                    onChange={(e) => {
+                      setDeleteAdminPassword(e.target.value);
+                      if (deletePasswordError) setDeletePasswordError(null);
+                    }}
+                    autoFocus
+                    className={`w-full pl-3 pr-10 py-2.5 text-sm border rounded-xl outline-none transition ${
+                      deletePasswordError
+                        ? "border-red-500 ring-2 ring-red-100 bg-red-50/20"
+                        : "border-gray-300 focus:border-red-500 focus:ring-2 focus:ring-red-100 bg-white"
+                    }`}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteAdminPassword(!showDeleteAdminPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                    tabIndex={-1}
+                  >
+                    {showDeleteAdminPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {deletePasswordError && (
+                  <p className="mt-1.5 text-xs text-red-600 font-medium flex items-center gap-1">
+                    <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                    {deletePasswordError}
+                  </p>
                 )}
-              </button>
-            </div>
+                <p className="mt-2 text-[11px] text-gray-400">
+                  This transaction will be permanently removed. Password verification ensures only the authorized admin can delete this bill.
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleCancelDelete}
+                  className="px-4 py-2 text-xs sm:text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition cursor-pointer"
+                  disabled={deleting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs sm:text-sm font-semibold bg-red-600 text-white rounded-xl hover:bg-red-700 flex items-center gap-2 transition cursor-pointer disabled:opacity-50"
+                  disabled={deleting}
+                >
+                  {deleting ? (
+                    <>
+                      <RefreshCw className="w-4 h-4 animate-spin" />
+                      Verifying & Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      Verify & Delete
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

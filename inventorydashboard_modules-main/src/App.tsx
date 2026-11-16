@@ -11,6 +11,7 @@ import Login from "./pages/Login";
 import Unauthorized from "./pages/Unauthorized";
 import EnquiryPage from "./pages/Enquiry"; // your existing enquiries page
 import DroppedPage from "./pages/dropped"; 
+import ManageUsers from "./pages/admin/ManageUsers";
 import AddAdminPage from "./pages/admin/AddAdmin";
 import AddManagerPage from "./pages/admin/AddManager";
 import AddStaffPage from "./pages/admin/AddStaff";
@@ -23,6 +24,7 @@ import TaskManagement from "./pages/TaskManagement";
 import InventoryManagement from "./pages/InventoryManagement";
 import TrainingManagement from "./pages/TrainingManagement";
 import Reports from "./pages/Reports";
+import PNL from "./pages/PNL";
 
 type AppUser = {
   uid: string;
@@ -144,15 +146,17 @@ export default function App() {
             {/* Enquiries */}
             <Route path="/enquiries" element={<EnquiryPage />} />
             <Route path="/dropped" element={<DroppedPage />} />
-            <Route path="/admin/add-admin" element={<AddAdminPage />} />
-            <Route path="/admin/add-manager" element={<AddManagerPage />} />
-            <Route path="/admin/add-staff" element={<AddStaffPage />} />
+            <Route path="/admin/manage-users" element={<ManageUsers />} />
+            <Route path="/admin/add-admin" element={<ManageUsers defaultRole="admin" />} />
+            <Route path="/admin/add-manager" element={<ManageUsers defaultRole="manager" />} />
+            <Route path="/admin/add-staff" element={<ManageUsers defaultRole="staff" />} />
             <Route path="/manage-teams" element={<ManageTeams />} />
             <Route path="/master-data" element={<MasterData />} />
             <Route path="/task" element={<TaskManagement/>}/>
             <Route path="/inventory" element={<InventoryManagement/>}/>
             <Route path="/training" element={<TrainingManagement/>}/>
             <Route path="/bills" element={<BillTransactions />} />
+            <Route path="/pnl" element={<PNL />} />
             <Route path="/reports" element={<Reports />} />
             {/* <Route path="/settings" element={<Settings />} /> */}
             

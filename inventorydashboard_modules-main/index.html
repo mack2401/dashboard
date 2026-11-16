@@ -8,6 +8,45 @@
   </head>
   <body>
     <div id="root"></div>
+    <script>
+      function reportClientError(data) {
+        try {
+          fetch('/__client_error', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          }).catch(function () {});
+        } catch (e) {}
+      }
+
+      window.addEventListener('error', function (e) {
+        reportClientError({
+          source: 'window.error',
+          message: e.message,
+          filename: e.filename,
+          lineno: e.lineno,
+          colno: e.colno,
+          stack: e.error ? e.error.stack : null
+        });
+
+        var root = document.getElementById('root');
+        if (root && (!root.innerHTML || root.innerHTML.trim() === '')) {
+          root.innerHTML = '<div style="padding: 24px; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, sans-serif; max-width: 650px; margin: 40px auto; background: #fff; border: 1px solid #fee2e2; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.06);">' +
+            '<h2 style="color: #dc2626; margin: 0 0 8px 0; font-size: 18px;">Startup Error</h2>' +
+            '<p style="color: #4b5563; font-size: 13px; margin: 0 0 12px 0;">The browser encountered an error while starting the application:</p>' +
+            '<pre style="background: #fef2f2; color: #991b1b; padding: 12px; border-radius: 8px; font-size: 12px; overflow-x: auto; white-space: pre-wrap;">' + (e.error ? (e.error.stack || e.error.message) : e.message) + '</pre>' +
+            '<button onclick="location.reload()" style="margin-top: 14px; padding: 8px 16px; background: #2563eb; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer;">Reload Application</button>' +
+            '</div>';
+        }
+      });
+
+      window.addEventListener('unhandledrejection', function (e) {
+        reportClientError({
+          source: 'window.unhandledrejection',
+          reason: String(e.reason && (e.reason.stack || e.reason.message) ? (e.reason.stack || e.reason.message) : e.reason)
+        });
+      });
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

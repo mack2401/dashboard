@@ -94,6 +94,7 @@ interface Product {
   lowStockThreshold: number;
   stockEntries: StockEntry[];
   currentPrice?: number;
+  purchasePrice?: number;
   image?: string; // Base64 image data
   productType?: 'inventory' | 'quote_purpose' | string;
   isQuoteOnly?: boolean;
@@ -103,6 +104,8 @@ interface Product {
   deleteRequestedAt?: Timestamp;
   enquiryCount?: number;
   approvedBillCount?: number;
+  isOldStock?: boolean;
+  lastImportedAt?: Timestamp | Date;
 }
 
 interface Transaction {
@@ -121,9 +124,9 @@ interface Transaction {
   createdAt: Timestamp;
 }
 
-type SortField = 'name' | 'totalQuantity' | 'currentPrice' | 'totalValue' | 'category' | 'updatedAt' | 'createdAt' | 'hsnCode';
+type SortField = 'name' | 'totalQuantity' | 'currentPrice' | 'purchasePrice' | 'totalValue' | 'category' | 'updatedAt' | 'createdAt' | 'hsnCode';
 type SortDirection = 'asc' | 'desc';
-type StockFilter = 'all' | 'low' | 'out' | 'normal';
+type StockFilter = 'all' | 'low' | 'out' | 'normal' | 'old';
 type TransactionTypeFilter = 'all' | 'add' | 'deliver' | 'delete';
 
 // ============ HELPER FUNCTIONS ============
@@ -264,6 +267,21 @@ export const calculateDispatchedQuantity = (product: Product): number => {
   return stockEntries.filter(e => e.type === 'deliver').reduce((q, e) => q + (e.quantity || 0), 0);
 };
 
+export const getProductPurchasePrice = (product: Product): number => {
+  if (product.purchasePrice !== undefined && product.purchasePrice !== null && !isNaN(product.purchasePrice)) {
+    return product.purchasePrice;
+  }
+  const stockEntries = product.stockEntries || [];
+  const addEntries = stockEntries.filter(e => e.type !== 'deliver');
+  if (addEntries.length > 0) {
+    const totalCost = addEntries.reduce((sum, e) => sum + (e.totalPrice || ((e.quantity || 0) * (e.unitPrice || 0))), 0);
+    const totalQty = addEntries.reduce((sum, e) => sum + (e.quantity || 0), 0);
+    if (totalQty > 0) return totalCost / totalQty;
+    if (addEntries[0].unitPrice !== undefined) return addEntries[0].unitPrice;
+  }
+  return product.currentPrice || 0;
+};
+
 // ============ MAIN COMPONENT ============
 const InventoryManagement: React.FC = () => {
   const { user } = useAuth();
@@ -298,6 +316,16 @@ const InventoryManagement: React.FC = () => {
   const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   const [categories, setCategories] = useState<string[]>([]);
   const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const importExcelInputRef = useRef<HTMLInputElement>(null);
+  const [importSummary, setImportSummary] = useState<{
+    fileName: string;
+    totalRows: number;
+    matchedProducts: { product: Product; newSOH: number; newPurchasePrice?: number; newSellingPrice?: number; rowData: any }[];
+    newProducts: any[];
+    missedProducts: Product[];
+  } | null>(null);
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
   const [isDeletingTransactions, setIsDeletingTransactions] = useState(false);
   const [transactionFilter, setTransactionFilter] = useState<TransactionTypeFilter>('all');
@@ -363,9 +391,12 @@ const InventoryManagement: React.FC = () => {
             id: doc.id,
             ...data,
             stockEntries: data.stockEntries || [],
-            currentPrice: data.stockEntries && data.stockEntries.length > 0 
+            currentPrice: data.currentPrice !== undefined ? data.currentPrice : (data.stockEntries && data.stockEntries.length > 0 
               ? data.stockEntries[data.stockEntries.length - 1].unitPrice 
-              : data.price || 0,
+              : data.price || 0),
+            purchasePrice: data.purchasePrice !== undefined ? data.purchasePrice : undefined,
+            isOldStock: data.isOldStock === true,
+            lastImportedAt: data.lastImportedAt || undefined,
           } as Product;
         });
         
@@ -1087,46 +1118,34 @@ const InventoryManagement: React.FC = () => {
     setIsExporting(true);
     try {
       const exportProducts = filteredProducts.map(product => {
-        const currentTotalValue = (product.currentPrice || 0) * product.totalQuantity;
-        const deliveryTotalValue = transactions
-          .filter(t => t.productId === product.id && t.type === 'deliver')
-          .reduce((sum, t) => sum + t.totalAmount, 0);
+        const purchasePrice = product.currentPrice || 0;
+        const sellingPrice = getProductPurchasePrice(product);
+        const soh = product.totalQuantity || 0;
+        const totalValue = purchasePrice * soh;
 
-        const mainRow = {
+        let status = 'In Stock';
+        if (soh === 0) {
+          status = 'Out of Stock';
+        } else if (soh <= (product.lowStockThreshold || 10)) {
+          status = 'Low Stock';
+        }
+
+        return {
+          'HSN Code': product.hsnCode || '',
           'Product Name': product.name,
           'SKU': product.sku || '',
-          'HSN Code': product.hsnCode || '',
-          'Category': product.category,
-          'Total Quantity': product.totalQuantity,
-          'Current Price': product.currentPrice || 0,
-          'Current Total Value': currentTotalValue,
-          'Delivery Total Value': deliveryTotalValue,
-          'Inventory Value (Purchase Cost)': product.totalValue,
-          'Low Stock Threshold': product.lowStockThreshold,
+          'Category': product.category || '',
+          'SOH': soh,
+          'Purchase Price': purchasePrice,
+          'Selling Price': sellingPrice,
+          'Total Value': totalValue,
+          'Status': status,
+          'Low Stock Threshold': product.lowStockThreshold || 10,
           'Description': product.description || '',
           'Created By': resolveUserName(product.createdByName, product.createdBy),
           'Last Updated': formatDate(product.updatedAt),
-          'Has Image': product.image ? 'Yes' : 'No',
         };
-
-        const stockEntryRows = (product.stockEntries || []).map((entry, index) => ({
-          'Product Name': `${product.name} - Stock Entry ${index + 1}`,
-          'SKU': product.sku || '',
-          'HSN Code': product.hsnCode || '',
-          'Category': product.category,
-          'Entry Date': entry.date instanceof Timestamp ? formatDateTime(entry.date) : formatDateTime(new Date(entry.date)),
-          'Quantity Added': entry.quantity,
-          'Unit Price': entry.unitPrice,
-          'Total Price': entry.totalPrice,
-          'Added By': resolveUserName(entry.addedByName, entry.addedBy),
-          'Low Stock Threshold': product.lowStockThreshold,
-          'Description': product.description || '',
-          'Created By': resolveUserName(product.createdByName, product.createdBy),
-          'Last Updated': formatDate(product.updatedAt),
-        }));
-
-        return [mainRow, ...stockEntryRows];
-      }).flat();
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(exportProducts);
       const workbook = XLSX.utils.book_new();
@@ -1137,6 +1156,225 @@ const InventoryManagement: React.FC = () => {
       alert('Failed to export data');
     } finally {
       setIsExporting(false);
+    }
+  };
+
+  const handleImportExcelFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setIsImporting(true);
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const firstSheetName = workbook.SheetNames[0];
+      if (!firstSheetName) {
+        alert('The uploaded Excel file has no sheets.');
+        setIsImporting(false);
+        return;
+      }
+
+      const worksheet = workbook.Sheets[firstSheetName];
+      const rawRows: any[] = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+
+      if (rawRows.length === 0) {
+        alert('The uploaded Excel sheet contains no data.');
+        setIsImporting(false);
+        return;
+      }
+
+      const getRowVal = (row: any, ...keys: string[]) => {
+        const rowKeys = Object.keys(row);
+        for (const k of keys) {
+          const foundKey = rowKeys.find(rk => rk.trim().toLowerCase() === k.trim().toLowerCase());
+          if (foundKey && row[foundKey] !== undefined && row[foundKey] !== null && String(row[foundKey]).trim() !== '') {
+            return row[foundKey];
+          }
+        }
+        return undefined;
+      };
+
+      const matchedProducts: { product: Product; newSOH: number; newPurchasePrice?: number; newSellingPrice?: number; rowData: any }[] = [];
+      const newProducts: any[] = [];
+      const matchedProductIds = new Set<string>();
+
+      rawRows.forEach((row) => {
+        const rowName = getRowVal(row, 'Product Name', 'Product', 'Item Name', 'Name');
+        const rowSku = getRowVal(row, 'SKU', 'sku', 'Item Code', 'Code');
+        const rowHsn = getRowVal(row, 'HSN Code', 'HSN', 'hsnCode', 'hsn');
+        const rowCategory = getRowVal(row, 'Category', 'category');
+        const rowSoh = getRowVal(row, 'SOH', 'Stock on Hand', 'Stock', 'Total Quantity', 'Quantity', 'Qty', 'Current Stock');
+        const rowPurchasePrice = getRowVal(row, 'Purchase Price', 'purchase_price', 'Cost Price', 'Cost', 'Buying Price');
+        const rowSellingPrice = getRowVal(row, 'Selling Price', 'selling_price', 'Sale Price', 'Selling', 'Current Price', 'Price');
+        const rowThreshold = getRowVal(row, 'Low Stock Threshold', 'Low Stock', 'Threshold');
+        const rowDesc = getRowVal(row, 'Description', 'Desc', 'Notes');
+
+        if (!rowName && !rowSku) return;
+
+        const parsedSOH = rowSoh !== undefined && !isNaN(Number(rowSoh)) ? Math.max(0, Number(rowSoh)) : 0;
+        const parsedPurchasePrice = rowPurchasePrice !== undefined && !isNaN(Number(rowPurchasePrice)) ? Number(rowPurchasePrice) : undefined;
+        const parsedSellingPrice = rowSellingPrice !== undefined && !isNaN(Number(rowSellingPrice)) ? Number(rowSellingPrice) : undefined;
+        const parsedThreshold = rowThreshold !== undefined && !isNaN(Number(rowThreshold)) ? Number(rowThreshold) : undefined;
+
+        let matched: Product | undefined;
+        if (rowSku) {
+          matched = products.find(p => p.sku && p.sku.trim().toLowerCase() === String(rowSku).trim().toLowerCase());
+        }
+        if (!matched && rowName) {
+          matched = products.find(p => p.name.trim().toLowerCase() === String(rowName).trim().toLowerCase());
+        }
+
+        if (matched) {
+          matchedProductIds.add(matched.id);
+          matchedProducts.push({
+            product: matched,
+            newSOH: parsedSOH,
+            newPurchasePrice: parsedPurchasePrice,
+            newSellingPrice: parsedSellingPrice,
+            rowData: {
+              name: rowName || matched.name,
+              sku: rowSku || matched.sku,
+              hsnCode: rowHsn !== undefined ? String(rowHsn).trim() : matched.hsnCode,
+              category: rowCategory !== undefined ? String(rowCategory).trim() : matched.category,
+              lowStockThreshold: parsedThreshold !== undefined ? parsedThreshold : matched.lowStockThreshold,
+              description: rowDesc !== undefined ? String(rowDesc).trim() : matched.description,
+            }
+          });
+        } else {
+          newProducts.push({
+            name: rowName ? String(rowName).trim() : (rowSku ? `Item ${rowSku}` : 'New Product'),
+            sku: rowSku ? String(rowSku).trim() : `SKU-${Date.now().toString().slice(-4)}`,
+            hsnCode: rowHsn ? String(rowHsn).trim() : '',
+            category: rowCategory ? String(rowCategory).trim() : 'General',
+            totalQuantity: parsedSOH,
+            currentPrice: parsedPurchasePrice !== undefined ? parsedPurchasePrice : (parsedSellingPrice || 0),
+            purchasePrice: parsedSellingPrice !== undefined ? parsedSellingPrice : undefined,
+            lowStockThreshold: parsedThreshold !== undefined ? parsedThreshold : 10,
+            description: rowDesc ? String(rowDesc).trim() : '',
+          });
+        }
+      });
+
+      const missedProducts = products.filter(p => !matchedProductIds.has(p.id));
+
+      setImportSummary({
+        fileName: file.name,
+        totalRows: rawRows.length,
+        matchedProducts,
+        newProducts,
+        missedProducts,
+      });
+      setIsImportModalOpen(true);
+    } catch (err) {
+      console.error('Error reading excel file:', err);
+      alert('Failed to parse Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.');
+    } finally {
+      setIsImporting(false);
+      if (importExcelInputRef.current) {
+        importExcelInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleConfirmImport = async () => {
+    if (!importSummary || !user) return;
+
+    try {
+      setIsImporting(true);
+      const CHUNK_SIZE = 400;
+      const operations: { ref: any; data: any; isNew?: boolean }[] = [];
+
+      // 1. Overwrite existing matched products & clear oldStock flag
+      importSummary.matchedProducts.forEach(item => {
+        const prodRef = doc(db, 'products', item.product.id);
+        const updateData: any = {
+          totalQuantity: item.newSOH,
+          isOldStock: false,
+          updatedAt: serverTimestamp(),
+          lastImportedAt: serverTimestamp(),
+        };
+
+        if (item.newPurchasePrice !== undefined) {
+          updateData.currentPrice = item.newPurchasePrice;
+        }
+        if (item.newSellingPrice !== undefined) {
+          updateData.purchasePrice = item.newSellingPrice;
+        }
+        if (item.rowData.hsnCode !== undefined) {
+          updateData.hsnCode = item.rowData.hsnCode;
+        }
+        if (item.rowData.category) {
+          updateData.category = item.rowData.category;
+        }
+        if (item.rowData.lowStockThreshold !== undefined) {
+          updateData.lowStockThreshold = item.rowData.lowStockThreshold;
+        }
+        if (item.rowData.description !== undefined) {
+          updateData.description = item.rowData.description;
+        }
+
+        operations.push({ ref: prodRef, data: updateData });
+      });
+
+      // 2. Insert new products
+      importSummary.newProducts.forEach(item => {
+        const newRef = doc(collection(db, 'products'));
+        const newProdData = {
+          ...item,
+          totalValue: (item.totalQuantity || 0) * (item.currentPrice || 0),
+          stockEntries: [],
+          isOldStock: false,
+          isQuoteOnly: false,
+          productType: 'inventory',
+          createdBy: user.uid,
+          createdByName: user.name || user.email,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          lastImportedAt: serverTimestamp(),
+        };
+        operations.push({ ref: newRef, data: newProdData, isNew: true });
+      });
+
+      // 3. Mark missed products as isOldStock: true
+      importSummary.missedProducts.forEach(prod => {
+        const prodRef = doc(db, 'products', prod.id);
+        operations.push({
+          ref: prodRef,
+          data: {
+            isOldStock: true,
+            updatedAt: serverTimestamp(),
+          }
+        });
+      });
+
+      // 4. Batch write execution in safe chunks
+      for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
+        const chunk = operations.slice(i, i + CHUNK_SIZE);
+        const batch = writeBatch(db);
+        for (const op of chunk) {
+          if (op.isNew) {
+            batch.set(op.ref, op.data);
+          } else {
+            batch.update(op.ref, op.data);
+          }
+        }
+        await batch.commit();
+      }
+
+      alert(
+        `Import Completed Successfully!\n\n` +
+        `• ${importSummary.matchedProducts.length} existing products updated & overwritten\n` +
+        `• ${importSummary.newProducts.length} new products added\n` +
+        `• ${importSummary.missedProducts.length} missed products identified & tagged as "Old Stock"`
+      );
+
+      setIsImportModalOpen(false);
+      setImportSummary(null);
+    } catch (err) {
+      console.error('Error applying import:', err);
+      alert('Failed to save imported changes to database.');
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -1249,6 +1487,7 @@ const InventoryManagement: React.FC = () => {
         if (filterStock === 'low') return product.totalQuantity <= product.lowStockThreshold && product.totalQuantity > 0;
         if (filterStock === 'out') return product.totalQuantity === 0;
         if (filterStock === 'normal') return product.totalQuantity > product.lowStockThreshold;
+        if (filterStock === 'old') return product.isOldStock === true;
         return true;
       });
     }
@@ -1256,7 +1495,10 @@ const InventoryManagement: React.FC = () => {
     filtered = [...filtered].sort((a, b) => {
       let aValue: any, bValue: any;
       
-      if (sortField === 'updatedAt' || sortField === 'createdAt') {
+      if (sortField === 'purchasePrice') {
+        aValue = getProductPurchasePrice(a);
+        bValue = getProductPurchasePrice(b);
+      } else if (sortField === 'updatedAt' || sortField === 'createdAt') {
         const aVal = a[sortField];
         const bVal = b[sortField];
         aValue = aVal instanceof Timestamp ? aVal.toDate() : (aVal instanceof Date ? aVal : new Date(aVal as any));
@@ -1295,14 +1537,16 @@ const InventoryManagement: React.FC = () => {
   // ============ STATISTICS ============
   const stats = useMemo(() => {
     const totalProducts = products.length;
-    // const totalValue = products.reduce((sum, p) => sum + calculateCurrentPurchaseValue(p), 0);
-    const totalValue = products.reduce((sum, p) => sum + (p.totalQuantity * (p.currentPrice || 0)), 0);
+    const totalSOH = products.reduce((sum, p) => sum + (p.totalQuantity || 0), 0);
+    const totalPurchasePrice = products.reduce((sum, p) => sum + ((p.totalQuantity || 0) * (p.currentPrice || 0)), 0);
+    const totalValue = totalPurchasePrice;
     const lowStock = products.filter(p => 
       p.totalQuantity <= p.lowStockThreshold && p.totalQuantity > 0
     ).length;
     const outOfStock = products.filter(p => p.totalQuantity === 0).length;
+    const oldStock = products.filter(p => p.isOldStock === true).length;
     
-    const totalCurrentValue = products.reduce((sum, p) => sum + ((p.currentPrice || 0) * p.totalQuantity), 0);
+    const totalCurrentValue = totalPurchasePrice;
     
     const totalDeliveryValue = transactions
       .filter(t => t.type === 'deliver')
@@ -1310,11 +1554,14 @@ const InventoryManagement: React.FC = () => {
     
     return {
       totalProducts,
+      totalSOH,
+      totalPurchasePrice,
       totalValue,
       lowStock,
       outOfStock,
       totalCurrentValue,
       totalDeliveryValue,
+      oldStock,
     };
   }, [products, transactions]);
 
@@ -1333,16 +1580,24 @@ const InventoryManagement: React.FC = () => {
     const color = getStockColor(product.totalQuantity, product.lowStockThreshold);
     
     return (
-      <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-medium border ${color}`}>
-        {status === 'out-of-stock' ? <XCircle className="w-3 h-3 mr-1" /> :
-         status === 'low-stock' ? <AlertCircle className="w-3 h-3 mr-1" /> :
-         <CheckCircle className="w-3 h-3 mr-1" />}
-        <span>
-          {status === 'out-of-stock' ? 'Out of Stock' : 
-           status === 'low-stock' ? 'Low Stock' : 
-           'In Stock'}
+      <div className="flex flex-col items-center gap-1">
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${color}`}>
+          {status === 'out-of-stock' ? <XCircle className="w-3 h-3 mr-1" /> :
+           status === 'low-stock' ? <AlertCircle className="w-3 h-3 mr-1" /> :
+           <CheckCircle className="w-3 h-3 mr-1" />}
+          <span>
+            {status === 'out-of-stock' ? 'Out of Stock' : 
+             status === 'low-stock' ? 'Low Stock' : 
+             'In Stock'}
+          </span>
         </span>
-      </span>
+        {product.isOldStock && (
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-50 text-amber-700 border border-amber-200" title="Missed in latest imported Excel">
+            <Clock className="w-2.5 h-2.5 text-amber-600" />
+            Old Stock
+          </span>
+        )}
+      </div>
     );
   };
 
@@ -2543,6 +2798,137 @@ const InventoryManagement: React.FC = () => {
     );
   };
 
+  const renderImportModal = () => {
+    if (!importSummary) return null;
+
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-gray-100 max-h-[90vh] flex flex-col">
+          <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-100">
+                <FileSpreadsheet className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Import Excel & Overwrite Inventory</h3>
+                <p className="text-xs text-gray-500 font-mono">{importSummary.fileName} • {importSummary.totalRows} rows processed</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setIsImportModalOpen(false);
+                setImportSummary(null);
+              }}
+              className="p-2 hover:bg-gray-100 rounded-lg text-gray-400 hover:text-gray-600 cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="overflow-y-auto py-4 space-y-4 flex-1">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl">
+                <div className="flex items-center justify-between text-blue-700 text-xs font-semibold uppercase">
+                  <span>Overwrite & Update</span>
+                  <RefreshCw className="w-3.5 h-3.5" />
+                </div>
+                <p className="text-2xl font-bold text-blue-900 mt-1">{importSummary.matchedProducts.length}</p>
+                <p className="text-[11px] text-blue-600 mt-0.5">Existing products to update</p>
+              </div>
+
+              <div className="p-3.5 bg-amber-50/80 border border-amber-200/80 rounded-xl">
+                <div className="flex items-center justify-between text-amber-700 text-xs font-semibold uppercase">
+                  <span>Mark as Old Stock</span>
+                  <Clock className="w-3.5 h-3.5" />
+                </div>
+                <p className="text-2xl font-bold text-amber-900 mt-1">{importSummary.missedProducts.length}</p>
+                <p className="text-[11px] text-amber-700 mt-0.5">Missed in new sheet</p>
+              </div>
+
+              <div className="p-3.5 bg-emerald-50/70 border border-emerald-200/80 rounded-xl">
+                <div className="flex items-center justify-between text-emerald-700 text-xs font-semibold uppercase">
+                  <span>New Products</span>
+                  <Plus className="w-3.5 h-3.5" />
+                </div>
+                <p className="text-2xl font-bold text-emerald-900 mt-1">{importSummary.newProducts.length}</p>
+                <p className="text-[11px] text-emerald-600 mt-0.5">New items found in sheet</p>
+              </div>
+            </div>
+
+            {/* Explanation notice */}
+            <div className="p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-700 space-y-1.5">
+              <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 text-blue-600" />
+                <span>How the import will be applied:</span>
+              </div>
+              <ul className="list-disc list-inside space-y-1 pl-1 text-gray-600">
+                <li>Existing matching products will have their <strong>SOH (Quantity)</strong> and prices updated directly with the values in your spreadsheet.</li>
+                <li>Any product currently in your inventory that was <strong>not in the new file</strong> will be tagged as <span className="px-1.5 py-0.5 rounded font-bold bg-amber-100 text-amber-800 border border-amber-300">Old Stock</span>.</li>
+                <li>You can easily filter or find all Old Stock products at any time using the <em>Old Stock</em> filter.</li>
+              </ul>
+            </div>
+
+            {/* Preview of Missed (Old Stock) Products */}
+            {importSummary.missedProducts.length > 0 && (
+              <div className="border border-amber-200 bg-amber-50/40 rounded-xl p-3">
+                <h4 className="text-xs font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1.5 mb-2">
+                  <Clock className="w-3.5 h-3.5 text-amber-700" />
+                  Sample products to be marked as "Old Stock" ({importSummary.missedProducts.length} total):
+                </h4>
+                <div className="max-h-28 overflow-y-auto space-y-1 text-xs">
+                  {importSummary.missedProducts.slice(0, 5).map(p => (
+                    <div key={p.id} className="flex justify-between items-center py-1 px-2 bg-white/80 rounded border border-amber-200/60">
+                      <span className="font-medium text-gray-900 truncate max-w-[280px]">{p.name}</span>
+                      <span className="text-gray-500 font-mono text-[11px]">Current SOH: {p.totalQuantity}</span>
+                    </div>
+                  ))}
+                  {importSummary.missedProducts.length > 5 && (
+                    <p className="text-[11px] text-amber-700 text-center italic pt-1">
+                      + {importSummary.missedProducts.length - 5} more products will be identified as Old Stock
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="pt-4 border-t border-gray-100 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setIsImportModalOpen(false);
+                setImportSummary(null);
+              }}
+              disabled={isImporting}
+              className="px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-xl transition cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={handleConfirmImport}
+              disabled={isImporting}
+              className="px-5 py-2 text-sm font-semibold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-sm transition flex items-center gap-2 cursor-pointer disabled:opacity-50"
+            >
+              {isImporting ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  Applying Changes...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" />
+                  Confirm & Overwrite Inventory
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   // ============ PAGINATION RENDER ============
   const renderPagination = () => {
     if (totalPages <= 1) return null;
@@ -2657,115 +3043,142 @@ const InventoryManagement: React.FC = () => {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-          {/* Total Products */}
-          <div className="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-blue-200 transition-all duration-200 flex flex-col justify-between min-w-0 group">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 mb-6">
+          {/* Total SOH */}
+          <div 
+            onClick={() => {
+              setActiveTab('all');
+              setFilterStock('all');
+            }}
+            className={`bg-white p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
+              filterStock === 'all' 
+                ? 'border-blue-400 ring-2 ring-blue-500/20 bg-blue-50/20' 
+                : 'border-gray-200/80 hover:border-blue-300'
+            }`}
+            title="Click to view all stock"
+          >
             <div className="flex items-center justify-between gap-1.5">
               <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Total Products
+                Total SOH
               </span>
               <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/70 group-hover:scale-105 transition-transform">
-                <Package className="w-4 h-4" />
+                <Layers className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-2">
+            <div className="mt-3 flex items-baseline justify-between">
               <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate tabular-nums">
-                {stats.totalProducts}
+                {stats.totalSOH.toLocaleString('en-IN')}
               </p>
+              <span className="text-[11px] font-medium text-gray-500">units</span>
             </div>
           </div>
           
-          {/* Current Value */}
-          <div className="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-emerald-200 transition-all duration-200 flex flex-col justify-between min-w-0 group">
+          {/* Total Purchase Price */}
+          <div 
+            onClick={() => {
+              setActiveTab('all');
+              setFilterStock('all');
+            }}
+            className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer"
+            title="Click to view all products"
+          >
             <div className="flex items-center justify-between gap-1.5">
               <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Current Value
+                Total Purchase Price
               </span>
               <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/70 group-hover:scale-105 transition-transform">
                 <IndianRupee className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-2">
+            <div className="mt-3">
               <p 
-                className="text-base sm:text-lg lg:text-[15px] xl:text-lg font-bold text-gray-900 tracking-tight truncate tabular-nums"
-                title={formatCurrency(stats.totalCurrentValue)}
+                className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight truncate tabular-nums"
+                title={formatCurrency(stats.totalPurchasePrice)}
               >
-                {formatCurrency(stats.totalCurrentValue)}
+                {formatCurrency(stats.totalPurchasePrice)}
               </p>
             </div>
           </div>
-          
-          {/* Delivery Value */}
-          <div className="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-amber-200 transition-all duration-200 flex flex-col justify-between min-w-0 group">
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Delivery Value
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100/70 group-hover:scale-105 transition-transform">
-                <Truck className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <p 
-                className="text-base sm:text-lg lg:text-[15px] xl:text-lg font-bold text-gray-900 tracking-tight truncate tabular-nums"
-                title={formatCurrency(stats.totalDeliveryValue)}
-              >
-                {formatCurrency(stats.totalDeliveryValue)}
-              </p>
-            </div>
-          </div>
-          
-          {/* Inventory Cost */}
-          <div className="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-purple-200 transition-all duration-200 flex flex-col justify-between min-w-0 group">
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Inventory Cost
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0 border border-purple-100/70 group-hover:scale-105 transition-transform">
-                <ShoppingBag className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2">
-              <p 
-                className="text-base sm:text-lg lg:text-[15px] xl:text-lg font-bold text-gray-900 tracking-tight truncate tabular-nums"
-                title={formatCurrency(stats.totalValue)}
-              >
-                {formatCurrency(stats.totalValue)}
-              </p>
-            </div>
-          </div>
-          
+
           {/* Low Stock */}
-          <div className="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-orange-200 transition-all duration-200 flex flex-col justify-between min-w-0 group">
+          <div 
+            onClick={() => {
+              setActiveTab('all');
+              setFilterStock(filterStock === 'low' ? 'all' : 'low');
+            }}
+            className={`p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
+              filterStock === 'low'
+                ? 'bg-orange-50/70 border-orange-400 ring-2 ring-orange-500 shadow-sm'
+                : 'bg-white border-gray-200/80 hover:border-orange-300'
+            }`}
+            title={filterStock === 'low' ? 'Click to show all products' : 'Click to filter low stock items only'}
+          >
             <div className="flex items-center justify-between gap-1.5">
               <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
                 Low Stock
               </span>
-              <div className="w-8 h-8 rounded-xl bg-orange-50 text-orange-600 flex items-center justify-center shrink-0 border border-orange-100/70 group-hover:scale-105 transition-transform">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border group-hover:scale-105 transition-transform ${
+                filterStock === 'low'
+                  ? 'bg-orange-500 text-white border-orange-600'
+                  : 'bg-orange-50 text-orange-600 border-orange-100/70'
+              }`}>
                 <AlertCircle className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-2">
+            <div className="mt-3 flex items-baseline justify-between">
               <p className="text-xl sm:text-2xl font-bold text-orange-600 tracking-tight truncate tabular-nums">
                 {stats.lowStock}
               </p>
+              {filterStock === 'low' ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-200 text-orange-800 uppercase">
+                  Filtered
+                </span>
+              ) : (
+                <span className="text-[11px] text-gray-400 group-hover:text-orange-600 transition-colors">
+                  Filter &rarr;
+                </span>
+              )}
             </div>
           </div>
           
           {/* Out of Stock */}
-          <div className="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-rose-200 transition-all duration-200 flex flex-col justify-between min-w-0 group">
+          <div 
+            onClick={() => {
+              setActiveTab('all');
+              setFilterStock(filterStock === 'out' ? 'all' : 'out');
+            }}
+            className={`p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
+              filterStock === 'out'
+                ? 'bg-rose-50/70 border-rose-400 ring-2 ring-rose-500 shadow-sm'
+                : 'bg-white border-gray-200/80 hover:border-rose-300'
+            }`}
+            title={filterStock === 'out' ? 'Click to show all products' : 'Click to filter out-of-stock items only'}
+          >
             <div className="flex items-center justify-between gap-1.5">
               <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
                 Out of Stock
               </span>
-              <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center shrink-0 border border-rose-100/70 group-hover:scale-105 transition-transform">
+              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border group-hover:scale-105 transition-transform ${
+                filterStock === 'out'
+                  ? 'bg-rose-500 text-white border-rose-600'
+                  : 'bg-rose-50 text-rose-600 border-rose-100/70'
+              }`}>
                 <XCircle className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-2">
+            <div className="mt-3 flex items-baseline justify-between">
               <p className="text-xl sm:text-2xl font-bold text-rose-600 tracking-tight truncate tabular-nums">
                 {stats.outOfStock}
               </p>
+              {filterStock === 'out' ? (
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-200 text-rose-800 uppercase">
+                  Filtered
+                </span>
+              ) : (
+                <span className="text-[11px] text-gray-400 group-hover:text-rose-600 transition-colors">
+                  Filter &rarr;
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -2796,6 +3209,24 @@ const InventoryManagement: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-2.5 pb-2.5 sm:pb-2">
+            <input
+              type="file"
+              ref={importExcelInputRef}
+              onChange={handleImportExcelFile}
+              accept=".xlsx,.xls,.csv"
+              className="hidden"
+            />
+            {canAddProduct() && (
+              <button
+                onClick={() => importExcelInputRef.current?.click()}
+                disabled={isImporting}
+                className="px-3.5 py-1.5 text-xs sm:text-sm border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg flex items-center font-medium cursor-pointer transition shadow-2xs"
+                title="Import Excel sheet to overwrite existing products and flag missed ones as Old Stock"
+              >
+                <Upload className="w-4 h-4 mr-1.5" />
+                {isImporting ? 'Importing...' : 'Import Excel'}
+              </button>
+            )}
             <button
               onClick={handleExportCSV}
               disabled={isExporting}
@@ -2939,6 +3370,7 @@ const InventoryManagement: React.FC = () => {
                 <option value="low">Low Stock</option>
                 <option value="out">Out of Stock</option>
                 <option value="normal">Normal Stock</option>
+                <option value="old">⚠️ Old Stock ({stats.oldStock || 0})</option>
               </select>
             </div>
           </div>
@@ -3121,33 +3553,58 @@ const InventoryManagement: React.FC = () => {
           </div>
         )}
 
+        {/* Old Stock Alert Banner if any missed products exist */}
+        {stats.oldStock > 0 && (
+          <div className="mb-4 p-3.5 bg-amber-50/90 border border-amber-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs sm:text-sm text-amber-900 shadow-2xs">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 border border-amber-300">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="font-bold text-amber-900 text-sm">
+                  {stats.oldStock} product{stats.oldStock === 1 ? '' : 's'} identified as Old Stock
+                </p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  These items were missing from your latest imported Excel sheet and have been tagged with the <span className="font-semibold underline">Old Stock</span> badge.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {filterStock === 'old' ? (
+                <button
+                  onClick={() => setFilterStock('all')}
+                  className="px-3.5 py-1.5 bg-white border border-amber-300 hover:bg-amber-100 text-amber-900 font-semibold rounded-xl transition cursor-pointer text-xs"
+                >
+                  Show All Products
+                </button>
+              ) : (
+                <button
+                  onClick={() => setFilterStock('old')}
+                  className="px-3.5 py-1.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl shadow-2xs transition cursor-pointer text-xs flex items-center gap-1.5"
+                >
+                  Filter Old Stock ({stats.oldStock})
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Products Table with Image Column */}
         <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-center">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200 text-xs text-gray-700">
-                  <th className="py-3 px-2 text-left w-12 font-semibold">
+                <tr className="bg-gray-100/90 border-b-2 border-gray-200 text-xs sm:text-sm font-bold text-gray-900">
+                  <th className="py-3.5 px-2 text-center w-14 font-bold text-gray-900">
                     Image
                   </th>
-                  <th className="py-3 px-2.5 text-left font-semibold">
-                    <button
-                      onClick={() => {
-                        setSortField('name');
-                        setSortDirection(sortField === 'name' && sortDirection === 'asc' ? 'desc' : 'asc');
-                      }}
-                      className="font-semibold text-gray-700 hover:text-gray-900 cursor-pointer"
-                    >
-                      Product
-                    </button>
-                  </th>
-                  <th className="py-3 px-2 text-left font-semibold">
+                  <th className="py-3.5 px-2 text-center font-bold text-gray-900">
                     <button
                       onClick={() => {
                         setSortField('hsnCode');
                         setSortDirection(sortField === 'hsnCode' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="flex items-center font-semibold text-gray-700 hover:text-gray-900"
+                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
                     >
                       HSN Code
                       {sortField === 'hsnCode' && (
@@ -3157,13 +3614,16 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3 px-2 text-left font-semibold">
+                  <th className="py-3.5 px-2.5 text-center font-bold text-gray-900">
+                    Product
+                  </th>
+                  <th className="py-3.5 px-2 text-center font-bold text-gray-900">
                     <button
                       onClick={() => {
                         setSortField('category');
                         setSortDirection(sortField === 'category' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="flex items-center font-semibold text-gray-700 hover:text-gray-900"
+                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
                     >
                       Category
                       {sortField === 'category' && (
@@ -3173,18 +3633,15 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3 px-2 text-right font-semibold text-gray-700 whitespace-nowrap">
-                    Original Qty
-                  </th>
-                  <th className="py-3 px-2 text-right font-semibold whitespace-nowrap">
+                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('totalQuantity');
                         setSortDirection(sortField === 'totalQuantity' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center font-semibold text-gray-700 hover:text-gray-900 ml-auto"
+                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
                     >
-                      Inv Qty
+                      SOH
                       {sortField === 'totalQuantity' && (
                         sortDirection === 'asc' ? 
                           <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
@@ -3192,15 +3649,15 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3 px-2 text-right font-semibold whitespace-nowrap">
+                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('currentPrice');
                         setSortDirection(sortField === 'currentPrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center font-semibold text-gray-700 hover:text-gray-900 ml-auto"
+                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
                     >
-                      Sale Price
+                      Purchase Price
                       {sortField === 'currentPrice' && (
                         sortDirection === 'asc' ? 
                           <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
@@ -3208,30 +3665,24 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3 px-2 text-right font-semibold whitespace-nowrap">
+                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 whitespace-nowrap">
                     <button
                       onClick={() => {
-                        setSortField('totalValue');
-                        setSortDirection(sortField === 'totalValue' && sortDirection === 'asc' ? 'desc' : 'asc');
+                        setSortField('purchasePrice');
+                        setSortDirection(sortField === 'purchasePrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center font-semibold text-gray-700 hover:text-gray-900 ml-auto"
+                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
                     >
-                      Inv Value
-                      {sortField === 'totalValue' && (
+                      Selling Price
+                      {sortField === 'purchasePrice' && (
                         sortDirection === 'asc' ? 
                           <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
                           <ChevronDown className="w-3.5 h-3.5 ml-1" />
                       )}
                     </button>
                   </th>
-                  <th className="py-3 px-2 text-right font-semibold text-gray-700 whitespace-nowrap">
-                    Current Value
-                  </th>
-                  <th className="py-3 px-2 text-right font-semibold text-gray-700 whitespace-nowrap">
-                    Delivery Value
-                  </th>
-                  <th className="py-3 px-2 text-center font-semibold text-gray-700">Status</th>
-                  <th className="py-3 px-2 text-center font-semibold text-gray-700 w-10">Actions</th>
+                  <th className="py-3.5 px-2 text-center font-bold text-gray-900">Status</th>
+                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 w-12">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-xs sm:text-sm">
@@ -3239,12 +3690,6 @@ const InventoryManagement: React.FC = () => {
                   currentItems.map((product, index) => {
                     const canEdit = canEditProduct(product);
                     const canDelete = canDeleteProduct(product);
-                    
-                    const currentTotalValue = (product.currentPrice || 0) * product.totalQuantity;
-                    
-                    const deliveryTotalValue = transactions
-                      .filter(t => t.productId === product.id && t.type === 'deliver')
-                      .reduce((sum, t) => sum + t.totalAmount, 0);
                     
                     return (
                       <React.Fragment key={product.id}>
@@ -3256,15 +3701,29 @@ const InventoryManagement: React.FC = () => {
                             setIsDetailsModalOpen(true);
                           }}
                         >
-                          <td className="py-2.5 px-2 w-12">
-                            {renderProductImage(product.image, product.name, 'small')}
+                          <td className="py-2.5 px-2 w-14 text-center">
+                            <div className="flex justify-center">
+                              {renderProductImage(product.image, product.name, 'small')}
+                            </div>
                           </td>
-                          <td className="py-2.5 px-2.5 max-w-[180px]">
-                            <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate" title={product.name}>
+                          <td className="py-2.5 px-2 text-xs font-mono text-gray-700 whitespace-nowrap text-center font-medium">
+                            {product.hsnCode || '-'}
+                          </td>
+                          <td className="py-2.5 px-2.5 max-w-[220px] text-center">
+                            <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate text-center" title={product.name}>
                               {product.name}
                             </div>
-                            <div className="flex items-center gap-1.5 text-[11px] text-gray-500 mt-0.5">
+                            <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 mt-0.5 flex-wrap">
                               {product.sku && <span className="font-mono">SKU: {product.sku}</span>}
+                              {product.isOldStock && (
+                                <span 
+                                  className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-md border border-amber-300 inline-flex items-center gap-1 shadow-2xs" 
+                                  title="Old Stock: Missed in the latest imported Excel sheet"
+                                >
+                                  <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                  Old Stock
+                                </span>
+                              )}
                               {(product.isQuoteOnly || product.productType === 'quote_purpose') && (
                                 <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-purple-100 text-purple-700 rounded-full border border-purple-200">
                                   Quote Item
@@ -3272,37 +3731,24 @@ const InventoryManagement: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className="py-2.5 px-2 text-xs font-mono text-gray-600 whitespace-nowrap">
-                            {product.hsnCode || '-'}
-                          </td>
-                          <td className="py-2.5 px-2">
-                            <span className="inline-block px-2 py-0.5 rounded-md text-xs bg-gray-100 text-gray-700 truncate max-w-[100px]" title={product.category}>
+                          <td className="py-2.5 px-2 text-center">
+                            <span className="inline-block px-2 py-0.5 rounded-md text-xs bg-gray-100 text-gray-700 truncate max-w-[120px]" title={product.category}>
                               {product.category}
                             </span>
                           </td>
-                          <td className="py-2.5 px-2 text-right text-xs font-medium text-gray-800 tabular-nums whitespace-nowrap">
-                            {calculateOriginalQuantity(product)}
+                          <td className="py-2.5 px-2 text-center text-xs tabular-nums whitespace-nowrap">
+                            <span className="font-bold text-blue-600 text-sm">{product.totalQuantity}</span>
                           </td>
-                          <td className="py-2.5 px-2 text-right text-xs tabular-nums whitespace-nowrap">
-                            <span className="font-bold text-blue-600">{product.totalQuantity}</span>
-                            <span className="text-[10px] text-gray-400 block">Low: {product.lowStockThreshold}</span>
-                          </td>
-                          <td className="py-2.5 px-2 text-right text-xs font-medium text-gray-900 tabular-nums whitespace-nowrap">
+                          <td className="py-2.5 px-2 text-center text-xs sm:text-sm font-semibold text-gray-900 tabular-nums whitespace-nowrap">
                             {formatCurrency(product.currentPrice || 0)}
                           </td>
-                          <td className="py-2.5 px-2 text-right text-xs font-bold text-gray-900 tabular-nums whitespace-nowrap">
-                            {formatCurrency(calculateOriginalPurchaseValue(product))}
-                          </td>
-                          <td className="py-2.5 px-2 text-right text-xs font-bold text-blue-600 tabular-nums whitespace-nowrap">
-                            {formatCurrency(currentTotalValue)}
-                          </td>
-                          <td className="py-2.5 px-2 text-right text-xs font-bold text-orange-600 tabular-nums whitespace-nowrap">
-                            {formatCurrency(deliveryTotalValue)}
+                          <td className="py-2.5 px-2 text-center text-xs sm:text-sm font-semibold text-emerald-600 tabular-nums whitespace-nowrap">
+                            {formatCurrency(getProductPurchasePrice(product))}
                           </td>
                           <td className="py-2.5 px-2 text-center whitespace-nowrap">
                             {renderStockBadge(product)}
                           </td>
-                          <td className="py-2.5 px-2 text-center w-10 relative" onClick={(e) => e.stopPropagation()}>
+                          <td className="py-2.5 px-2 text-center w-12 relative" onClick={(e) => e.stopPropagation()}>
                             <div className="relative inline-block text-left">
                               <button
                                 type="button"
@@ -3442,7 +3888,7 @@ const InventoryManagement: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={12} className="py-12 text-center">
+                    <td colSpan={9} className="py-12 text-center">
                       <div className="text-center">
                         <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
@@ -3485,6 +3931,7 @@ const InventoryManagement: React.FC = () => {
       {isDeleteRequestConfirmOpen && renderDeleteRequestConfirmModal()}
       {isDeleteRequestsModalOpen && renderDeleteRequestsModal()}
       {isDetailsModalOpen && renderDetailsModal()}
+      {isImportModalOpen && renderImportModal()}
     </div>
   );
 };

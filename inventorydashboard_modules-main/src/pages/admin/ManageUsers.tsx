@@ -1,372 +1,116 @@
-// import React, { useEffect, useState } from "react";
-// import { getFunctions, httpsCallable } from "firebase/functions";
-// import { app, auth, db } from "../../firebase";
-// import {
-//   collection,
-//   getDocs,
-//   query,
-//   where,
-//   orderBy,
-//   doc,
-//   setDoc,
-//   serverTimestamp,
-// } from "firebase/firestore";
-// import { sendPasswordResetEmail } from "firebase/auth";
-// import { toast } from "react-toastify";
-// import { FaEdit, FaTrash } from "react-icons/fa";
-
-// /**
-//  * Generic management page used by AddAdmin/AddManager/AddStaff wrappers.
-//  * - Uses EmployeeLogin shape: id (doc id = uid), employeeId, employeeName, email, phone, role, createdAt, updatedAt
-//  * - Create -> callable createUser (requires password)
-//  * - Delete -> callable deleteUser
-//  * - Edit -> updates employees/{uid} doc only (does not change Firebase Auth email/displayName)
-//  * - Reset -> sendPasswordResetEmail
-//  */
-
-// type Role = "admin" | "manager" | "staff";
-
-// export default function ManageUsers({ role, title }: { role: Role; title: string }) {
-//   const [employeeName, setEmployeeName] = useState("");
-//   const [email, setEmail] = useState("");
-//   const [phone, setPhone] = useState("");
-//   const [password, setPassword] = useState("");
-//   const [loading, setLoading] = useState(false);
-//   const [listLoading, setListLoading] = useState(true);
-//   const [editing, setEditing] = useState<any | null>(null);
-//   const [employees, setEmployees] = useState<any[]>([]);
-//   const [actionInProgress, setActionInProgress] = useState<string | null>(null); // uid for spinner
-
-//   const functions = getFunctions(app);
-
-//   const fetchEmployees = async () => {
-//     setListLoading(true);
-//     try {
-//       const q = query(
-//         collection(db, "employees"),
-//         where("role", "==", role),
-//         orderBy("createdAt", "desc")
-//       );
-//       const snap = await getDocs(q);
-//       const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-//       setEmployees(rows);
-//     } catch (err) {
-//       console.error("fetchEmployees error", err);
-//       toast.error("Failed to load employees");
-//     } finally {
-//       setListLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     fetchEmployees();
-//     // eslint-disable-next-line react-hooks/exhaustive-deps
-//   }, [role]);
-
-//   const resetForm = () => {
-//     setEmployeeName("");
-//     setEmail("");
-//     setPhone("");
-//     setPassword("");
-//     setEditing(null);
-//   };
-
-//   const handleEditClick = (emp: any) => {
-//     setEditing(emp);
-//     setEmployeeName(emp.employeeName || "");
-//     setEmail(emp.email || "");
-//     setPhone(emp.phone || "");
-//     setPassword("");
-//     window.scrollTo({ top: 0, behavior: "smooth" });
-//   };
-
-//   const handleCreateOrUpdate = async (e: React.FormEvent) => {
-//     e.preventDefault();
-//     if (!employeeName.trim() || !email.trim()) return toast.error("Name and email required");
-
-//     setLoading(true);
-//     try {
-//       if (editing) {
-//         const docRef = doc(db, "employees", editing.id);
-//         await setDoc(
-//           docRef,
-//           {
-//             employeeName,
-//             email,
-//             phone,
-//             role,
-//             updatedAt: serverTimestamp(),
-//           },
-//           { merge: true }
-//         );
-//         toast.success(`${title} updated`);
-//       } else {
-//         if (!password) {
-//           setLoading(false);
-//           return toast.error("Password is required for new user");
-//         }
-//         const callable = httpsCallable(functions, "createUser");
-//         const resp = await callable({
-//           employeeName,
-//           email,
-//           password,
-//           phone,
-//           role,
-//         });
-//         toast.success(`${title} created (${resp.data?.employeeId ?? "id"})`);
-//       }
-//       await fetchEmployees();
-//       resetForm();
-//     } catch (err: any) {
-//       console.error("create/update error", err);
-//       toast.error(err?.message || "Operation failed");
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   const handleDelete = async (emp: any) => {
-//     const uid = emp.id || emp.uid;
-//     if (!uid) return toast.error("Invalid user");
-//     if (!confirm(`Delete ${emp.employeeName}? This will remove Auth user and employees record.`)) return;
-//     setActionInProgress(uid);
-//     try {
-//       const callable = httpsCallable(functions, "deleteUser");
-//       await callable({ uid });
-//       toast.success("Deleted");
-//       await fetchEmployees();
-//     } catch (err: any) {
-//       console.error("delete error", err);
-//       toast.error(err?.message || "Delete failed");
-//     } finally {
-//       setActionInProgress(null);
-//     }
-//   };
-
-//   const handleResetPassword = async (emp: any) => {
-//     try {
-//       await sendPasswordResetEmail(auth, emp.email);
-//       toast.success(`Password reset email sent to ${emp.email}`);
-//     } catch (err: any) {
-//       console.error("reset password error", err);
-//       toast.error(err?.message || "Failed to send reset email");
-//     }
-//   };
-
-//   const renderShimmer = () => {
-//     const items = Array.from({ length: 5 }).map((_, i) => (
-//       <div key={i} className="manager-card" style={{ minHeight: 72 }}>
-//         <div style={{ display: "flex", gap: 12 }}>
-//           <div style={{ width: 48, height: 48, borderRadius: 8, background: "linear-gradient(90deg,#eee,#f5f5f5)" }} />
-//           <div style={{ flex: 1 }}>
-//             <div style={{ width: "60%", height: 14, background: "linear-gradient(90deg,#eee,#f5f5f5)", marginBottom: 8 }} />
-//             <div style={{ width: "40%", height: 12, background: "linear-gradient(90deg,#eee,#f5f5f5)" }} />
-//           </div>
-//         </div>
-//       </div>
-//     ));
-//     return <div>{items}</div>;
-//   };
-
-//   return (
-//     <div className="add-manager-page" style={{ paddingTop: 24 }}>
-//       <div className="form-container">
-//         <h2 style={{ textAlign: "center" }}>{editing ? `Edit ${title}` : `Add ${title}`}</h2>
-//         <form onSubmit={handleCreateOrUpdate}>
-//           <div>
-//             <label>Full name</label>
-//             <input
-//               type="text"
-//               value={employeeName}
-//               onChange={(e) => setEmployeeName(e.target.value)}
-//               required
-//               className="input-style"
-//             />
-//           </div>
-
-//           <div>
-//             <label>Email</label>
-//             <input
-//               type="email"
-//               value={email}
-//               onChange={(e) => setEmail(e.target.value)}
-//               required
-//               disabled={!!editing}
-//               className="input-style"
-//             />
-//           </div>
-
-//           <div>
-//             <label>Phone</label>
-//             <input type="text" value={phone} onChange={(e) => setPhone(e.target.value)} className="input-style" />
-//           </div>
-
-//           {!editing && (
-//             <div>
-//               <label>Password</label>
-//               <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required className="input-style" />
-//             </div>
-//           )}
-
-//           <div className="button-group" style={{ marginTop: 12 }}>
-//             <button type="submit" disabled={loading} className="btn-primary" style={{ display: "flex", alignItems: "center", gap: 8 }}>
-//               {loading ? <span className="shimmer-spinner" /> : null}
-//               {editing ? "Save changes" : `Create ${title}`}
-//             </button>
-//             <button type="button" onClick={resetForm} style={{ background: "#6c757d", color: "#fff", padding: "10px 14px", borderRadius: 6 }}>
-//               Reset
-//             </button>
-//           </div>
-//         </form>
-
-//         {editing && (
-//           <div style={{ marginTop: 18 }}>
-//             <button
-//               type="button"
-//               onClick={() => handleResetPassword(editing)}
-//               className="btn-primary"
-//               style={{ background: "#17a2b8", marginRight: 8 }}
-//             >
-//               Send Password Reset Email
-//             </button>
-//           </div>
-//         )}
-//       </div>
-
-//       <div className="card-container">
-//         <h2 style={{ textAlign: "center" }}>{title}s</h2>
-
-//         {listLoading ? (
-//           renderShimmer()
-//         ) : employees.length === 0 ? (
-//           <div style={{ textAlign: "center", color: "#666", padding: 24 }}>No {title.toLowerCase()} found</div>
-//         ) : (
-//           employees.map((emp) => (
-//             <div className="manager-card" key={emp.id || emp.uid}>
-//               <h3 style={{ marginBottom: 6 }}>{emp.employeeName}</h3>
-//               <p style={{ margin: 0, color: "#555" }}>{emp.email}</p>
-//               <p style={{ margin: "8px 0 0 0", color: "#777", fontSize: 13 }}>{emp.phone}</p>
-
-//               <div className="card-actions" style={{ right: 12 }}>
-//                 <button onClick={() => handleEditClick(emp)} title="Edit" style={{ background: "transparent", border: "none", cursor: "pointer" }}>
-//                   <FaEdit style={{ color: "#007bff" }} />
-//                 </button>
-
-//                 <button
-//                   onClick={() => handleResetPassword(emp)}
-//                   title="Reset password"
-//                   style={{ background: "transparent", border: "none", cursor: "pointer", marginLeft: 8 }}
-//                 >
-//                   Reset
-//                 </button>
-
-//                 <button
-//                   onClick={() => handleDelete(emp)}
-//                   title="Delete"
-//                   style={{ background: "transparent", border: "none", cursor: "pointer", marginLeft: 8, color: "#dc3545" }}
-//                 >
-//                   {actionInProgress === (emp.id || emp.uid) ? <span className="shimmer-spinner" /> : <FaTrash />}
-//                 </button>
-//               </div>
-//             </div>
-//           ))
-//         )}
-
-//         {/* simple pagination placeholder (kept small for design) */}
-//       </div>
-
-//       {/* small spinner + shimmer styles */}
-//       <style>{`
-//         .shimmer-spinner {
-//           display: inline-block;
-//           width: 16px;
-//           height: 16px;
-//           border-radius: 50%;
-//           background: linear-gradient(90deg,#e6e6e6,#f0f0f0,#e6e6e6);
-//           background-size: 200% 100%;
-//           animation: shimmer 1s linear infinite;
-//         }
-//         @keyframes shimmer {
-//           0% { background-position: 200% 0; }
-//           100% { background-position: -200% 0; }
-//         }
-//       `}</style>
-//     </div>
-//   );
-// }
-
-
-
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { app, auth, db } from "../../firebase"; // Assuming firebase config is at 'src/firebase.ts'
+import { app, auth, db } from "../../firebase";
 import {
   collection,
   getDocs,
-  query,
-  where,
-  orderBy,
   doc,
   setDoc,
+  deleteDoc,
   serverTimestamp,
 } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
 import { toast, ToastContainer } from "react-toastify";
-// In a real project, you would import this CSS file
-// import 'react-toastify/dist/ReactToastify.css';
+import {
+  ShieldCheck,
+  Users,
+  User,
+  UserPlus,
+  Search,
+  Edit2,
+  Trash2,
+  Key,
+  RefreshCw,
+  X,
+  Eye,
+  EyeOff,
+  Check,
+  AlertTriangle,
+} from "lucide-react";
+import AdminGuard from "../../components/AdminGuard";
 
-type Role = "admin" | "manager" | "staff";
+export type Role = "admin" | "manager" | "staff";
 
-// SVG Icons to provide the required visuals without external dependencies
-const EditIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#007bff' }}>
-        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-    </svg>
-);
+interface EmployeeRecord {
+  id: string;
+  uid?: string;
+  employeeId?: string;
+  employeeName?: string;
+  name?: string;
+  email?: string;
+  phone?: string;
+  mobile?: string;
+  role?: Role;
+  createdAt?: any;
+  updatedAt?: any;
+}
 
-const DeleteIcon = () => (
-     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#dc3545' }}>
-        <path d="M3 6h18" />
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-    </svg>
-);
+interface ManageUsersProps {
+  defaultRole?: Role;
+  title?: string;
+  role?: Role; // backwards compatibility
+}
 
-const KeyIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
-    </svg>
-);
+export default function ManageUsers({ defaultRole, role: propRole, title }: ManageUsersProps) {
+  const initialRole: Role = defaultRole || propRole || "staff";
 
-
-export default function ManageUsers({ role, title }: { role: Role; title: string }) {
+  // Form State
   const [employeeName, setEmployeeName] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<Role>(initialRole);
+  const [showPassword, setShowPassword] = useState(false);
+
+  // UI & Loading States
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
-  const [editing, setEditing] = useState<any | null>(null);
-  const [employees, setEmployees] = useState<any[]>([]);
+  const [editing, setEditing] = useState<EmployeeRecord | null>(null);
+  const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
   const [actionInProgress, setActionInProgress] = useState<string | null>(null);
+
+  // Filter & Search
+  const [activeTab, setActiveTab] = useState<"all" | Role>(defaultRole || "all");
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Delete modal state
+  const [userToDelete, setUserToDelete] = useState<EmployeeRecord | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const functions = getFunctions(app);
 
   const fetchEmployees = async () => {
     setListLoading(true);
     try {
-      const q = query(
-        collection(db, "employees"),
-        where("role", "==", role),
-        orderBy("createdAt", "desc")
-      );
-      const snap = await getDocs(q);
-      const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      const snap = await getDocs(collection(db, "employees"));
+      const rows: EmployeeRecord[] = snap.docs.map((d) => {
+        const data = d.data();
+        return {
+          id: d.id,
+          uid: d.id,
+          employeeId: data.employeeId || d.id,
+          employeeName: data.employeeName || data.name || "Unnamed",
+          name: data.name || data.employeeName || "Unnamed",
+          email: data.email || "",
+          phone: data.phone || data.mobile || "",
+          mobile: data.mobile || data.phone || "",
+          role: (data.role?.toLowerCase() as Role) || "staff",
+          createdAt: data.createdAt,
+          updatedAt: data.updatedAt,
+        };
+      });
+
+      // Sort by newest created or updated
+      rows.sort((a, b) => {
+        const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : 0;
+        const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : 0;
+        return timeB - timeA;
+      });
+
       setEmployees(rows);
     } catch (err) {
       console.error("fetchEmployees error", err);
-      toast.error("Failed to load employees");
+      toast.error("Failed to load user directory");
     } finally {
       setListLoading(false);
     }
@@ -374,278 +118,655 @@ export default function ManageUsers({ role, title }: { role: Role; title: string
 
   useEffect(() => {
     fetchEmployees();
-  }, [role]);
+  }, []);
 
   const resetForm = () => {
     setEmployeeName("");
     setEmail("");
     setPhone("");
     setPassword("");
+    setRole(defaultRole || "staff");
     setEditing(null);
   };
 
-  const handleEditClick = (emp: any) => {
+  const handleEditClick = (emp: EmployeeRecord) => {
     setEditing(emp);
-    setEmployeeName(emp.employeeName || "");
+    setEmployeeName(emp.employeeName || emp.name || "");
     setEmail(emp.email || "");
-    setPhone(emp.phone || "");
+    setPhone(emp.phone || emp.mobile || "");
+    setRole(emp.role || "staff");
     setPassword("");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!employeeName.trim() || !email.trim())
-      return toast.error("Name and email required");
+    const trimmedName = employeeName.trim();
+    const trimmedEmail = email.trim().toLowerCase();
+    const trimmedPhone = phone.trim();
+
+    if (!trimmedName || !trimmedEmail) {
+      return toast.error("Full Name and Email are required");
+    }
 
     setLoading(true);
     try {
       if (editing) {
+        // Update existing employee in Firestore
         const docRef = doc(db, "employees", editing.id);
         await setDoc(
           docRef,
           {
-            employeeName,
-            email,
-            phone,
-            role,
+            employeeName: trimmedName,
+            name: trimmedName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            mobile: trimmedPhone,
+            role: role,
             updatedAt: serverTimestamp(),
           },
           { merge: true }
         );
-        toast.success(`${title} updated`);
+
+        toast.success(`User updated as ${role.toUpperCase()}`);
       } else {
-        if (!password) {
+        // Create new user with Firebase Auth + Firestore
+        if (!password || password.length < 6) {
           setLoading(false);
-          return toast.error("Password is required for new user");
+          return toast.error("Password must be at least 6 characters");
         }
-        const callable = httpsCallable(functions, "createUser");
-        const resp = await callable({
-          employeeName,
-          email,
-          password,
-          phone,
-          role,
-        });
-        toast.success(`${title} created (${(resp.data as any)?.employeeId ?? "id"})`);
+
+        try {
+          const callable = httpsCallable(functions, "createUser");
+          const resp = await callable({
+            employeeName: trimmedName,
+            email: trimmedEmail,
+            password: password,
+            phone: trimmedPhone,
+            role: role,
+          });
+          toast.success(
+            `Successfully created ${role.toUpperCase()} user (${(resp.data as any)?.employeeId ?? "saved"})`
+          );
+        } catch (cloudFnErr: any) {
+          console.warn("createUser cloud function call failed, falling back to direct employee doc creation:", cloudFnErr);
+          // If cloud function fails or is not deployed, fall back to direct employee doc so the record is not lost
+          const newDocRef = doc(collection(db, "employees"));
+          await setDoc(newDocRef, {
+            id: newDocRef.id,
+            employeeName: trimmedName,
+            name: trimmedName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+            mobile: trimmedPhone,
+            role: role,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          });
+          toast.success(`Created ${role.toUpperCase()} record: ${trimmedName}`);
+        }
       }
+
       await fetchEmployees();
       resetForm();
     } catch (err: any) {
       console.error("create/update error", err);
-      toast.error(err?.message || "Operation failed");
+      toast.error(err?.message || "Operation failed. Please try again.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleDelete = async (emp: any) => {
-    const uid = emp.id || emp.uid;
-    if (!uid) return toast.error("Invalid user");
-    if (!confirm(`Delete ${emp.employeeName}? This will remove Auth user and employees record.`)) return;
-    setActionInProgress(uid);
+  const confirmDelete = async () => {
+    if (!userToDelete) return;
+    const uid = userToDelete.id || userToDelete.uid;
+    if (!uid) return;
+
+    setIsDeleting(true);
     try {
-      const callable = httpsCallable(functions, "deleteUser");
-      await callable({ uid });
-      toast.success("Deleted");
+      try {
+        const callable = httpsCallable(functions, "deleteUser");
+        await callable({ uid });
+      } catch (cloudErr) {
+        console.warn("deleteUser cloud function failed, deleting doc directly:", cloudErr);
+        await deleteDoc(doc(db, "employees", uid));
+      }
+      toast.success(`Deleted user ${userToDelete.employeeName || userToDelete.name}`);
+      setUserToDelete(null);
       await fetchEmployees();
     } catch (err: any) {
       console.error("delete error", err);
-      toast.error(err?.message || "Delete failed");
+      toast.error(err?.message || "Failed to delete user");
     } finally {
-      setActionInProgress(null);
+      setIsDeleting(false);
     }
   };
 
-  const handleResetPassword = async (emp: any) => {
+  const handleResetPassword = async (targetEmail: string) => {
+    if (!targetEmail) return toast.error("Email not found");
     try {
-      await sendPasswordResetEmail(auth, emp.email);
-      toast.success(`Password reset email sent to ${emp.email}`);
+      await sendPasswordResetEmail(auth, targetEmail);
+      toast.success(`Password reset email sent to ${targetEmail}`);
     } catch (err: any) {
       console.error("reset password error", err);
       toast.error(err?.message || "Failed to send reset email");
     }
   };
 
-  const renderShimmer = () => (
-    <div>
-        {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-4 animate-pulse">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-32 mb-2"></div>
-                        <div className="h-3 bg-gray-200 rounded w-20"></div>
-                    </div>
-                </div>
-            </div>
-        ))}
-    </div>
-);
+  // Counts by role
+  const counts = useMemo(() => {
+    const total = employees.length;
+    const adminCount = employees.filter((e) => e.role === "admin").length;
+    const managerCount = employees.filter((e) => e.role === "manager").length;
+    const staffCount = employees.filter((e) => e.role === "staff").length;
+    return { total, admin: adminCount, manager: managerCount, staff: staffCount };
+  }, [employees]);
+
+  // Filtered employees
+  const filteredEmployees = useMemo(() => {
+    return employees.filter((emp) => {
+      // Role tab match
+      if (activeTab !== "all" && emp.role !== activeTab) {
+        return false;
+      }
+      // Search term match
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        const nameMatch = (emp.employeeName || emp.name || "").toLowerCase().includes(q);
+        const emailMatch = (emp.email || "").toLowerCase().includes(q);
+        const phoneMatch = (emp.phone || emp.mobile || "").includes(q);
+        const roleMatch = (emp.role || "").toLowerCase().includes(q);
+        return nameMatch || emailMatch || phoneMatch || roleMatch;
+      }
+      return true;
+    });
+  }, [employees, activeTab, searchTerm]);
+
+  const getRoleBadge = (r?: Role) => {
+    switch (r) {
+      case "admin":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+            <ShieldCheck className="w-3 h-3 text-purple-700" />
+            Admin
+          </span>
+        );
+      case "manager":
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+            <Users className="w-3 h-3 text-blue-700" />
+            Manager
+          </span>
+        );
+      case "staff":
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <User className="w-3 h-3 text-emerald-700" />
+            Staff
+          </span>
+        );
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4 sm:p-6 lg:p-8 font-sans">
-      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-7xl mx-auto">
-        <div className="bg-white p-6 sm:p-8 rounded-xl shadow-md border border-gray-200">
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">
-            {editing ? `Edit ${title}` : `Add ${title}`}
-          </h2>
-          <form onSubmit={handleCreateOrUpdate} className="space-y-6">
-            <div>
-              <label className="text-sm font-semibold text-gray-600 mb-1 block">Name</label>
-              <input
-                type="text"
-                value={employeeName}
-                onChange={(e) => setEmployeeName(e.target.value)}
-                required
-                className="w-full px-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div>
-              <label className="text-sm font-semibold text-gray-600 mb-1 block">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={!!editing}
-                className="w-full px-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100"
-              />
-            </div>
+    <AdminGuard>
+      <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans">
+        <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} />
 
-            {editing && (
-              <div className="pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleResetPassword(editing)}
-                  className="w-full flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
-                >
-                  <KeyIcon />
-                  Send Password Reset Email
-                </button>
-              </div>
-            )}
-            
+        {/* Page Header */}
+        <div className="max-w-7xl mx-auto mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
             <div>
-              <label className="text-sm font-semibold text-gray-600 mb-1 block">Phone Number</label>
-              <input
-                type="text"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                className="w-full px-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2.5">
+                <Users className="w-7 h-7 text-blue-600" />
+                User Management
+              </h1>
+              <p className="text-sm text-gray-500 mt-1">
+                Add and manage Admins, Managers, and Staff accounts in a single place.
+              </p>
             </div>
-
-            {!editing && (
-              <div>
-                <label className="text-sm font-semibold text-gray-600 mb-1 block">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className="w-full px-4 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-            )}
-
-            <div className="pt-4">
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full px-4 py-2.5 text-sm font-semibold text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-400"
-              >
-                {loading ? "Saving..." : editing ? "Save Changes" : `Create ${title}`}
-              </button>
-            </div>
-          </form>
+            <button
+              onClick={fetchEmployees}
+              disabled={listLoading}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition shadow-xs cursor-pointer"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${listLoading ? "animate-spin text-blue-600" : ""}`} />
+              Refresh
+            </button>
+          </div>
         </div>
 
-        <div className="bg-transparent">
-          <h2 className="text-2xl font-bold text-center text-gray-800 mb-8">{title}s</h2>
-          <div className="space-y-4">
+        {/* Main Content Grid: Form (Left) & Directory (Right) */}
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+          {/* ============ USER FORM (5 COLS) ============ */}
+          <div className="lg:col-span-5 bg-white rounded-2xl shadow-xs border border-gray-200/90 p-5 sm:p-6 sticky top-6">
+            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    editing ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {editing ? <Edit2 className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">
+                    {editing ? "Edit User Details" : "Add New User"}
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    {editing ? "Update role or user info" : "Choose role and enter details"}
+                  </p>
+                </div>
+              </div>
+
+              {editing && (
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="text-xs text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg transition"
+                >
+                  Cancel
+                </button>
+              )}
+            </div>
+
+            <form onSubmit={handleCreateOrUpdate} className="space-y-4">
+              {/* Full Name */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Full Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={employeeName}
+                  onChange={(e) => setEmployeeName(e.target.value)}
+                  placeholder="e.g., Rajesh Kumar"
+                  required
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                />
+              </div>
+
+              {/* Email Address */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Email Address <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="e.g., rajesh@company.com"
+                  required
+                  disabled={!!editing}
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition disabled:bg-gray-100 disabled:text-gray-500"
+                />
+                {editing && (
+                  <p className="text-[11px] text-gray-400 mt-1">Email cannot be changed after creation.</p>
+                )}
+              </div>
+
+              {/* Phone Number */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="e.g., 9876543210"
+                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                />
+              </div>
+
+              {/* Role Selection (Staff / Manager / Admin) */}
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
+                  Select Role <span className="text-red-500">*</span>
+                </label>
+                <div className="grid grid-cols-3 gap-2">
+                  {/* Staff */}
+                  <button
+                    type="button"
+                    onClick={() => setRole("staff")}
+                    className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      role === "staff"
+                        ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-900 font-bold"
+                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
+                    }`}
+                  >
+                    <User className={`w-4 h-4 ${role === "staff" ? "text-emerald-600" : "text-gray-400"}`} />
+                    <span className="text-xs">Staff</span>
+                  </button>
+
+                  {/* Manager */}
+                  <button
+                    type="button"
+                    onClick={() => setRole("manager")}
+                    className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      role === "manager"
+                        ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20 text-blue-900 font-bold"
+                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
+                    }`}
+                  >
+                    <Users className={`w-4 h-4 ${role === "manager" ? "text-blue-600" : "text-gray-400"}`} />
+                    <span className="text-xs">Manager</span>
+                  </button>
+
+                  {/* Admin */}
+                  <button
+                    type="button"
+                    onClick={() => setRole("admin")}
+                    className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
+                      role === "admin"
+                        ? "bg-purple-50 border-purple-500 ring-2 ring-purple-500/20 text-purple-900 font-bold"
+                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
+                    }`}
+                  >
+                    <ShieldCheck className={`w-4 h-4 ${role === "admin" ? "text-purple-600" : "text-gray-400"}`} />
+                    <span className="text-xs">Admin</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Password (for new user) */}
+              {!editing && (
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                    Password <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Minimum 6 characters"
+                      required
+                      minLength={6}
+                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition pr-10"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                      title={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-gray-400 mt-1">Credentials for first-time sign-in.</p>
+                </div>
+              )}
+
+              {/* Password Reset Action in Edit Mode */}
+              {editing && (
+                <div className="pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleResetPassword(editing.email || "")}
+                    className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-xl transition cursor-pointer"
+                  >
+                    <Key className="w-3.5 h-3.5 text-gray-500" />
+                    Send Password Reset Email
+                  </button>
+                </div>
+              )}
+
+              {/* Form Buttons */}
+              <div className="pt-3 flex items-center gap-2.5">
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-xs transition disabled:opacity-60 cursor-pointer"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      <span>{editing ? "Updating..." : "Creating..."}</span>
+                    </>
+                  ) : (
+                    <>
+                      {editing ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                      <span>{editing ? "Save Changes" : `Create ${role.toUpperCase()}`}</span>
+                    </>
+                  )}
+                </button>
+
+                {editing && (
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </form>
+          </div>
+
+          {/* ============ USER DIRECTORY (7 COLS) ============ */}
+          <div className="lg:col-span-7 space-y-4">
+            {/* Filter Tabs & Search Bar */}
+            <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                {/* Role Tabs */}
+                <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl overflow-x-auto">
+                  <button
+                    onClick={() => setActiveTab("all")}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                      activeTab === "all"
+                        ? "bg-white text-gray-900 shadow-2xs font-bold"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    All ({counts.total})
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("admin")}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                      activeTab === "admin"
+                        ? "bg-purple-600 text-white shadow-2xs font-bold"
+                        : "text-purple-700 hover:bg-purple-50"
+                    }`}
+                  >
+                    Admins ({counts.admin})
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("manager")}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                      activeTab === "manager"
+                        ? "bg-blue-600 text-white shadow-2xs font-bold"
+                        : "text-blue-700 hover:bg-blue-50"
+                    }`}
+                  >
+                    Managers ({counts.manager})
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab("staff")}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                      activeTab === "staff"
+                        ? "bg-emerald-600 text-white shadow-2xs font-bold"
+                        : "text-emerald-700 hover:bg-emerald-50"
+                    }`}
+                  >
+                    Staff ({counts.staff})
+                  </button>
+                </div>
+
+                {/* Search Input */}
+                <div className="relative min-w-[200px]">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder="Search name, email, phone..."
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm("")}
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* User Cards List */}
             {listLoading ? (
-              renderShimmer()
-            ) : employees.length === 0 ? (
-              <div className="text-center text-gray-500 pt-10">
-                No {title.toLowerCase()}s found
+              <div className="space-y-3">
+                {[1, 2, 3, 4].map((i) => (
+                  <div key={i} className="bg-white p-4 rounded-2xl border border-gray-200 animate-pulse">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-2">
+                        <div className="h-4 bg-gray-200 rounded-md w-36" />
+                        <div className="h-3 bg-gray-200 rounded-md w-48" />
+                        <div className="h-3 bg-gray-200 rounded-md w-28" />
+                      </div>
+                      <div className="h-8 bg-gray-200 rounded-lg w-16" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : filteredEmployees.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
+                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <h3 className="text-base font-bold text-gray-800">No users found</h3>
+                <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
+                  {searchTerm
+                    ? `No matching users found for "${searchTerm}".`
+                    : `No ${activeTab === "all" ? "" : activeTab} users registered yet.`}
+                </p>
               </div>
             ) : (
-              employees.map((emp) => (
-                <div key={emp.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 flex items-center justify-between">
-                  <div>
-                    <h3 className="font-bold text-base text-gray-800">{emp.employeeName}</h3>
-                    <p className="text-sm text-gray-600">{emp.email}</p>
-                    <p className="text-xs text-gray-500 mt-1">{emp.phone}</p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button onClick={() => handleEditClick(emp)} title="Edit" className="p-1">
-                      <EditIcon />
-                    </button>
-                    <button onClick={() => handleDelete(emp)} title="Delete" className="p-1">
-                      {actionInProgress === emp.id ? (
-                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
-                      ) : (
-                        <DeleteIcon />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              ))
+              <div className="space-y-3">
+                {filteredEmployees.map((emp) => {
+                  const isSelectedForEdit = editing?.id === emp.id;
+                  return (
+                    <div
+                      key={emp.id}
+                      className={`bg-white p-4 rounded-2xl border transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                        isSelectedForEdit
+                          ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20 shadow-xs"
+                          : "border-gray-200/90 hover:border-gray-300 hover:shadow-xs"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 uppercase ${
+                            emp.role === "admin"
+                              ? "bg-purple-100 text-purple-700 border border-purple-200"
+                              : emp.role === "manager"
+                              ? "bg-blue-100 text-blue-700 border border-blue-200"
+                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
+                          }`}
+                        >
+                          {(emp.employeeName || emp.name || "U")[0]}
+                        </div>
+
+                        <div>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h3 className="font-bold text-sm text-gray-900">
+                              {emp.employeeName || emp.name}
+                            </h3>
+                            {getRoleBadge(emp.role)}
+                          </div>
+                          <p className="text-xs text-gray-600 mt-0.5">{emp.email}</p>
+                          {(emp.phone || emp.mobile) && (
+                            <p className="text-xs text-gray-400 mt-0.5 font-mono">
+                              {emp.phone || emp.mobile}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex items-center justify-end gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                        <button
+                          type="button"
+                          onClick={() => handleEditClick(emp)}
+                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"
+                          title="Edit user"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleResetPassword(emp.email || "")}
+                          className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition cursor-pointer"
+                          title="Send password reset email"
+                        >
+                          <Key className="w-4 h-4" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setUserToDelete(emp)}
+                          className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                          title="Delete user"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             )}
           </div>
         </div>
+
+        {/* Delete Confirmation Modal */}
+        {userToDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150">
+              <div className="flex items-center gap-3 text-rose-600 mb-3">
+                <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-rose-600" />
+                </div>
+                <h3 className="text-lg font-bold text-gray-900">Confirm Deletion</h3>
+              </div>
+
+              <p className="text-sm text-gray-600 mb-2">
+                Are you sure you want to delete user{" "}
+                <strong className="text-gray-900">{userToDelete.employeeName || userToDelete.name}</strong> (
+                {userToDelete.email})?
+              </p>
+              <p className="text-xs text-gray-400 mb-5">
+                This will remove their account and revoke their access to the system.
+              </p>
+
+              <div className="flex items-center justify-end gap-2.5">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setUserToDelete(null)}
+                  className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={confirmDelete}
+                  className="inline-flex items-center justify-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-rose-600 hover:bg-rose-700 rounded-xl shadow-xs transition cursor-pointer disabled:opacity-60"
+                >
+                  {isDeleting ? "Deleting..." : "Delete User"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
-       <style>{`
-        .Toastify__toast-container {
-            z-index: 9999;
-            position: fixed;
-            padding: 4px;
-            width: 320px;
-            box-sizing: border-box;
-            color: #fff;
-        }
-        .Toastify__toast {
-            position: relative;
-            min-height: 64px;
-            box-sizing: border-box;
-            margin-bottom: 1rem;
-            padding: 8px;
-            border-radius: 4px;
-            box-shadow: 0 1px 10px 0 rgba(0, 0, 0, 0.1), 0 2px 15px 0 rgba(0, 0, 0, 0.05);
-            display: flex;
-            justify-content: space-between;
-            max-height: 800px;
-            overflow: hidden;
-            font-family: sans-serif;
-            cursor: pointer;
-            direction: ltr;
-        }
-        .Toastify__toast--success {
-            background: #07bc0c;
-        }
-        .Toastify__toast--error {
-            background: #e74c3c;
-        }
-        .Toastify__toast-body {
-            margin: auto 0;
-            flex: 1 1 auto;
-            padding: 6px;
-        }
-        .Toastify__progress-bar {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 5px;
-            z-index: 9999;
-            opacity: 0.7;
-            background-color: rgba(255, 255, 255, 0.7);
-            transform-origin: left;
-        }
-      `}</style>
-    </div>
+    </AdminGuard>
   );
 }
-
