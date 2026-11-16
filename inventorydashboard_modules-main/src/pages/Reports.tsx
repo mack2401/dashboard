@@ -848,7 +848,7 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* MOM and YOY Sales & Volume Comparison Analytics */}
+      {/* MOM and YOY Values & Volume Comparison Analytics */}
       <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
 
       {/* Visual Analytics Charts */}

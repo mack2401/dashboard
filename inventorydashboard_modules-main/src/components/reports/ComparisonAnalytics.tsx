@@ -34,7 +34,7 @@ import {
   Legend,
   CartesianGrid,
 } from "recharts";
-import * as XLSX from "xlsx";
+import * as XLSX from "xlsx-js-style";
 
 interface ComparisonAnalyticsProps {
   bills: any[];
@@ -523,75 +523,324 @@ export default function ComparisonAnalytics({
     };
   }, [allSales, y1Year, y2Year]);
 
-  // Excel Export Handler
+  // Styled Excel Export Handler using xlsx-js-style
   const handleExportComparison = () => {
-    if (comparisonMode === "mom") {
-      const dataForExcel = momData.dailyRows.map((r) => ({
-        Day: r.day,
-        [`${momData.m1Label} Sales (₹)`]: r.m1Price,
-        [`${momData.m2Label} Sales (₹)`]: r.m2Price,
-        "Sales Difference (₹)": r.priceDiff,
-        "Sales Difference (%)": `${r.priceDiffPct >= 0 ? "+" : ""}${r.priceDiffPct.toFixed(1)}%`,
-        [`${momData.m1Label} Quantity`]: r.m1Qty,
-        [`${momData.m2Label} Quantity`]: r.m2Qty,
-        "Quantity Difference": r.qtyDiff,
-        "Quantity Difference (%)": `${r.qtyDiffPct >= 0 ? "+" : ""}${r.qtyDiffPct.toFixed(1)}%`,
-      }));
+    const isMOM = comparisonMode === "mom";
+    const wb = XLSX.utils.book_new();
 
-      // Add Total Row
-      dataForExcel.push({
-        Day: "TOTAL / SUMMARY",
-        [`${momData.m1Label} Sales (₹)`]: momData.totalM1Price,
-        [`${momData.m2Label} Sales (₹)`]: momData.totalM2Price,
-        "Sales Difference (₹)": momData.overallPriceDiff,
-        "Sales Difference (%)": `${momData.overallPricePct >= 0 ? "+" : ""}${momData.overallPricePct.toFixed(1)}%`,
-        [`${momData.m1Label} Quantity`]: momData.totalM1Qty,
-        [`${momData.m2Label} Quantity`]: momData.totalM2Qty,
-        "Quantity Difference": momData.overallQtyDiff,
-        "Quantity Difference (%)": `${momData.overallQtyPct >= 0 ? "+" : ""}${momData.overallQtyPct.toFixed(1)}%`,
-      });
+    const titleText = isMOM
+      ? `Values & Volume Comparison — Month-over-Month (MOM)`
+      : `Values & Volume Comparison — Year-over-Year (YOY)`;
 
-      const ws = XLSX.utils.json_to_sheet(dataForExcel);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "MOM Comparison");
-      XLSX.writeFile(
-        wb,
-        `MOM_Comparison_${momData.m1Label.replace(/\s+/g, "_")}_vs_${momData.m2Label.replace(/\s+/g, "_")}.xlsx`
-      );
-    } else {
-      const dataForExcel = yoyData.monthlyRows.map((r) => ({
-        Month: r.month,
-        [`${yoyData.y1Label} Sales (₹)`]: r.y1Price,
-        [`${yoyData.y2Label} Sales (₹)`]: r.y2Price,
-        "Sales Difference (₹)": r.priceDiff,
-        "Sales Difference (%)": `${r.priceDiffPct >= 0 ? "+" : ""}${r.priceDiffPct.toFixed(1)}%`,
-        [`${yoyData.y1Label} Quantity`]: r.y1Qty,
-        [`${yoyData.y2Label} Quantity`]: r.y2Qty,
-        "Quantity Difference": r.qtyDiff,
-        "Quantity Difference (%)": `${r.qtyDiffPct >= 0 ? "+" : ""}${r.qtyDiffPct.toFixed(1)}%`,
-      }));
+    const periodText = isMOM
+      ? `Base Period: ${momData.m1Label} | Comparison Period: ${momData.m2Label} | Generated on ${new Date().toLocaleDateString("en-IN")}`
+      : `Base Year: ${yoyData.y1Label} | Comparison Year: ${yoyData.y2Label} | Generated on ${new Date().toLocaleDateString("en-IN")}`;
 
-      // Add Total Row
-      dataForExcel.push({
-        Month: "FULL YEAR TOTAL",
-        [`${yoyData.y1Label} Sales (₹)`]: yoyData.totalY1Price,
-        [`${yoyData.y2Label} Sales (₹)`]: yoyData.totalY2Price,
-        "Sales Difference (₹)": yoyData.overallPriceDiff,
-        "Sales Difference (%)": `${yoyData.overallPricePct >= 0 ? "+" : ""}${yoyData.overallPricePct.toFixed(1)}%`,
-        [`${yoyData.y1Label} Quantity`]: yoyData.totalY1Qty,
-        [`${yoyData.y2Label} Quantity`]: yoyData.totalY2Qty,
-        "Quantity Difference": yoyData.overallQtyDiff,
-        "Quantity Difference (%)": `${yoyData.overallQtyPct >= 0 ? "+" : ""}${yoyData.overallQtyPct.toFixed(1)}%`,
-      });
+    const headers = isMOM
+      ? [
+          "Day",
+          `${momData.m1Label} Values (₹)`,
+          `${momData.m2Label} Values (₹)`,
+          "Value Diff (₹)",
+          "Value % Change",
+          `${momData.m1Label} Quantity`,
+          `${momData.m2Label} Quantity`,
+          "Quantity Diff",
+          "Quantity % Change",
+        ]
+      : [
+          "Month",
+          `${yoyData.y1Label} Values (₹)`,
+          `${yoyData.y2Label} Values (₹)`,
+          "Value Diff (₹)",
+          "Value % Change",
+          `${yoyData.y1Label} Quantity`,
+          `${yoyData.y2Label} Quantity`,
+          "Quantity Diff",
+          "Quantity % Change",
+        ];
 
-      const ws = XLSX.utils.json_to_sheet(dataForExcel);
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, "YOY Comparison");
-      XLSX.writeFile(
-        wb,
-        `YOY_Comparison_${yoyData.y1Label}_vs_${yoyData.y2Label}.xlsx`
-      );
+    const dataRows = isMOM
+      ? momData.dailyRows.map((r) => [
+          r.day,
+          r.m1Price,
+          r.m2Price,
+          r.priceDiff,
+          `${r.priceDiffPct >= 0 ? "+" : ""}${r.priceDiffPct.toFixed(1)}%`,
+          r.m1Qty,
+          r.m2Qty,
+          r.qtyDiff,
+          `${r.qtyDiffPct >= 0 ? "+" : ""}${r.qtyDiffPct.toFixed(1)}%`,
+        ])
+      : yoyData.monthlyRows.map((r) => [
+          r.month,
+          r.y1Price,
+          r.y2Price,
+          r.priceDiff,
+          `${r.priceDiffPct >= 0 ? "+" : ""}${r.priceDiffPct.toFixed(1)}%`,
+          r.y1Qty,
+          r.y2Qty,
+          r.qtyDiff,
+          `${r.qtyDiffPct >= 0 ? "+" : ""}${r.qtyDiffPct.toFixed(1)}%`,
+        ]);
+
+    const totalRow = isMOM
+      ? [
+          "TOTAL / SUMMARY",
+          momData.totalM1Price,
+          momData.totalM2Price,
+          momData.overallPriceDiff,
+          `${momData.overallPricePct >= 0 ? "+" : ""}${momData.overallPricePct.toFixed(1)}%`,
+          momData.totalM1Qty,
+          momData.totalM2Qty,
+          momData.overallQtyDiff,
+          `${momData.overallQtyPct >= 0 ? "+" : ""}${momData.overallQtyPct.toFixed(1)}%`,
+        ]
+      : [
+          "FULL YEAR TOTAL",
+          yoyData.totalY1Price,
+          yoyData.totalY2Price,
+          yoyData.overallPriceDiff,
+          `${yoyData.overallPricePct >= 0 ? "+" : ""}${yoyData.overallPricePct.toFixed(1)}%`,
+          yoyData.totalY1Qty,
+          yoyData.totalY2Qty,
+          yoyData.overallQtyDiff,
+          `${yoyData.overallQtyPct >= 0 ? "+" : ""}${yoyData.overallQtyPct.toFixed(1)}%`,
+        ];
+
+    const allSheetData = [
+      [titleText, "", "", "", "", "", "", "", ""],
+      [periodText, "", "", "", "", "", "", "", ""],
+      ["", "", "", "", "", "", "", "", ""],
+      headers,
+      ...dataRows,
+      totalRow,
+    ];
+
+    const ws = XLSX.utils.aoa_to_sheet(allSheetData);
+
+    // Merge Title and Subtitle rows across 9 columns
+    ws["!merges"] = [
+      { s: { r: 0, c: 0 }, e: { r: 0, c: 8 } },
+      { s: { r: 1, c: 0 }, e: { r: 1, c: 8 } },
+    ];
+
+    // Explicit neat column widths
+    ws["!cols"] = [
+      { wch: 14 }, // Day / Month
+      { wch: 22 }, // Base Values
+      { wch: 22 }, // Compare Values
+      { wch: 18 }, // Value Diff
+      { wch: 16 }, // Value % Change
+      { wch: 18 }, // Base Qty
+      { wch: 18 }, // Compare Qty
+      { wch: 16 }, // Qty Diff
+      { wch: 16 }, // Qty % Change
+    ];
+
+    // Explicit row heights
+    const rowHeights = [
+      { hpt: 30 }, // Title
+      { hpt: 20 }, // Subtitle
+      { hpt: 10 }, // Blank
+      { hpt: 26 }, // Headers
+    ];
+    for (let i = 0; i < dataRows.length; i++) {
+      rowHeights.push({ hpt: 20 });
     }
+    rowHeights.push({ hpt: 24 }); // Total row
+    ws["!rows"] = rowHeights;
+
+    // Apply styles to Title (A1) & Subtitle (A2)
+    if (ws["A1"]) {
+      ws["A1"].s = {
+        font: { sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+        fill: { fgColor: { rgb: "1E3A8A" } },
+        alignment: { horizontal: "center", vertical: "center" },
+      };
+    }
+    if (ws["A2"]) {
+      ws["A2"].s = {
+        font: { sz: 10, bold: true, color: { rgb: "1E40AF" } },
+        fill: { fgColor: { rgb: "DBEAFE" } },
+        alignment: { horizontal: "center", vertical: "center" },
+      };
+    }
+
+    // Apply styles to Headers (Row 4, index 3)
+    const headerFills = [
+      "334155", // Col 0: Slate
+      "1D4ED8", // Col 1: Deep Blue
+      "1D4ED8", // Col 2: Deep Blue
+      "4338CA", // Col 3: Indigo
+      "4338CA", // Col 4: Indigo
+      "047857", // Col 5: Emerald
+      "047857", // Col 6: Emerald
+      "0F766E", // Col 7: Teal
+      "0F766E", // Col 8: Teal
+    ];
+
+    for (let c = 0; c < 9; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 3, c });
+      if (ws[cellRef]) {
+        ws[cellRef].s = {
+          font: { sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: headerFills[c] } },
+          alignment: {
+            horizontal: c === 0 ? "left" : c === 4 || c === 8 ? "center" : "right",
+            vertical: "center",
+          },
+          border: {
+            top: { style: "thin", color: { rgb: "94A3B8" } },
+            bottom: { style: "thin", color: { rgb: "94A3B8" } },
+            left: { style: "thin", color: { rgb: "94A3B8" } },
+            right: { style: "thin", color: { rgb: "94A3B8" } },
+          },
+        };
+      }
+    }
+
+    // Apply styles to Data Rows
+    for (let r = 0; r < dataRows.length; r++) {
+      const rowIndex = 4 + r;
+      const isOdd = r % 2 === 1;
+      const rowData = dataRows[r];
+      const valDiff = Number(rowData[3]) || 0;
+      const valPct = String(rowData[4] || "");
+      const qtyDiff = Number(rowData[7]) || 0;
+      const qtyPct = String(rowData[8] || "");
+
+      for (let c = 0; c < 9; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c });
+        if (!ws[cellRef]) continue;
+
+        const baseBorder = {
+          bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+          left: { style: "thin", color: { rgb: "E2E8F0" } },
+          right: { style: "thin", color: { rgb: "E2E8F0" } },
+        };
+
+        if (c === 0) {
+          ws[cellRef].s = {
+            font: { sz: 10, bold: true, color: { rgb: "1E293B" } },
+            fill: { fgColor: { rgb: isOdd ? "F8FAFC" : "FFFFFF" } },
+            alignment: { horizontal: "left", vertical: "center" },
+            border: baseBorder,
+          };
+        } else if (c === 1 || c === 2) {
+          ws[cellRef].s = {
+            font: { sz: 10, bold: c === 2, color: { rgb: "0F172A" } },
+            fill: {
+              fgColor: { rgb: c === 2 ? (isOdd ? "EFF6FF" : "F0F9FF") : isOdd ? "F8FAFC" : "FFFFFF" },
+            },
+            alignment: { horizontal: "right", vertical: "center" },
+            border: baseBorder,
+          };
+        } else if (c === 3) {
+          const isPos = valDiff > 0;
+          const isNeg = valDiff < 0;
+          ws[cellRef].s = {
+            font: {
+              sz: 10,
+              bold: isPos || isNeg,
+              color: { rgb: isPos ? "15803D" : isNeg ? "B91C1C" : "64748B" },
+            },
+            fill: {
+              fgColor: { rgb: isPos ? "DCFCE7" : isNeg ? "FEE2E2" : isOdd ? "F8FAFC" : "FFFFFF" },
+            },
+            alignment: { horizontal: "right", vertical: "center" },
+            border: baseBorder,
+          };
+        } else if (c === 4) {
+          const isPos = valPct.startsWith("+");
+          const isNeg = valPct.startsWith("-");
+          ws[cellRef].s = {
+            font: {
+              sz: 10,
+              bold: true,
+              color: { rgb: isPos ? "15803D" : isNeg ? "B91C1C" : "64748B" },
+            },
+            fill: {
+              fgColor: { rgb: isPos ? "DCFCE7" : isNeg ? "FEE2E2" : isOdd ? "F8FAFC" : "FFFFFF" },
+            },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: baseBorder,
+          };
+        } else if (c === 5 || c === 6) {
+          ws[cellRef].s = {
+            font: { sz: 10, bold: c === 6, color: { rgb: "0F172A" } },
+            fill: {
+              fgColor: { rgb: c === 6 ? (isOdd ? "F0FDF4" : "F7FEE7") : isOdd ? "F8FAFC" : "FFFFFF" },
+            },
+            alignment: { horizontal: "right", vertical: "center" },
+            border: baseBorder,
+          };
+        } else if (c === 7) {
+          const isPos = qtyDiff > 0;
+          const isNeg = qtyDiff < 0;
+          ws[cellRef].s = {
+            font: {
+              sz: 10,
+              bold: isPos || isNeg,
+              color: { rgb: isPos ? "15803D" : isNeg ? "B91C1C" : "64748B" },
+            },
+            fill: {
+              fgColor: { rgb: isPos ? "DCFCE7" : isNeg ? "FEE2E2" : isOdd ? "F8FAFC" : "FFFFFF" },
+            },
+            alignment: { horizontal: "right", vertical: "center" },
+            border: baseBorder,
+          };
+        } else if (c === 8) {
+          const isPos = qtyPct.startsWith("+");
+          const isNeg = qtyPct.startsWith("-");
+          ws[cellRef].s = {
+            font: {
+              sz: 10,
+              bold: true,
+              color: { rgb: isPos ? "15803D" : isNeg ? "B91C1C" : "64748B" },
+            },
+            fill: {
+              fgColor: { rgb: isPos ? "DCFCE7" : isNeg ? "FEE2E2" : isOdd ? "F8FAFC" : "FFFFFF" },
+            },
+            alignment: { horizontal: "center", vertical: "center" },
+            border: baseBorder,
+          };
+        }
+      }
+    }
+
+    // Apply styles to Total Row
+    const totalRowIndex = 4 + dataRows.length;
+    for (let c = 0; c < 9; c++) {
+      const cellRef = XLSX.utils.encode_cell({ r: totalRowIndex, c });
+      if (!ws[cellRef]) continue;
+
+      const totalBorder = {
+        top: { style: "medium", color: { rgb: "475569" } },
+        bottom: { style: "double", color: { rgb: "0F172A" } },
+        left: { style: "thin", color: { rgb: "CBD5E1" } },
+        right: { style: "thin", color: { rgb: "CBD5E1" } },
+      };
+
+      ws[cellRef].s = {
+        font: { sz: 11, bold: true, color: { rgb: "0F172A" } },
+        fill: { fgColor: { rgb: "FEF3C7" } }, // Soft Amber
+        alignment: {
+          horizontal: c === 0 ? "left" : c === 4 || c === 8 ? "center" : "right",
+          vertical: "center",
+        },
+        border: totalBorder,
+      };
+    }
+
+    const sheetName = isMOM ? "MOM Comparison" : "YOY Comparison";
+    XLSX.utils.book_append_sheet(wb, ws, sheetName);
+
+    const filename = isMOM
+      ? `Values_Volume_MOM_${momData.m1Label.replace(/\s+/g, "_")}_vs_${momData.m2Label.replace(/\s+/g, "_")}.xlsx`
+      : `Values_Volume_YOY_${yoyData.y1Label}_vs_${yoyData.y2Label}.xlsx`;
+
+    XLSX.writeFile(wb, filename);
   };
 
   const renderBadge = (diffVal: number, pctVal: number, isCurrency: boolean = false) => {
@@ -620,6 +869,52 @@ export default function ComparisonAnalytics({
     );
   };
 
+  const renderDiffBadge = (diffVal: number, isCurrency: boolean = false) => {
+    if (diffVal > 0) {
+      return (
+        <span className="inline-flex items-center gap-0.5 font-bold text-emerald-700">
+          <ArrowUpRight className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+          +{isCurrency ? formatINR(diffVal) : diffVal.toLocaleString("en-IN")}
+        </span>
+      );
+    }
+    if (diffVal < 0) {
+      return (
+        <span className="inline-flex items-center gap-0.5 font-bold text-rose-700">
+          <ArrowDownRight className="w-3.5 h-3.5 text-rose-600 shrink-0" />
+          {isCurrency ? formatINR(diffVal) : diffVal.toLocaleString("en-IN")}
+        </span>
+      );
+    }
+    return (
+      <span className="font-semibold text-gray-500">
+        {isCurrency ? "₹0" : "0"}
+      </span>
+    );
+  };
+
+  const renderPctBadge = (pctVal: number) => {
+    if (pctVal > 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+          +{pctVal.toFixed(1)}%
+        </span>
+      );
+    }
+    if (pctVal < 0) {
+      return (
+        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-100 text-rose-800 border border-rose-200">
+          {pctVal.toFixed(1)}%
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
+        0.0%
+      </span>
+    );
+  };
+
   return (
     <section className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-5 sm:p-6 mb-6 font-sans">
       {/* Top Header Bar & Tabs */}
@@ -630,7 +925,7 @@ export default function ComparisonAnalytics({
           </div>
           <div>
             <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
-              Sales & Volume Comparison
+              Values & Volume Comparison
             </h2>
           </div>
         </div>
@@ -662,13 +957,13 @@ export default function ComparisonAnalytics({
             </button>
           </div>
 
-          {/* Export to Excel */}
+          {/* Export to Excel - Darkened Button Option */}
           <button
             onClick={handleExportComparison}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition cursor-pointer shadow-2xs"
-            title="Download comparison report to Excel spreadsheet"
+            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 border border-slate-950 shadow-md shadow-slate-900/25 transition-all cursor-pointer hover:scale-102 active:scale-98"
+            title="Download comparison report to formatted Excel spreadsheet"
           >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
             <span>Export Excel</span>
           </button>
         </div>
@@ -832,10 +1127,10 @@ export default function ComparisonAnalytics({
       {/* Summary KPI Cards */}
       {comparisonMode === "mom" ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
-          {/* Selling Price / Revenue KPI */}
+          {/* Values / Revenue KPI */}
           <div className="bg-gradient-to-br from-blue-50/60 to-white p-4 rounded-xl border border-blue-100 shadow-xs">
             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-              Total Selling Price
+              Total Values
             </span>
             <div className="mt-2 flex items-baseline justify-between">
               <div>
@@ -877,7 +1172,7 @@ export default function ComparisonAnalytics({
           {/* Average Daily Velocity */}
           <div className="bg-gradient-to-br from-amber-50/60 to-white p-4 rounded-xl border border-amber-100 shadow-xs">
             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-              Avg Daily Selling Price
+              Avg Daily Values
             </span>
             <div className="mt-2">
               <p className="text-xl font-bold text-gray-900 tracking-tight">
@@ -900,7 +1195,7 @@ export default function ComparisonAnalytics({
           {/* YOY Annual Revenue */}
           <div className="bg-gradient-to-br from-indigo-50/60 to-white p-4 rounded-xl border border-indigo-100 shadow-xs">
             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-              Annual Sales Revenue
+              Annual Values
             </span>
             <div className="mt-2">
               <p className="text-xl font-bold text-gray-900 tracking-tight">
@@ -977,7 +1272,203 @@ export default function ComparisonAnalytics({
         </div>
       )}
 
-      {/* Visual Chart Comparison */}
+      {/* Comprehensive Comparison Data Table (Placed ABOVE the graph) */}
+      <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs mb-6">
+        <div className="p-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+              {comparisonMode === "mom"
+                ? `Day-by-Day Difference Table (${momData.m1Label} vs ${momData.m2Label})`
+                : `12-Month Difference Table (${yoyData.y1Label} vs ${yoyData.y2Label})`}
+            </span>
+          </div>
+          <span className="text-xs text-gray-500">
+            {comparisonMode === "mom"
+              ? `${momData.dailyRows.length} days analyzed`
+              : "12 months analyzed"}
+          </span>
+        </div>
+
+        <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
+          {comparisonMode === "mom" ? (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-100 text-gray-700 font-bold uppercase tracking-wider text-[11px] border-b border-gray-200">
+                <tr>
+                  <th className="py-3 px-3.5">Day</th>
+                  <th className="py-3 px-3 text-right">{momData.m1Label} Values</th>
+                  <th className="py-3 px-3 text-right bg-blue-50/60 text-blue-900">
+                    {momData.m2Label} Values
+                  </th>
+                  <th className="py-3 px-3 text-right">Value Diff (₹)</th>
+                  <th className="py-3 px-3 text-center bg-blue-50/30 text-blue-900">Value % Change</th>
+                  <th className="py-3 px-3 text-right">{momData.m1Label} Qty</th>
+                  <th className="py-3 px-3 text-right bg-emerald-50/60 text-emerald-900">
+                    {momData.m2Label} Qty
+                  </th>
+                  <th className="py-3 px-3 text-right">Qty Diff</th>
+                  <th className="py-3 px-3 text-center bg-emerald-50/30 text-emerald-900">Qty % Change</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-gray-700">
+                {momData.dailyRows.map((row) => (
+                  <tr
+                    key={row.day}
+                    className="hover:bg-blue-50/30 transition-colors"
+                  >
+                    <td className="py-2.5 px-3.5 font-bold text-gray-900 font-mono">
+                      {row.day}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-gray-600 font-medium tabular-nums">
+                      {formatINR(row.m1Price)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold text-gray-900 tabular-nums bg-blue-50/20">
+                      {formatINR(row.m2Price)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums">
+                      {renderDiffBadge(row.priceDiff, true)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center tabular-nums bg-blue-50/10">
+                      {renderPctBadge(row.priceDiffPct)}
+                    </td>
+                    <td className="py-2.5 px-3 text-right text-gray-600 font-medium tabular-nums">
+                      {row.m1Qty.toLocaleString("en-IN")}
+                    </td>
+                    <td className="py-2.5 px-3 text-right font-bold text-gray-900 tabular-nums bg-emerald-50/20">
+                      {row.m2Qty.toLocaleString("en-IN")}
+                    </td>
+                    <td className="py-2.5 px-3 text-right tabular-nums">
+                      {renderDiffBadge(row.qtyDiff, false)}
+                    </td>
+                    <td className="py-2.5 px-3 text-center tabular-nums bg-emerald-50/10">
+                      {renderPctBadge(row.qtyDiffPct)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="sticky bottom-0 bg-slate-100 font-bold text-gray-900 border-t-2 border-gray-300">
+                <tr>
+                  <td className="py-3 px-3.5 uppercase tracking-wider text-xs">
+                    TOTAL / SUMMARY
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {formatINR(momData.totalM1Price)}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs text-blue-700 bg-blue-100/50">
+                    {formatINR(momData.totalM2Price)}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {renderDiffBadge(momData.overallPriceDiff, true)}
+                  </td>
+                  <td className="py-3 px-3 text-center tabular-nums text-xs bg-blue-100/30">
+                    {renderPctBadge(momData.overallPricePct)}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {momData.totalM1Qty.toLocaleString("en-IN")}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs text-emerald-700 bg-emerald-100/50">
+                    {momData.totalM2Qty.toLocaleString("en-IN")}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {renderDiffBadge(momData.overallQtyDiff, false)}
+                  </td>
+                  <td className="py-3 px-3 text-center tabular-nums text-xs bg-emerald-100/30">
+                    {renderPctBadge(momData.overallQtyPct)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          ) : (
+            <table className="w-full text-left border-collapse text-xs">
+              <thead className="sticky top-0 z-10 bg-slate-100 text-gray-700 font-bold uppercase tracking-wider text-[11px] border-b border-gray-200">
+                <tr>
+                  <th className="py-3 px-3.5">Month</th>
+                  <th className="py-3 px-3 text-right">{yoyData.y1Label} Values</th>
+                  <th className="py-3 px-3 text-right bg-indigo-50/60 text-indigo-900">
+                    {yoyData.y2Label} Values
+                  </th>
+                  <th className="py-3 px-3 text-right">Value Diff (₹)</th>
+                  <th className="py-3 px-3 text-center bg-indigo-50/30 text-indigo-900">Value % Change</th>
+                  <th className="py-3 px-3 text-right">{yoyData.y1Label} Qty</th>
+                  <th className="py-3 px-3 text-right bg-emerald-50/60 text-emerald-900">
+                    {yoyData.y2Label} Qty
+                  </th>
+                  <th className="py-3 px-3 text-right">Qty Diff</th>
+                  <th className="py-3 px-3 text-center bg-emerald-50/30 text-emerald-900">Qty % Change</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 text-gray-700">
+                {yoyData.monthlyRows.map((row) => (
+                  <tr
+                    key={row.month}
+                    className="hover:bg-indigo-50/30 transition-colors"
+                  >
+                    <td className="py-3 px-3.5 font-bold text-gray-900">
+                      {row.month}
+                    </td>
+                    <td className="py-3 px-3 text-right text-gray-600 font-medium tabular-nums">
+                      {formatINR(row.y1Price)}
+                    </td>
+                    <td className="py-3 px-3 text-right font-bold text-gray-900 tabular-nums bg-indigo-50/20">
+                      {formatINR(row.y2Price)}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums">
+                      {renderDiffBadge(row.priceDiff, true)}
+                    </td>
+                    <td className="py-3 px-3 text-center tabular-nums bg-indigo-50/10">
+                      {renderPctBadge(row.priceDiffPct)}
+                    </td>
+                    <td className="py-3 px-3 text-right text-gray-600 font-medium tabular-nums">
+                      {row.y1Qty.toLocaleString("en-IN")}
+                    </td>
+                    <td className="py-3 px-3 text-right font-bold text-gray-900 tabular-nums bg-emerald-50/20">
+                      {row.y2Qty.toLocaleString("en-IN")}
+                    </td>
+                    <td className="py-3 px-3 text-right tabular-nums">
+                      {renderDiffBadge(row.qtyDiff, false)}
+                    </td>
+                    <td className="py-3 px-3 text-center tabular-nums bg-emerald-50/10">
+                      {renderPctBadge(row.qtyDiffPct)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="sticky bottom-0 bg-slate-100 font-bold text-gray-900 border-t-2 border-gray-300">
+                <tr>
+                  <td className="py-3 px-3.5 uppercase tracking-wider text-xs">
+                    FULL YEAR TOTAL
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {formatINR(yoyData.totalY1Price)}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs text-indigo-700 bg-indigo-100/50">
+                    {formatINR(yoyData.totalY2Price)}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {renderDiffBadge(yoyData.overallPriceDiff, true)}
+                  </td>
+                  <td className="py-3 px-3 text-center tabular-nums text-xs bg-indigo-100/30">
+                    {renderPctBadge(yoyData.overallPricePct)}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {yoyData.totalY1Qty.toLocaleString("en-IN")}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs text-emerald-700 bg-emerald-100/50">
+                    {yoyData.totalY2Qty.toLocaleString("en-IN")}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-xs">
+                    {renderDiffBadge(yoyData.overallQtyDiff, false)}
+                  </td>
+                  <td className="py-3 px-3 text-center tabular-nums text-xs bg-emerald-100/30">
+                    {renderPctBadge(yoyData.overallQtyPct)}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </div>
+
+      {/* Visual Chart Comparison (Brought BELOW the table) */}
       <div className="bg-slate-50/70 p-4 rounded-xl border border-gray-200/80 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -989,7 +1480,7 @@ export default function ComparisonAnalytics({
             </h3>
           </div>
 
-          {/* Toggle between Price and Quantity Chart */}
+          {/* Toggle between Values and Quantity Chart */}
           <div className="flex items-center gap-1 bg-white p-0.5 rounded-lg border border-gray-200">
             <button
               onClick={() => setChartMetric("price")}
@@ -999,7 +1490,7 @@ export default function ComparisonAnalytics({
                   : "text-gray-600 hover:text-gray-900"
               }`}
             >
-              Selling Price (₹)
+              Values (₹)
             </button>
             <button
               onClick={() => setChartMetric("quantity")}
@@ -1052,7 +1543,7 @@ export default function ComparisonAnalytics({
                 <Area
                   type="monotone"
                   dataKey={chartMetric === "price" ? "m1Price" : "m1Qty"}
-                  name={`${momData.m1Label} (${chartMetric === "price" ? "₹" : "Qty"})`}
+                  name={`${momData.m1Label} (${chartMetric === "price" ? "Values ₹" : "Qty"})`}
                   stroke="#3B82F6"
                   strokeWidth={2}
                   strokeDasharray="4 4"
@@ -1062,7 +1553,7 @@ export default function ComparisonAnalytics({
                 <Area
                   type="monotone"
                   dataKey={chartMetric === "price" ? "m2Price" : "m2Qty"}
-                  name={`${momData.m2Label} (${chartMetric === "price" ? "₹" : "Qty"})`}
+                  name={`${momData.m2Label} (${chartMetric === "price" ? "Values ₹" : "Qty"})`}
                   stroke="#10B981"
                   strokeWidth={2.5}
                   fillOpacity={1}
@@ -1095,186 +1586,18 @@ export default function ComparisonAnalytics({
                 <Legend verticalAlign="top" height={36} />
                 <Bar
                   dataKey={chartMetric === "price" ? "y1Price" : "y1Qty"}
-                  name={`${yoyData.y1Label} (${chartMetric === "price" ? "₹" : "Qty"})`}
+                  name={`${yoyData.y1Label} (${chartMetric === "price" ? "Values ₹" : "Qty"})`}
                   fill="#94A3B8"
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar
                   dataKey={chartMetric === "price" ? "y2Price" : "y2Qty"}
-                  name={`${yoyData.y2Label} (${chartMetric === "price" ? "₹" : "Qty"})`}
+                  name={`${yoyData.y2Label} (${chartMetric === "price" ? "Values ₹" : "Qty"})`}
                   fill="#6366F1"
                   radius={[4, 4, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
-          )}
-        </div>
-      </div>
-
-      {/* Comprehensive Comparison Data Table */}
-      <div className="border border-gray-200 rounded-xl overflow-hidden shadow-2xs">
-        <div className="p-3.5 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
-              {comparisonMode === "mom"
-                ? `Day-by-Day Difference Table (${momData.m1Label} vs ${momData.m2Label})`
-                : `12-Month Difference Table (${yoyData.y1Label} vs ${yoyData.y2Label})`}
-            </span>
-          </div>
-          <span className="text-xs text-gray-500">
-            {comparisonMode === "mom"
-              ? `${momData.dailyRows.length} days analyzed`
-              : "12 months analyzed"}
-          </span>
-        </div>
-
-        <div className="overflow-x-auto max-h-[460px] overflow-y-auto">
-          {comparisonMode === "mom" ? (
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="sticky top-0 z-10 bg-slate-100 text-gray-700 font-bold uppercase tracking-wider text-[11px] border-b border-gray-200">
-                <tr>
-                  <th className="py-3 px-3.5">Day</th>
-                  <th className="py-3 px-3 text-right">{momData.m1Label} Sales</th>
-                  <th className="py-3 px-3 text-right bg-blue-50/60 text-blue-900">
-                    {momData.m2Label} Sales
-                  </th>
-                  <th className="py-3 px-3 text-center">Sales Diff (₹ & %)</th>
-                  <th className="py-3 px-3 text-right">{momData.m1Label} Qty</th>
-                  <th className="py-3 px-3 text-right bg-emerald-50/60 text-emerald-900">
-                    {momData.m2Label} Qty
-                  </th>
-                  <th className="py-3 px-3 text-center">Qty Diff (Units & %)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {momData.dailyRows.map((row) => (
-                  <tr
-                    key={row.day}
-                    className="hover:bg-blue-50/30 transition-colors"
-                  >
-                    <td className="py-2.5 px-3.5 font-bold text-gray-900 font-mono">
-                      {row.day}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-gray-600 font-medium tabular-nums">
-                      {formatINR(row.m1Price)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-bold text-gray-900 tabular-nums bg-blue-50/20">
-                      {formatINR(row.m2Price)}
-                    </td>
-                    <td className="py-2.5 px-3 text-center tabular-nums">
-                      {renderBadge(row.priceDiff, row.priceDiffPct, true)}
-                    </td>
-                    <td className="py-2.5 px-3 text-right text-gray-600 font-medium tabular-nums">
-                      {row.m1Qty.toLocaleString("en-IN")}
-                    </td>
-                    <td className="py-2.5 px-3 text-right font-bold text-gray-900 tabular-nums bg-emerald-50/20">
-                      {row.m2Qty.toLocaleString("en-IN")}
-                    </td>
-                    <td className="py-2.5 px-3 text-center tabular-nums">
-                      {renderBadge(row.qtyDiff, row.qtyDiffPct, false)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="sticky bottom-0 bg-slate-100 font-bold text-gray-900 border-t-2 border-gray-300">
-                <tr>
-                  <td className="py-3 px-3.5 uppercase tracking-wider text-xs">
-                    TOTAL / SUMMARY
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs">
-                    {formatINR(momData.totalM1Price)}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs text-blue-700 bg-blue-100/50">
-                    {formatINR(momData.totalM2Price)}
-                  </td>
-                  <td className="py-3 px-3 text-center tabular-nums text-xs">
-                    {renderBadge(momData.overallPriceDiff, momData.overallPricePct, true)}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs">
-                    {momData.totalM1Qty.toLocaleString("en-IN")}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs text-emerald-700 bg-emerald-100/50">
-                    {momData.totalM2Qty.toLocaleString("en-IN")}
-                  </td>
-                  <td className="py-3 px-3 text-center tabular-nums text-xs">
-                    {renderBadge(momData.overallQtyDiff, momData.overallQtyPct, false)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          ) : (
-            <table className="w-full text-left border-collapse text-xs">
-              <thead className="sticky top-0 z-10 bg-slate-100 text-gray-700 font-bold uppercase tracking-wider text-[11px] border-b border-gray-200">
-                <tr>
-                  <th className="py-3 px-3.5">Month</th>
-                  <th className="py-3 px-3 text-right">{yoyData.y1Label} Sales</th>
-                  <th className="py-3 px-3 text-right bg-indigo-50/60 text-indigo-900">
-                    {yoyData.y2Label} Sales
-                  </th>
-                  <th className="py-3 px-3 text-center">Sales Diff (₹ & %)</th>
-                  <th className="py-3 px-3 text-right">{yoyData.y1Label} Qty</th>
-                  <th className="py-3 px-3 text-right bg-emerald-50/60 text-emerald-900">
-                    {yoyData.y2Label} Qty
-                  </th>
-                  <th className="py-3 px-3 text-center">Qty Diff (Units & %)</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
-                {yoyData.monthlyRows.map((row) => (
-                  <tr
-                    key={row.month}
-                    className="hover:bg-indigo-50/30 transition-colors"
-                  >
-                    <td className="py-3 px-3.5 font-bold text-gray-900">
-                      {row.month}
-                    </td>
-                    <td className="py-3 px-3 text-right text-gray-600 font-medium tabular-nums">
-                      {formatINR(row.y1Price)}
-                    </td>
-                    <td className="py-3 px-3 text-right font-bold text-gray-900 tabular-nums bg-indigo-50/20">
-                      {formatINR(row.y2Price)}
-                    </td>
-                    <td className="py-3 px-3 text-center tabular-nums">
-                      {renderBadge(row.priceDiff, row.priceDiffPct, true)}
-                    </td>
-                    <td className="py-3 px-3 text-right text-gray-600 font-medium tabular-nums">
-                      {row.y1Qty.toLocaleString("en-IN")}
-                    </td>
-                    <td className="py-3 px-3 text-right font-bold text-gray-900 tabular-nums bg-emerald-50/20">
-                      {row.y2Qty.toLocaleString("en-IN")}
-                    </td>
-                    <td className="py-3 px-3 text-center tabular-nums">
-                      {renderBadge(row.qtyDiff, row.qtyDiffPct, false)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot className="sticky bottom-0 bg-slate-100 font-bold text-gray-900 border-t-2 border-gray-300">
-                <tr>
-                  <td className="py-3 px-3.5 uppercase tracking-wider text-xs">
-                    FULL YEAR TOTAL
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs">
-                    {formatINR(yoyData.totalY1Price)}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs text-indigo-700 bg-indigo-100/50">
-                    {formatINR(yoyData.totalY2Price)}
-                  </td>
-                  <td className="py-3 px-3 text-center tabular-nums text-xs">
-                    {renderBadge(yoyData.overallPriceDiff, yoyData.overallPricePct, true)}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs">
-                    {yoyData.totalY1Qty.toLocaleString("en-IN")}
-                  </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-xs text-emerald-700 bg-emerald-100/50">
-                    {yoyData.totalY2Qty.toLocaleString("en-IN")}
-                  </td>
-                  <td className="py-3 px-3 text-center tabular-nums text-xs">
-                    {renderBadge(yoyData.overallQtyDiff, yoyData.overallQtyPct, false)}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
           )}
         </div>
       </div>
