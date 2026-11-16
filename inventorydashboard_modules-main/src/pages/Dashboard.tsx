@@ -18,6 +18,7 @@ import {
   Sparkles,
   Layers,
   History,
+  Calculator,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -421,16 +422,23 @@ const Dashboard: React.FC = () => {
       {/* ========================================================================= */}
       <section className="space-y-4">
         {/* Section Header with Yesterday, Today, and Past Dates */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-              <span className="w-2.5 h-6 bg-sky-500 rounded-full inline-block"></span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-3 sm:gap-4">
+            <div className="p-1.5 sm:p-2 bg-white rounded-2xl border border-gray-200/80 shadow-xs flex items-center justify-center shrink-0">
+              <img
+                src="/ibots-logo.png"
+                alt="iBots"
+                className="h-8 sm:h-10 md:h-11 w-auto object-contain"
+              />
+            </div>
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
+              <span className="w-2 sm:w-2.5 h-7 sm:h-9 bg-sky-500 rounded-full inline-block shrink-0"></span>
               iBots DashBoard
             </h1>
           </div>
 
           {/* Timeframe pill selector: Yesterday, Today, Past Dates */}
-          <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200/80 self-start sm:self-auto">
+          <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200/80 self-start sm:self-auto shrink-0">
             <button
               onClick={() => setTimeFilter("yesterday")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
@@ -815,20 +823,20 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* PNL Card */}
+          {/* Enquiry Card */}
           <div
-            onClick={() => navigate("/pnl")}
+            onClick={() => navigate("/enquiries")}
             role="button"
             tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && navigate("/pnl")}
+            onKeyDown={(e) => e.key === "Enter" && navigate("/enquiries")}
             className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-violet-50/50 hover:to-white border border-gray-200/90 hover:border-violet-500 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
-                <TrendingUp className="w-6 h-6" />
+                <Calculator className="w-6 h-6" />
               </div>
               <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-violet-600 transition-colors">
-                PNL
+                Enquiry
               </h3>
             </div>
             <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
