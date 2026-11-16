@@ -28,7 +28,7 @@ const SidebarLayout = () => {
       <Sidebar isCollapsed={isCollapsed} onToggleCollapse={toggleSidebar} />
       <main
         className={`flex-1 min-w-0 p-3 md:p-6 bg-gray-50 min-h-screen overflow-x-hidden transition-[margin,padding] duration-300 ease-in-out ${
-          isCollapsed ? "md:ml-0 md:pl-16" : "md:ml-64"
+          isCollapsed ? "md:ml-0 md:pl-16" : "md:ml-[280px]"
         }`}
       >
         <Outlet />

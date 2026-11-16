@@ -1456,17 +1456,20 @@ const InventoryManagement: React.FC = () => {
               }
             });
           } else {
-            newProducts.push({
-              name: item.name,
+            const newProdItem: any = {
+              name: item.name || 'Unnamed Product',
               sku: item.sku || `SKU-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 900 + 100)}`,
               hsnCode: item.hsnCode || '',
               category: item.category || 'General',
-              totalQuantity: item.quantity,
+              totalQuantity: item.quantity || 0,
               currentPrice: item.purchasePrice || 0,
-              purchasePrice: item.sellingPrice !== undefined ? item.sellingPrice : undefined,
               lowStockThreshold: item.lowStockThreshold || 10,
               description: item.description || (item.specification ? `Spec: ${item.specification}` : ''),
-            });
+            };
+            if (item.sellingPrice !== undefined && item.sellingPrice !== null && !isNaN(item.sellingPrice)) {
+              newProdItem.purchasePrice = item.sellingPrice;
+            }
+            newProducts.push(newProdItem);
           }
         });
 
@@ -1573,8 +1576,24 @@ const InventoryManagement: React.FC = () => {
 
     try {
       setIsImporting(true);
-      const CHUNK_SIZE = 400;
+      const CHUNK_SIZE = 100;
       const operations: { ref: any; data: any; isNew?: boolean }[] = [];
+
+      // Helper to strip any undefined values from objects before sending to Firestore
+      const cleanFirestoreObject = (data: any): any => {
+        const cleaned: any = {};
+        Object.keys(data).forEach(key => {
+          const val = data[key];
+          if (val !== undefined) {
+            if (val !== null && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date) && typeof (val as any).toMillis !== 'function') {
+              cleaned[key] = cleanFirestoreObject(val);
+            } else {
+              cleaned[key] = val;
+            }
+          }
+        });
+        return cleaned;
+      };
 
       // 1. Overwrite existing matched products & clear oldStock flag
       importSummary.matchedProducts.forEach(item => {
@@ -1586,45 +1605,57 @@ const InventoryManagement: React.FC = () => {
           lastImportedAt: serverTimestamp(),
         };
 
-        if (item.newPurchasePrice !== undefined) {
+        if (item.newPurchasePrice !== undefined && item.newPurchasePrice !== null && !isNaN(item.newPurchasePrice)) {
           updateData.currentPrice = item.newPurchasePrice;
         }
-        if (item.newSellingPrice !== undefined) {
+        if (item.newSellingPrice !== undefined && item.newSellingPrice !== null && !isNaN(item.newSellingPrice)) {
           updateData.purchasePrice = item.newSellingPrice;
         }
-        if (item.rowData.hsnCode !== undefined) {
-          updateData.hsnCode = item.rowData.hsnCode;
+        if (item.rowData.hsnCode !== undefined && item.rowData.hsnCode !== null) {
+          updateData.hsnCode = String(item.rowData.hsnCode).trim();
         }
         if (item.rowData.category) {
-          updateData.category = item.rowData.category;
+          updateData.category = String(item.rowData.category).trim();
         }
-        if (item.rowData.lowStockThreshold !== undefined) {
-          updateData.lowStockThreshold = item.rowData.lowStockThreshold;
+        if (item.rowData.lowStockThreshold !== undefined && item.rowData.lowStockThreshold !== null && !isNaN(Number(item.rowData.lowStockThreshold))) {
+          updateData.lowStockThreshold = Number(item.rowData.lowStockThreshold);
         }
-        if (item.rowData.description !== undefined) {
-          updateData.description = item.rowData.description;
+        if (item.rowData.description !== undefined && item.rowData.description !== null) {
+          updateData.description = String(item.rowData.description).trim();
         }
 
-        operations.push({ ref: prodRef, data: updateData });
+        operations.push({ ref: prodRef, data: cleanFirestoreObject(updateData) });
       });
 
       // 2. Insert new products
       importSummary.newProducts.forEach(item => {
         const newRef = doc(collection(db, 'products'));
-        const newProdData = {
-          ...item,
-          totalValue: (item.totalQuantity || 0) * (item.currentPrice || 0),
+        const newProdData: any = {
+          name: item.name || 'Unnamed Product',
+          sku: item.sku || `SKU-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 900 + 100)}`,
+          hsnCode: item.hsnCode || '',
+          category: item.category || 'General',
+          totalQuantity: item.totalQuantity || item.quantity || 0,
+          currentPrice: item.currentPrice || item.purchasePrice || 0,
+          lowStockThreshold: item.lowStockThreshold || 10,
+          description: item.description || '',
+          totalValue: (item.totalQuantity || item.quantity || 0) * (item.currentPrice || item.purchasePrice || 0),
           stockEntries: [],
           isOldStock: false,
           isQuoteOnly: false,
           productType: 'inventory',
           createdBy: user.uid,
-          createdByName: user.name || user.email,
+          createdByName: user.name || user.email || 'Admin',
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           lastImportedAt: serverTimestamp(),
         };
-        operations.push({ ref: newRef, data: newProdData, isNew: true });
+
+        if (item.purchasePrice !== undefined && item.purchasePrice !== null && !isNaN(item.purchasePrice)) {
+          newProdData.purchasePrice = item.purchasePrice;
+        }
+
+        operations.push({ ref: newRef, data: cleanFirestoreObject(newProdData), isNew: true });
       });
 
       // 3. Mark missed products as isOldStock: true
@@ -1632,23 +1663,19 @@ const InventoryManagement: React.FC = () => {
         const prodRef = doc(db, 'products', prod.id);
         operations.push({
           ref: prodRef,
-          data: {
+          data: cleanFirestoreObject({
             isOldStock: true,
             updatedAt: serverTimestamp(),
-          }
+          })
         });
       });
 
-      // 4. Batch write execution in safe chunks
+      // 4. Batch write execution in safe chunks using set with merge to avoid not-found errors
       for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
         const chunk = operations.slice(i, i + CHUNK_SIZE);
         const batch = writeBatch(db);
         for (const op of chunk) {
-          if (op.isNew) {
-            batch.set(op.ref, op.data);
-          } else {
-            batch.update(op.ref, op.data);
-          }
+          batch.set(op.ref, op.data, { merge: true });
         }
         await batch.commit();
       }
@@ -1662,9 +1689,9 @@ const InventoryManagement: React.FC = () => {
 
       setIsImportModalOpen(false);
       setImportSummary(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error applying import:', err);
-      alert('Failed to save imported changes to database.');
+      alert(`Failed to save imported changes to database: ${err?.message || err}`);
     } finally {
       setIsImporting(false);
     }

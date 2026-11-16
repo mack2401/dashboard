@@ -67,33 +67,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
       {/* Mobile Menu Button - Visible on small screens, hidden on md and up */}
       <button 
         onClick={() => setIsOpen(true)} 
-        className="md:hidden fixed top-4 left-4 z-40 p-2 text-gray-700 bg-white rounded-lg shadow-md hover:bg-gray-100"
+        className="md:hidden fixed top-4 left-4 z-40 p-2 text-gray-700 bg-white rounded-xl shadow-md border border-gray-200 hover:bg-gray-50"
         aria-label="Open menu"
       >
-        <Menu size={24} />
+        <Menu size={22} />
       </button>
 
       {/* Desktop 3-Line Menu Button - Shown when sidebar is collapsed/hidden */}
       {isCollapsed && onToggleCollapse && (
         <button
           onClick={onToggleCollapse}
-          className="hidden md:flex fixed top-4 left-4 z-40 p-2.5 bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl shadow-xl border border-slate-700/80 hover:border-sky-500/50 backdrop-blur-xs transition-all duration-200 cursor-pointer items-center justify-center group"
+          className="hidden md:flex fixed top-4 left-4 z-40 p-2.5 bg-white/95 hover:bg-gray-50 text-gray-700 hover:text-gray-900 rounded-2xl shadow-lg border border-gray-200/90 backdrop-blur-xs transition-all duration-200 cursor-pointer items-center justify-center group hover:scale-105 hover:border-blue-400"
           title="Open navigation panel"
           aria-label="Open navigation panel"
         >
-          <Menu size={20} className="text-slate-200 group-hover:text-white" />
+          <Menu size={20} className="text-gray-700 group-hover:text-blue-600 transition-colors" />
         </button>
       )}
 
-      {/* Sidebar - Positioned for fixed, full height */}
+      {/* Sidebar - Modern Floating Island Shape in Light Theme */}
       <aside 
         className={`
-          w-64 h-screen bg-slate-900 border-r border-slate-800 shadow-2xl p-4 fixed top-0 left-0 overflow-y-auto z-40 transition-transform duration-300 ease-in-out
-          ${isCollapsed ? '-translate-x-full md:-translate-x-full pointer-events-none' : (isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0')}
+          w-64 fixed top-3 bottom-3 left-3 bg-white/95 backdrop-blur-md border border-gray-200/90 shadow-xl shadow-slate-200/60 rounded-3xl p-4 overflow-y-auto z-40 transition-all duration-300 ease-in-out
+          ${isCollapsed ? '-translate-x-[115%] md:-translate-x-[115%] pointer-events-none' : (isOpen ? 'translate-x-0' : '-translate-x-[115%] md:translate-x-0')}
         `}
       >
-        <div className="flex justify-between items-center mb-6 pt-1">
-          <div className="flex items-center bg-white px-3 py-1.5 rounded-xl shadow-xs">
+        <div className="flex justify-between items-center mb-5 pt-1">
+          <div className="flex items-center bg-gray-50/90 px-3 py-1.5 rounded-2xl border border-gray-200/60 shadow-2xs">
             <img 
               src="/ibots-logo.png" 
               alt="iBots" 
@@ -106,7 +106,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
             {onToggleCollapse && (
               <button 
                 onClick={onToggleCollapse}
-                className="hidden md:flex p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                className="hidden md:flex p-2 text-gray-400 hover:text-gray-800 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
                 title="Hide navigation panel"
                 aria-label="Hide navigation panel"
               >
@@ -117,7 +117,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
             {/* Close Button - Visible only on mobile inside the sidebar */}
             <button 
               onClick={() => setIsOpen(false)} 
-              className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              className="md:hidden p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition-colors cursor-pointer"
               aria-label="Close menu"
             >
               <X size={20} />
@@ -126,12 +126,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
         </div>
 
         {/* User Role Card */}
-        <div className="mb-6 px-3 py-2.5 bg-slate-800/70 border border-slate-700/60 rounded-xl flex items-center justify-between">
+        <div className="mb-5 px-3.5 py-2.5 bg-gray-50/90 border border-gray-200/70 rounded-2xl flex items-center justify-between shadow-2xs">
           <div className="truncate">
-            <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Welcome</p>
-            <p className="text-sm font-bold text-white capitalize truncate">{user?.name || user?.role || 'User'}</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Welcome</p>
+            <p className="text-sm font-bold text-gray-800 capitalize truncate">{user?.name || user?.role || 'User'}</p>
           </div>
-          <span className="px-2 py-0.5 text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full uppercase tracking-wider shrink-0">
+          <span className="px-2.5 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/80 rounded-full uppercase tracking-wider shrink-0">
             {user?.role || 'Staff'}
           </span>
         </div>
@@ -148,7 +148,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                   item.action();
                   handleNavClick(isAction);
                 }}
-                className="flex items-center w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 font-medium text-sm cursor-pointer"
+                className="flex items-center w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-medium text-sm cursor-pointer"
               >
                 {item.icon}
                 {item.name}
@@ -161,8 +161,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${
                     isActive 
-                      ? "bg-sky-500 text-white font-semibold shadow-md shadow-sky-900/30" 
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20" 
+                      : "text-gray-600 hover:bg-gray-100/80 hover:text-gray-900"
                   }`
                 }
               >
@@ -177,7 +177,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
             <div className="flex flex-col">
               <button
                 onClick={handleManagementClick}
-                className="flex items-center justify-between w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
+                className="flex items-center justify-between w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 cursor-pointer"
               >
                 <div className="flex items-center gap-3">
                   <Settings size={18} />
@@ -188,7 +188,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               
               {/* Dropdown items */}
               {isManagementOpen && (
-                <div className="ml-4 pl-3 border-l border-slate-700/80 my-1 flex flex-col gap-1">
+                <div className="ml-4 pl-3 border-l-2 border-gray-200 my-1 flex flex-col gap-1">
                   {managementItems.map((item) => (
                     <NavLink
                       key={item.name}
@@ -197,8 +197,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                       className={({ isActive }) =>
                         `flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-xs font-medium ${
                           isActive 
-                            ? "bg-sky-500 text-white font-semibold shadow-xs" 
-                            : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
+                            ? "bg-blue-600 text-white font-semibold shadow-2xs" 
+                            : "text-gray-500 hover:bg-gray-100 hover:text-gray-900"
                         }`
                       }
                     >
@@ -222,7 +222,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                   item.action();
                   handleNavClick(isAction);
                 }}
-                className="flex items-center w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 font-medium text-sm cursor-pointer mt-3 pt-3 border-t border-slate-800"
+                className="flex items-center w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-medium text-sm cursor-pointer mt-3 pt-3 border-t border-gray-100"
               >
                 {item.icon}
                 {item.name}
@@ -235,8 +235,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 className={({ isActive }) =>
                   `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${
                     isActive 
-                      ? "bg-sky-500 text-white font-semibold shadow-md shadow-sky-900/30" 
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
+                      ? "bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/20" 
+                      : "text-gray-600 hover:bg-gray-100/80 hover:text-gray-900"
                   }`
                 }
               >
