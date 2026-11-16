@@ -838,7 +838,7 @@ export default function ComparisonAnalytics({
 
       {/* Summary KPI Cards */}
       {comparisonMode === "mom" ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 mb-6">
           {/* Selling Price / Revenue KPI */}
           <div className="bg-gradient-to-br from-blue-50/60 to-white p-4 rounded-xl border border-blue-100 shadow-xs">
             <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
@@ -878,29 +878,6 @@ export default function ComparisonAnalytics({
             <div className="mt-2.5 pt-2 border-t border-emerald-100/60 flex items-center justify-between">
               <span className="text-xs text-gray-600 font-medium">Volume Change:</span>
               {renderBadge(momData.overallQtyDiff, momData.overallQtyPct, false)}
-            </div>
-          </div>
-
-          {/* Day Performance Ratio */}
-          <div className="bg-gradient-to-br from-purple-50/60 to-white p-4 rounded-xl border border-purple-100 shadow-xs">
-            <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-              Daily Growth Win-Rate
-            </span>
-            <div className="mt-2">
-              <p className="text-xl font-bold text-purple-700 tracking-tight">
-                {momData.growthDaysCount} Days Higher
-              </p>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {momData.declineDaysCount} days declined / lower volume
-              </p>
-            </div>
-            <div className="mt-2.5 pt-2 border-t border-purple-100/60 flex items-center justify-between text-xs text-gray-600">
-              <span>Day Ratio:</span>
-              <span className="font-bold text-gray-900">
-                {momData.dailyRows.length > 0
-                  ? `${((momData.growthDaysCount / momData.dailyRows.length) * 100).toFixed(0)}% positive`
-                  : "0%"}
-              </span>
             </div>
           </div>
 
@@ -1311,3 +1288,4 @@ export default function ComparisonAnalytics({
     </section>
   );
 }
+
