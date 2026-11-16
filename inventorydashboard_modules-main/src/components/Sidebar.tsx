@@ -32,16 +32,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
   const [isManagementOpen, setIsManagementOpen] = useState(false);
 
   const baseNavItems = [
-    { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={18} /> },
-    { name: "Enquiries", path: "/enquiries", icon: <Calculator size={18} /> },
-    { name: "Bills", path:"/bills", icon:<Receipt size={18}/>},
-    { name: "PNL", path: "/pnl", icon: <TrendingUp size={18} /> },
-    { name: "Tasks", path:"/task", icon:<ListTodo size={18}/>},
-    { name: "Dropped", path: "/dropped", icon: <Calculator size={18} /> },
-    { name: "Inventory", path:"/inventory", icon:<Package size={18}/>},
-    { name: "Training", path:"/training", icon:<GraduationCap size={18}/>},
-    { name: "Reports", path:"/reports", icon:<BarChart3 size={18}/>},
-    { name: "Logout", action: logout, icon: <LogOut size={18} /> },
+    { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
+    { name: "Enquiries", path: "/enquiries", icon: <Calculator size={20} /> },
+    { name: "Bills", path:"/bills", icon:<Receipt size={20}/>},
+    { name: "PNL", path: "/pnl", icon: <TrendingUp size={20} /> },
+    { name: "Tasks", path:"/task", icon:<ListTodo size={20}/>},
+    { name: "Dropped", path: "/dropped", icon: <Calculator size={20} /> },
+    { name: "Inventory", path:"/inventory", icon:<Package size={20}/>},
+    { name: "Training", path:"/training", icon:<GraduationCap size={20}/>},
+    { name: "Reports", path:"/reports", icon:<BarChart3 size={20}/>},
   ];
   
   const managementItems = [
@@ -51,7 +50,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
 
   const handleNavClick = (isAction: boolean) => {
     if (!isAction) {
-        setIsOpen(false);
+      setIsOpen(false);
     }
   };
 
@@ -59,8 +58,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
     e.preventDefault();
     setIsManagementOpen(!isManagementOpen);
   };
-
-  const navItems = [...baseNavItems.slice(0,2), ...baseNavItems.slice(2)];
 
   return (
     <>
@@ -73,96 +70,24 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
         <Menu size={22} />
       </button>
 
-      {/* Desktop 3-Line Menu Button - Shown when sidebar is collapsed/hidden */}
-      {isCollapsed && onToggleCollapse && (
-        <button
-          onClick={onToggleCollapse}
-          className="hidden md:flex fixed top-4 left-4 z-40 p-2.5 bg-white/95 hover:bg-slate-50 text-slate-700 hover:text-blue-600 rounded-2xl shadow-lg border border-slate-200/90 backdrop-blur-xs transition-all duration-200 cursor-pointer items-center justify-center group hover:scale-105 hover:border-blue-400"
-          title="Open navigation panel"
-          aria-label="Open navigation panel"
-        >
-          <Menu size={20} className="text-slate-700 group-hover:text-blue-600 transition-colors" />
-        </button>
-      )}
-
-      {/* S-Shaped Curved Sidebar in Modern Light Theme */}
+      {/* Modern Curved Sidebar matching reference image */}
       <aside 
         className={`
-          w-[285px] fixed top-0 bottom-0 left-0 z-40
-          filter drop-shadow-[5px_0_18px_rgba(37,99,235,0.08)] drop-shadow-[1px_0_4px_rgba(15,23,42,0.04)]
-          transition-transform duration-300 ease-in-out select-none
-          ${isCollapsed ? '-translate-x-full md:-translate-x-full pointer-events-none' : (isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0')}
+          fixed top-3 bottom-3 left-3 z-40
+          bg-gradient-to-b from-[#3b5bfd] via-[#4361ee] to-[#3a56e4]
+          rounded-[28px] shadow-xl shadow-blue-600/20
+          transition-all duration-300 ease-in-out select-none
+          flex flex-col justify-between py-4
+          no-scrollbar overflow-y-auto
+          ${isCollapsed ? "w-[72px]" : "w-[256px]"}
+          ${isOpen ? "translate-x-0" : "-translate-x-[120%] md:translate-x-0"}
         `}
       >
-        {/* S-Shaped SVG Background & Glowing Contour Line */}
-        <svg 
-          className="absolute inset-0 w-full h-full pointer-events-none overflow-visible" 
-          viewBox="0 0 100 100" 
-          preserveAspectRatio="none"
-        >
-          <defs>
-            <linearGradient id="sidebarLightBg" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ffffff" />
-              <stop offset="35%" stopColor="#f8fbff" />
-              <stop offset="68%" stopColor="#f1f6fd" />
-              <stop offset="100%" stopColor="#eaf2fb" />
-            </linearGradient>
-
-            <linearGradient id="sidebarEdgeStroke" x1="0%" y1="0%" x2="0%" y2="100%">
-              <stop offset="0%" stopColor="#93c5fd" stopOpacity="0.75" />
-              <stop offset="20%" stopColor="#60a5fa" stopOpacity="0.95" />
-              <stop offset="50%" stopColor="#818cf8" stopOpacity="0.85" />
-              <stop offset="80%" stopColor="#38bdf8" stopOpacity="0.95" />
-              <stop offset="100%" stopColor="#93c5fd" stopOpacity="0.75" />
-            </linearGradient>
-
-            <radialGradient id="swellGlowTop" cx="95%" cy="18%" r="35%">
-              <stop offset="0%" stopColor="#dbeafe" stopOpacity="0.45" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-            </radialGradient>
-
-            <radialGradient id="swellGlowBottom" cx="95%" cy="80%" r="35%">
-              <stop offset="0%" stopColor="#e0e7ff" stopOpacity="0.4" />
-              <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-            </radialGradient>
-          </defs>
-
-          {/* S-Curve Background Silhouette */}
-          <path
-            d="M 0,0 
-               L 86,0 
-               C 95,3 100,10 100,20
-               C 100,32 88,40 80,50
-               C 72,60 95,68 100,80
-               C 100,90 95,98 86,100
-               L 0,100 Z"
-            fill="url(#sidebarLightBg)"
-          />
-
-          {/* Subtle Ambient Glows at the Wave Peaks */}
-          <circle cx="95" cy="20" r="22" fill="url(#swellGlowTop)" />
-          <circle cx="95" cy="80" r="22" fill="url(#swellGlowBottom)" />
-
-          {/* Sculptural S-Curve Right Edge Stroke */}
-          <path
-            d="M 86,0 
-               C 95,3 100,10 100,20
-               C 100,32 88,40 80,50
-               C 72,60 95,68 100,80
-               C 100,90 95,98 86,100"
-            fill="none"
-            stroke="url(#sidebarEdgeStroke)"
-            strokeWidth="1.8"
-            vectorEffect="non-scaling-stroke"
-          />
-        </svg>
-
-        {/* Inner Content Area - Safely fits within the S-curve waist (215px width) */}
-        <div className="relative z-10 w-[215px] h-full flex flex-col justify-between pt-4 pb-4 pl-4 pr-1 overflow-y-auto sidebar-scroll pointer-events-auto">
-          <div>
-            {/* Header: Logo & 3-line Toggle */}
-            <div className="flex justify-between items-center mb-4 pr-1">
-              <div className="flex items-center bg-white/95 px-3 py-1.5 rounded-2xl border border-sky-100 shadow-2xs">
+        <div>
+          {/* Header area */}
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between px-3.5 mb-4">
+              <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl shadow-xs">
                 <img 
                   src="/ibots-logo.png" 
                   alt="iBots" 
@@ -170,156 +95,212 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 />
               </div>
 
-              <div className="flex items-center">
-                {/* Desktop 3-Line Hide Button inside header */}
+              <div className="flex items-center gap-1">
+                {/* Desktop Collapse Button */}
                 {onToggleCollapse && (
                   <button 
                     onClick={onToggleCollapse}
-                    className="hidden md:flex p-2 text-slate-500 hover:text-slate-800 hover:bg-white/80 rounded-xl transition-colors cursor-pointer border border-transparent hover:border-slate-200/70"
-                    title="Hide navigation panel"
-                    aria-label="Hide navigation panel"
+                    className="hidden md:flex p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                    title="Collapse sidebar"
+                    aria-label="Collapse sidebar"
                   >
                     <Menu size={20} />
                   </button>
                 )}
 
-                {/* Close Button - Visible only on mobile inside the sidebar */}
+                {/* Mobile Close Button */}
                 <button 
                   onClick={() => setIsOpen(false)} 
-                  className="md:hidden p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+                  className="md:hidden p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
                   aria-label="Close menu"
                 >
                   <X size={20} />
                 </button>
               </div>
             </div>
+          ) : (
+            <div className="flex flex-col items-center mb-3">
+              {onToggleCollapse && (
+                <button 
+                  onClick={onToggleCollapse}
+                  className="hidden md:flex p-2.5 text-white hover:bg-white/15 rounded-2xl transition-colors cursor-pointer justify-center mb-2"
+                  title="Expand sidebar"
+                  aria-label="Expand sidebar"
+                >
+                  <Menu size={22} />
+                </button>
+              )}
+            </div>
+          )}
 
-            {/* User Role Card */}
-            <div className="mb-4 px-3 py-2 bg-white/80 backdrop-blur-xs border border-sky-100/90 rounded-2xl flex items-center justify-between shadow-2xs mr-1">
+          {/* User Welcome Card */}
+          {!isCollapsed ? (
+            <div className="mx-3.5 mb-4 px-3.5 py-2.5 bg-white/10 backdrop-blur-xs border border-white/15 rounded-2xl flex items-center justify-between shadow-2xs">
               <div className="truncate">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Welcome</p>
-                <p className="text-xs font-bold text-slate-800 capitalize truncate">{user?.name || user?.role || 'User'}</p>
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Welcome</p>
+                <p className="text-xs font-bold text-white capitalize truncate">{user?.name || user?.role || "User"}</p>
               </div>
-              <span className="px-2 py-0.5 text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200/70 rounded-full uppercase tracking-wider shrink-0">
-                {user?.role || 'Staff'}
+              <span className="px-2.5 py-0.5 text-[10px] font-bold bg-white text-[#3b5bfd] rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+                {user?.role || "Staff"}
               </span>
             </div>
+          ) : (
+            <div 
+              className="mx-auto mb-3 w-9 h-9 rounded-full bg-white/20 border border-white/25 flex items-center justify-center text-white font-bold text-xs shadow-2xs"
+              title={`Signed in as ${user?.name || user?.role || "User"}`}
+            >
+              {(user?.name || user?.role || "U").charAt(0).toUpperCase()}
+            </div>
+          )}
 
-            {/* Navigation Menu */}
-            <nav className="flex flex-col gap-1 pr-1">
-              {/* First part of nav items (Dashboard, Enquiries) */}
-              {navItems.slice(0, 2).map((item) => {
-                const isAction = !!item.action;
-                
-                return item.action ? (
-                  <button
-                    key={item.name}
-                    onClick={() => {
-                      item.action();
-                      handleNavClick(isAction);
-                    }}
-                    className="flex items-center w-full gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-rose-600 hover:bg-rose-50 hover:text-rose-700 font-medium text-sm cursor-pointer"
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </button>
-                ) : (
-                  <NavLink
-                    key={item.name}
-                    to={item.path}
-                    onClick={() => handleNavClick(isAction)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm font-medium ${
-                        isActive 
-                          ? "bg-gradient-to-r from-blue-600 via-sky-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/25" 
-                          : "text-slate-600 hover:bg-white/90 hover:text-blue-700 hover:shadow-2xs border border-transparent hover:border-sky-100/60"
-                      }`
-                    }
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </NavLink>
-                );
-              })}
-
-              {/* Management Dropdown - Only for admin users */}
-              {user?.role === "admin" && (
-                <div className="flex flex-col">
-                  <button
-                    onClick={handleManagementClick}
-                    className="flex items-center justify-between w-full gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm font-medium text-slate-600 hover:bg-white/90 hover:text-blue-700 hover:shadow-2xs border border-transparent hover:border-sky-100/60 cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Settings size={18} />
-                      <span>Management</span>
-                    </div>
-                    {isManagementOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                  </button>
-                  
-                  {/* Dropdown items */}
-                  {isManagementOpen && (
-                    <div className="ml-3.5 pl-2.5 border-l-2 border-sky-200 my-1 flex flex-col gap-1">
-                      {managementItems.map((item) => (
-                        <NavLink
-                          key={item.name}
-                          to={item.path}
-                          onClick={() => handleNavClick(false)}
-                          className={({ isActive }) =>
-                            `flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg transition-all duration-200 text-xs font-medium ${
-                              isActive 
-                                ? "bg-blue-600 text-white font-semibold shadow-2xs" 
-                                : "text-slate-500 hover:bg-white/90 hover:text-blue-700"
-                            }`
-                          }
+          {/* Navigation Items with Inverted Curved Active Indicator */}
+          <nav className="flex flex-col gap-1">
+            {baseNavItems.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                onClick={() => handleNavClick(false)}
+                title={isCollapsed ? item.name : undefined}
+                className={({ isActive }) => `
+                  relative flex items-center transition-colors duration-150 group
+                  ${isCollapsed ? "justify-center mx-2 px-0 py-3" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3"}
+                  ${
+                    isActive
+                      ? "bg-gray-50 text-slate-800 font-bold rounded-l-[26px] z-10"
+                      : "text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-2xl"
+                  }
+                `}
+              >
+                {({ isActive }) => (
+                  <>
+                    {/* Seamless Inverted Fillet Curves connecting into page background */}
+                    {isActive && (
+                      <>
+                        {/* Top Inverted Curve */}
+                        <svg 
+                          className="absolute -top-5 right-0 w-5 h-5 pointer-events-none fill-gray-50" 
+                          viewBox="0 0 20 20"
                         >
-                          {item.icon}
-                          <span>{item.name}</span>
-                        </NavLink>
-                      ))}
+                          <path d="M 20 0 V 20 H 0 C 11.0457 20 20 11.0457 20 0 Z" />
+                        </svg>
+
+                        {/* Bottom Inverted Curve */}
+                        <svg 
+                          className="absolute -bottom-5 right-0 w-5 h-5 pointer-events-none fill-gray-50" 
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M 20 20 V 0 H 0 C 11.0457 0 20 8.9543 20 20 Z" />
+                        </svg>
+                      </>
+                    )}
+
+                    {/* Icon */}
+                    <span 
+                      className={`shrink-0 transition-transform duration-200 ${
+                        isActive ? "text-[#3b5bfd]" : "text-white group-hover:scale-110"
+                      }`}
+                    >
+                      {item.icon}
+                    </span>
+
+                    {/* Label (Expanded Mode) */}
+                    {!isCollapsed && (
+                      <span className="text-sm font-semibold tracking-wide truncate">
+                        {item.name}
+                      </span>
+                    )}
+
+                    {/* Floating Tooltip (Collapsed Mode) */}
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                        {item.name}
+                      </div>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ))}
+
+            {/* Management Section (Admin Only) */}
+            {user?.role === "admin" && (
+              <div className="flex flex-col mt-1">
+                <button
+                  onClick={handleManagementClick}
+                  title={isCollapsed ? "Management" : undefined}
+                  className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-2xl cursor-pointer group ${
+                    isCollapsed ? "justify-center mx-2 px-0 py-3" : "justify-between ml-3.5 pl-3.5 pr-3 py-3"
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <span className="text-white group-hover:scale-110 transition-transform">
+                      <Settings size={20} />
+                    </span>
+                    {!isCollapsed && <span className="text-sm font-semibold">Management</span>}
+                  </div>
+                  {!isCollapsed && (isManagementOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                      Management
                     </div>
                   )}
-                </div>
-              )}
+                </button>
 
-              {/* Remaining nav items (Bills, Tasks, Dropped, Inventory, Training, Reports, Logout) */}
-              {navItems.slice(2).map((item) => {
-                const isAction = !!item.action;
-                
-                return item.action ? (
-                  <button
-                    key={item.name}
-                    onClick={() => {
-                      item.action();
-                      handleNavClick(isAction);
-                    }}
-                    className="flex items-center w-full gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-rose-600 hover:bg-rose-50/90 hover:text-rose-700 font-medium text-sm cursor-pointer mt-2 pt-2.5 border-t border-sky-100/80"
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </button>
-                ) : (
-                  <NavLink
-                    key={item.name}
-                    to={item.path}
-                    onClick={() => handleNavClick(isAction)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2 rounded-xl transition-all duration-200 text-sm font-medium ${
-                        isActive 
-                          ? "bg-gradient-to-r from-blue-600 via-sky-600 to-indigo-600 text-white font-semibold shadow-md shadow-blue-500/25" 
-                          : "text-slate-600 hover:bg-white/90 hover:text-blue-700 hover:shadow-2xs border border-transparent hover:border-sky-100/60"
-                      }`
-                    }
-                  >
-                    {item.icon}
-                    <span>{item.name}</span>
-                  </NavLink>
-                );
-              })}
-            </nav>
-          </div>
+                {/* Sub-items */}
+                {isManagementOpen && (
+                  <div className={`my-1 flex flex-col gap-1 ${isCollapsed ? "items-center" : "ml-6 pl-2 border-l border-white/20"}`}>
+                    {managementItems.map((item) => (
+                      <NavLink
+                        key={item.name}
+                        to={item.path}
+                        onClick={() => handleNavClick(false)}
+                        title={isCollapsed ? item.name : undefined}
+                        className={({ isActive }) => `
+                          relative flex items-center transition-all duration-200 group
+                          ${isCollapsed ? "justify-center p-2 rounded-xl" : "gap-2.5 px-3 py-2 rounded-l-xl text-xs font-medium"}
+                          ${
+                            isActive
+                              ? "bg-gray-50 text-[#3b5bfd] font-bold shadow-xs"
+                              : "text-white/80 hover:text-white hover:bg-white/10"
+                          }
+                        `}
+                      >
+                        <span className="shrink-0">{item.icon}</span>
+                        {!isCollapsed && <span>{item.name}</span>}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </nav>
+        </div>
+
+        {/* Bottom Actions: Logout */}
+        <div className="px-1 mt-4">
+          <button
+            onClick={() => {
+              logout();
+              handleNavClick(true);
+            }}
+            title={isCollapsed ? "Logout" : undefined}
+            className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-rose-500/25 font-semibold rounded-l-2xl cursor-pointer group pt-2.5 border-t border-white/15 ${
+              isCollapsed ? "justify-center mx-2 px-0 py-3" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3"
+            }`}
+          >
+            <span className="shrink-0 group-hover:scale-110 transition-transform text-rose-200 group-hover:text-white">
+              <LogOut size={20} />
+            </span>
+            {!isCollapsed && <span className="text-sm">Logout</span>}
+            {isCollapsed && (
+              <div className="absolute left-full ml-3 px-2.5 py-1 bg-rose-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                Logout
+              </div>
+            )}
+          </button>
         </div>
       </aside>
-      
+
       {/* Mobile Backdrop Overlay */}
       {isOpen && (
         <div 

@@ -1,5 +1,14 @@
 @import "tailwindcss";
 
+/* Hide scrollbar for seamless curved sidebar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
 /* Sleek minimalist scrollbar for sidebar */
 .sidebar-scroll {
   scrollbar-width: thin;
