@@ -13,8 +13,6 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
-  ChevronLeft,
-  ChevronRight,
   Settings,
   GraduationCap,
   BarChart3,
@@ -75,28 +73,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
         <Menu size={24} />
       </button>
 
-      {/* Desktop Unhide Arrow Button - Shown when sidebar is collapsed/hidden */}
+      {/* Desktop 3-Line Menu Button - Shown when sidebar is collapsed/hidden */}
       {isCollapsed && onToggleCollapse && (
         <button
           onClick={onToggleCollapse}
-          className="hidden md:flex fixed top-6 left-0 z-40 items-center gap-1.5 pl-2.5 pr-3.5 py-2 bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-white rounded-r-xl shadow-2xl border-y border-r border-slate-700/80 hover:border-sky-500/50 backdrop-blur-xs transition-all duration-200 cursor-pointer group"
-          title="Unhide navigation panel"
-          aria-label="Unhide navigation panel"
+          className="hidden md:flex fixed top-4 left-4 z-40 p-2.5 bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-white rounded-xl shadow-xl border border-slate-700/80 hover:border-sky-500/50 backdrop-blur-xs transition-all duration-200 cursor-pointer items-center justify-center group"
+          title="Open navigation panel"
+          aria-label="Open navigation panel"
         >
-          <ChevronRight size={18} className="text-sky-400 group-hover:text-sky-300 group-hover:translate-x-0.5 transition-transform" />
-          <span className="text-xs font-semibold tracking-wide">Menu</span>
-        </button>
-      )}
-
-      {/* Desktop Toggle Arrow on the right border of sidebar (when expanded) */}
-      {!isCollapsed && onToggleCollapse && (
-        <button
-          onClick={onToggleCollapse}
-          className="hidden md:flex fixed top-6 left-[242px] z-50 items-center justify-center w-7 h-7 bg-slate-900 hover:bg-sky-600 text-slate-300 hover:text-white rounded-full border border-slate-700 shadow-md transition-all duration-300 cursor-pointer group"
-          title="Hide navigation panel"
-          aria-label="Hide navigation panel"
-        >
-          <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+          <Menu size={20} className="text-slate-200 group-hover:text-white" />
         </button>
       )}
 
@@ -117,15 +102,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
           </div>
 
           <div className="flex items-center gap-1">
-            {/* Desktop Hide Button inside header */}
+            {/* Desktop 3-Line Hide Button inside header */}
             {onToggleCollapse && (
               <button 
                 onClick={onToggleCollapse}
-                className="hidden md:flex p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                className="hidden md:flex p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
                 title="Hide navigation panel"
                 aria-label="Hide navigation panel"
               >
-                <ChevronLeft size={20} />
+                <Menu size={20} />
               </button>
             )}
 
