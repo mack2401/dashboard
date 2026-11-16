@@ -321,10 +321,32 @@ const InventoryManagement: React.FC = () => {
   const [importSummary, setImportSummary] = useState<{
     fileName: string;
     totalRows: number;
+    availableSheets?: { name: string; count: number }[];
+    selectedSheet?: string;
+    sheetDataMap?: Record<string, {
+      totalRows: number;
+      matchedProducts: { product: Product; newSOH: number; newPurchasePrice?: number; newSellingPrice?: number; rowData: any }[];
+      newProducts: any[];
+      missedProducts: Product[];
+    }>;
     matchedProducts: { product: Product; newSOH: number; newPurchasePrice?: number; newSellingPrice?: number; rowData: any }[];
     newProducts: any[];
     missedProducts: Product[];
   } | null>(null);
+
+  const handleSelectImportSheet = (sheetName: string) => {
+    if (!importSummary || !importSummary.sheetDataMap) return;
+    const target = importSummary.sheetDataMap[sheetName];
+    if (!target) return;
+    setImportSummary({
+      ...importSummary,
+      selectedSheet: sheetName,
+      totalRows: target.totalRows,
+      matchedProducts: target.matchedProducts,
+      newProducts: target.newProducts,
+      missedProducts: target.missedProducts,
+    });
+  };
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [showTransactions, setShowTransactions] = useState(false);
   const [isDeletingTransactions, setIsDeletingTransactions] = useState(false);
@@ -1167,18 +1189,8 @@ const InventoryManagement: React.FC = () => {
       setIsImporting(true);
       const data = await file.arrayBuffer();
       const workbook = XLSX.read(data, { type: 'array' });
-      const firstSheetName = workbook.SheetNames[0];
-      if (!firstSheetName) {
+      if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
         alert('The uploaded Excel file has no sheets.');
-        setIsImporting(false);
-        return;
-      }
-
-      const worksheet = workbook.Sheets[firstSheetName];
-      const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
-
-      if (matrix.length === 0) {
-        alert('The uploaded Excel sheet contains no data.');
         setIsImporting(false);
         return;
       }
@@ -1199,6 +1211,12 @@ const InventoryManagement: React.FC = () => {
           const parts = s.split('-');
           const lastNum = parseInt(parts[2], 10);
           return isNaN(lastNum) ? 1 : lastNum;
+        }
+
+        // Handle hyphen/slash ranges like "1-2" or "1/2"
+        if (/^(\d+)\s*[-/]\s*(\d+)$/.test(s)) {
+          const m = s.match(/^(\d+)\s*[-/]\s*(\d+)$/);
+          return m ? Math.max(parseInt(m[1], 10), parseInt(m[2], 10)) : 1;
         }
 
         // Extract first numeric group (e.g. "12 in box" -> 12, "2ir re" -> 2)
@@ -1231,7 +1249,7 @@ const InventoryManagement: React.FC = () => {
           c === 'items'
         );
         const hasQty = strRow.some(c => c.includes('quantity') || c === 'qty' || c === 'soh' || c.includes('stock'));
-        const hasPrice = strRow.some(c => c.includes('price') || c.includes('cost'));
+        const hasPrice = strRow.some(c => c.includes('price') || c.includes('cost') || c === 'cost' || c.includes('standard'));
         const hasCategory = strRow.some(c => c.includes('category'));
 
         if (hasComp && (hasQty || hasPrice || hasCategory)) {
@@ -1249,8 +1267,8 @@ const InventoryManagement: React.FC = () => {
             else if (c.includes('hsn')) colHsn = idx;
             else if (!isTotalOrValue && (c.includes('quantity') || c === 'qty' || c === 'soh' || c.includes('stock'))) colQty = idx;
             else if (!isTotalOrValue && (c === 'cost price' || c.includes('purchase price') || c === 'cost' || c.includes('buying price'))) colCostPrice = idx;
-            else if (!isTotalOrValue && (c === 'standard price')) colStandardPrice = idx;
-            else if (!isTotalOrValue && (c === 'selling price' || c.includes('sale price') || (c === 'price' && colCostPrice !== idx && colStandardPrice !== idx))) {
+            else if (!isTotalOrValue && (c === 'standard price' || c === 'standard')) colStandardPrice = idx;
+            else if (!isTotalOrValue && (c.includes('sell') || c.includes('sale') || (c === 'price' && colCostPrice !== idx && colStandardPrice !== idx))) {
               colSellingPrice = idx;
             }
             else if (c.includes('moving status') || c === 'status') colStatus = idx;
@@ -1275,185 +1293,268 @@ const InventoryManagement: React.FC = () => {
         sellingPrice?: number;
         lowStockThreshold?: number;
         description?: string;
+        sheetName?: string;
         sourceRow: number;
       }
 
-      const extractedItems: ParsedRowItem[] = [];
-      let currentHeader: any = null;
-      let inNonListedSection = false;
+      const parseSheetMatrix = (matrix: any[][], sheetName: string): ParsedRowItem[] => {
+        const extractedItems: ParsedRowItem[] = [];
+        let currentHeader: any = null;
+        let inNonListedSection = false;
 
-      for (let r = 0; r < matrix.length; r++) {
-        const row = matrix[r];
-        if (!Array.isArray(row) || row.every(cell => cleanText(cell) === '')) continue;
+        for (let r = 0; r < matrix.length; r++) {
+          const row = matrix[r];
+          if (!Array.isArray(row) || row.every(cell => cleanText(cell) === '')) continue;
 
-        // Check if row is a header
-        const headerCheck = detectHeaderRow(row);
-        if (headerCheck) {
-          currentHeader = headerCheck;
-          inNonListedSection = false;
-          continue;
-        }
-
-        // Check for "non listed items" section
-        const rowText = row.map(c => cleanText(c).toLowerCase()).join(' ');
-        if (rowText.includes('non listed items')) {
-          inNonListedSection = true;
-          currentHeader = null;
-          // Row itself might contain: ["", "", "non listed items", "aruino uno case", 2]
-          const pName = cleanText(row[3]);
-          if (pName && pName.toLowerCase() !== 'non listed items') {
-            extractedItems.push({
-              name: pName,
-              baseName: pName,
-              quantity: parseQuantity(row[4]),
-              category: 'Non Listed Items',
-              sourceRow: r + 1,
-            });
-          }
-          continue;
-        }
-
-        if (inNonListedSection) {
-          const pName = cleanText(row[3]);
-          if (pName) {
-            // Check if bullet taxonomy list starts
-            if (pName.startsWith('·') || pName.startsWith('Â·') || /^\d+\./.test(pName)) {
-              inNonListedSection = false;
-              continue;
-            }
-            extractedItems.push({
-              name: pName,
-              baseName: pName,
-              quantity: parseQuantity(row[4]),
-              category: 'Non Listed Items',
-              sourceRow: r + 1,
-            });
+          // Check if row is a header
+          const headerCheck = detectHeaderRow(row);
+          if (headerCheck) {
+            currentHeader = headerCheck;
+            inNonListedSection = false;
             continue;
           }
-        }
 
-        // Skip category reference taxonomy (bullet items at bottom)
-        const firstCol = cleanText(row[0]);
-        if (firstCol.startsWith('·') || firstCol.startsWith('Â·') || /^\d+\.\s+[A-Za-z]/.test(firstCol)) {
-          continue;
-        }
-
-        // If we have an active header, parse this data row
-        if (currentHeader && currentHeader.colName >= 0) {
-          const rawName = cleanText(row[currentHeader.colName]);
-          const rawSku = currentHeader.colSku >= 0 ? cleanText(row[currentHeader.colSku]) : '';
-          const rawSpec = currentHeader.colSpec >= 0 ? cleanText(row[currentHeader.colSpec]) : '';
-          const rawCategory = currentHeader.colCategory >= 0 ? cleanText(row[currentHeader.colCategory]) : '';
-          const rawHsn = currentHeader.colHsn >= 0 ? cleanText(row[currentHeader.colHsn]) : '';
-          const rawQty = currentHeader.colQty >= 0 ? row[currentHeader.colQty] : '';
-          const rawCost = currentHeader.colCostPrice >= 0 ? row[currentHeader.colCostPrice] : '';
-          const rawStandard = currentHeader.colStandardPrice >= 0 ? row[currentHeader.colStandardPrice] : '';
-          const rawSelling = currentHeader.colSellingPrice >= 0 ? row[currentHeader.colSellingPrice] : '';
-          const rawThreshold = currentHeader.colThreshold >= 0 ? row[currentHeader.colThreshold] : '';
-          const rawDesc = currentHeader.colDesc >= 0 ? cleanText(row[currentHeader.colDesc]) : '';
-
-          if (!rawName && !rawSku) continue;
-
-          // Disambiguate name if specification exists and not in name
-          let finalName = rawName;
-          if (rawSpec && !finalName.toLowerCase().includes(rawSpec.toLowerCase())) {
-            finalName = `${rawName} (${rawSpec})`;
+          // Check for "non listed items" section
+          const rowText = row.map(c => cleanText(c).toLowerCase()).join(' ');
+          if (rowText.includes('non listed items')) {
+            inNonListedSection = true;
+            currentHeader = null;
+            const pName = cleanText(row[3]);
+            if (pName && pName.toLowerCase() !== 'non listed items') {
+              extractedItems.push({
+                name: pName,
+                baseName: pName,
+                quantity: parseQuantity(row[4]),
+                category: 'Non Listed Items',
+                sheetName,
+                sourceRow: r + 1,
+              });
+            }
+            continue;
           }
 
-          const purchasePrice = parsePrice(rawCost) !== undefined ? parsePrice(rawCost) : parsePrice(rawStandard);
-          const sellingPrice = parsePrice(rawSelling);
-          const quantity = parseQuantity(rawQty);
-          const threshold = parsePrice(rawThreshold);
+          if (inNonListedSection) {
+            const pName = cleanText(row[3]);
+            if (pName) {
+              if (pName.startsWith('·') || pName.startsWith('Â·') || /^\d+\./.test(pName)) {
+                inNonListedSection = false;
+                continue;
+              }
+              extractedItems.push({
+                name: pName,
+                baseName: pName,
+                quantity: parseQuantity(row[4]),
+                category: 'Non Listed Items',
+                sheetName,
+                sourceRow: r + 1,
+              });
+              continue;
+            }
+          }
 
-          extractedItems.push({
-            name: finalName,
-            baseName: rawName,
-            sku: rawSku,
-            specification: rawSpec,
-            category: rawCategory || 'General',
-            hsnCode: rawHsn,
-            quantity,
-            purchasePrice,
-            sellingPrice,
-            lowStockThreshold: threshold,
-            description: rawDesc,
-            sourceRow: r + 1,
-          });
-        }
-      }
+          // Skip category reference taxonomy (bullet items at bottom)
+          const firstCol = cleanText(row[0]);
+          if (firstCol.startsWith('·') || firstCol.startsWith('Â·') || /^\d+\.\s+[A-Za-z]/.test(firstCol)) {
+            continue;
+          }
 
-      const matchedProducts: { product: Product; newSOH: number; newPurchasePrice?: number; newSellingPrice?: number; rowData: any }[] = [];
-      const newProducts: any[] = [];
-      const matchedProductIds = new Set<string>();
+          // If we have an active header, parse this data row
+          if (currentHeader && currentHeader.colName >= 0) {
+            const rawName = cleanText(row[currentHeader.colName]);
+            const rawSku = currentHeader.colSku >= 0 ? cleanText(row[currentHeader.colSku]) : '';
+            const rawSpec = currentHeader.colSpec >= 0 ? cleanText(row[currentHeader.colSpec]) : '';
+            const rawCategory = currentHeader.colCategory >= 0 ? cleanText(row[currentHeader.colCategory]) : '';
+            const rawHsn = currentHeader.colHsn >= 0 ? cleanText(row[currentHeader.colHsn]) : '';
+            const rawQty = currentHeader.colQty >= 0 ? row[currentHeader.colQty] : '';
+            const rawCost = currentHeader.colCostPrice >= 0 ? row[currentHeader.colCostPrice] : '';
+            const rawStandard = currentHeader.colStandardPrice >= 0 ? row[currentHeader.colStandardPrice] : '';
+            const rawSelling = currentHeader.colSellingPrice >= 0 ? row[currentHeader.colSellingPrice] : '';
+            const rawThreshold = currentHeader.colThreshold >= 0 ? row[currentHeader.colThreshold] : '';
+            const rawDesc = currentHeader.colDesc >= 0 ? cleanText(row[currentHeader.colDesc]) : '';
 
-      extractedItems.forEach((item) => {
-        let matched: Product | undefined;
+            if (!rawName && !rawSku) continue;
 
-        // 1. Match by SKU
-        if (item.sku) {
-          matched = products.find(p => p.sku && p.sku.trim().toLowerCase() === item.sku!.toLowerCase() && !matchedProductIds.has(p.id));
-        }
+            // Disambiguate name if specification exists and not in name
+            let finalName = rawName;
+            if (rawSpec && !finalName.toLowerCase().includes(rawSpec.toLowerCase())) {
+              finalName = `${rawName} (${rawSpec})`;
+            }
 
-        // 2. Match by exact full name
-        if (!matched && item.name) {
-          matched = products.find(p => p.name.trim().toLowerCase() === item.name.toLowerCase() && !matchedProductIds.has(p.id));
-        }
+            const purchasePrice = parsePrice(rawCost) !== undefined ? parsePrice(rawCost) : parsePrice(rawStandard);
+            const sellingPrice = parsePrice(rawSelling);
+            const quantity = parseQuantity(rawQty);
+            const threshold = parsePrice(rawThreshold);
 
-        // 3. Match by base name if no spec conflict
-        if (!matched && item.baseName) {
-          matched = products.find(p => p.name.trim().toLowerCase() === item.baseName.toLowerCase() && !matchedProductIds.has(p.id));
-        }
-
-        // 4. Match by alphanumeric similarity (handles minor spacing/punctuation differences)
-        if (!matched && item.name) {
-          const rowAlpha = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-          if (rowAlpha.length >= 4) {
-            matched = products.find(p => {
-              const pAlpha = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-              return pAlpha === rowAlpha && !matchedProductIds.has(p.id);
+            extractedItems.push({
+              name: finalName,
+              baseName: rawName,
+              sku: rawSku,
+              specification: rawSpec,
+              category: rawCategory || 'General',
+              hsnCode: rawHsn,
+              quantity,
+              purchasePrice,
+              sellingPrice,
+              lowStockThreshold: threshold,
+              description: rawDesc,
+              sheetName,
+              sourceRow: r + 1,
             });
           }
         }
+        return extractedItems;
+      };
 
-        if (matched) {
-          matchedProductIds.add(matched.id);
-          matchedProducts.push({
-            product: matched,
-            newSOH: item.quantity,
-            newPurchasePrice: item.purchasePrice !== undefined ? item.purchasePrice : matched.currentPrice,
-            newSellingPrice: item.sellingPrice !== undefined ? item.sellingPrice : matched.purchasePrice,
-            rowData: {
-              name: item.name || matched.name,
-              sku: item.sku || matched.sku,
-              hsnCode: item.hsnCode || matched.hsnCode,
-              category: item.category || matched.category,
-              lowStockThreshold: item.lowStockThreshold !== undefined ? item.lowStockThreshold : matched.lowStockThreshold,
-              description: item.description || matched.description,
+      const buildMatchingSummary = (itemsList: ParsedRowItem[]) => {
+        const matchedProducts: { product: Product; newSOH: number; newPurchasePrice?: number; newSellingPrice?: number; rowData: any }[] = [];
+        const newProducts: any[] = [];
+        const matchedProductIds = new Set<string>();
+
+        itemsList.forEach((item) => {
+          let matched: Product | undefined;
+
+          // 1. Match by SKU
+          if (item.sku) {
+            matched = products.find(p => p.sku && p.sku.trim().toLowerCase() === item.sku!.toLowerCase() && !matchedProductIds.has(p.id));
+          }
+
+          // 2. Match by exact full name
+          if (!matched && item.name) {
+            matched = products.find(p => p.name.trim().toLowerCase() === item.name.toLowerCase() && !matchedProductIds.has(p.id));
+          }
+
+          // 3. Match by base name if no spec conflict
+          if (!matched && item.baseName) {
+            matched = products.find(p => p.name.trim().toLowerCase() === item.baseName.toLowerCase() && !matchedProductIds.has(p.id));
+          }
+
+          // 4. Match by alphanumeric similarity
+          if (!matched && item.name) {
+            const rowAlpha = item.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+            if (rowAlpha.length >= 4) {
+              matched = products.find(p => {
+                const pAlpha = p.name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                return pAlpha === rowAlpha && !matchedProductIds.has(p.id);
+              });
             }
-          });
-        } else {
-          newProducts.push({
-            name: item.name,
-            sku: item.sku || `SKU-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 900 + 100)}`,
-            hsnCode: item.hsnCode || '',
-            category: item.category || 'General',
-            totalQuantity: item.quantity,
-            currentPrice: item.purchasePrice || 0,
-            purchasePrice: item.sellingPrice !== undefined ? item.sellingPrice : undefined,
-            lowStockThreshold: item.lowStockThreshold || 10,
-            description: item.description || (item.specification ? `Spec: ${item.specification}` : ''),
-          });
+          }
+
+          if (matched) {
+            matchedProductIds.add(matched.id);
+            matchedProducts.push({
+              product: matched,
+              newSOH: item.quantity,
+              newPurchasePrice: item.purchasePrice !== undefined ? item.purchasePrice : matched.currentPrice,
+              newSellingPrice: item.sellingPrice !== undefined ? item.sellingPrice : matched.purchasePrice,
+              rowData: {
+                name: item.name || matched.name,
+                sku: item.sku || matched.sku,
+                hsnCode: item.hsnCode || matched.hsnCode,
+                category: item.category || matched.category,
+                lowStockThreshold: item.lowStockThreshold !== undefined ? item.lowStockThreshold : matched.lowStockThreshold,
+                description: item.description || matched.description,
+              }
+            });
+          } else {
+            newProducts.push({
+              name: item.name,
+              sku: item.sku || `SKU-${Date.now().toString().slice(-4)}-${Math.floor(Math.random() * 900 + 100)}`,
+              hsnCode: item.hsnCode || '',
+              category: item.category || 'General',
+              totalQuantity: item.quantity,
+              currentPrice: item.purchasePrice || 0,
+              purchasePrice: item.sellingPrice !== undefined ? item.sellingPrice : undefined,
+              lowStockThreshold: item.lowStockThreshold || 10,
+              description: item.description || (item.specification ? `Spec: ${item.specification}` : ''),
+            });
+          }
+        });
+
+        const missedProducts = products.filter(p => !matchedProductIds.has(p.id));
+
+        return {
+          totalRows: itemsList.length,
+          matchedProducts,
+          newProducts,
+          missedProducts,
+        };
+      };
+
+      const sheetDataMap: Record<string, ReturnType<typeof buildMatchingSummary>> = {};
+      const sheetItemsMap: Record<string, ParsedRowItem[]> = {};
+      const availableSheets: { name: string; count: number }[] = [];
+
+      workbook.SheetNames.forEach((sheetName) => {
+        const worksheet = workbook.Sheets[sheetName];
+        if (!worksheet) return;
+        const matrix: any[][] = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+        if (matrix.length === 0) return;
+
+        const sheetItems = parseSheetMatrix(matrix, sheetName);
+        if (sheetItems.length > 0) {
+          sheetItemsMap[sheetName] = sheetItems;
+          availableSheets.push({ name: sheetName, count: sheetItems.length });
+          sheetDataMap[sheetName] = buildMatchingSummary(sheetItems);
         }
       });
 
-      const missedProducts = products.filter(p => !matchedProductIds.has(p.id));
+      if (availableSheets.length === 0) {
+        alert('The uploaded Excel sheet contains no recognizable inventory items.');
+        setIsImporting(false);
+        return;
+      }
+
+      if (availableSheets.length > 1) {
+        const primarySheetName = availableSheets.slice().sort((a, b) => {
+          const aName = a.name.toLowerCase();
+          const bName = b.name.toLowerCase();
+          const aPriority = aName.includes('materials') || aName.includes('inventory') || aName.includes('stock') ? 1000 : a.count;
+          const bPriority = bName.includes('materials') || bName.includes('inventory') || bName.includes('stock') ? 1000 : b.count;
+          return bPriority - aPriority;
+        })[0]?.name;
+
+        const primaryItems = sheetItemsMap[primarySheetName] || [];
+        const combinedItems: ParsedRowItem[] = primaryItems.map(item => ({ ...item }));
+
+        availableSheets.forEach(sh => {
+          if (sh.name === primarySheetName) return;
+          const otherItems = sheetItemsMap[sh.name] || [];
+          otherItems.forEach(other => {
+            const match = combinedItems.find(c => 
+              (other.sku && c.sku && other.sku.toLowerCase() === c.sku.toLowerCase()) ||
+              c.name.toLowerCase() === other.name.toLowerCase() ||
+              c.baseName.toLowerCase() === other.baseName.toLowerCase() ||
+              c.name.toLowerCase().includes(other.name.toLowerCase()) ||
+              other.name.toLowerCase().includes(c.name.toLowerCase())
+            );
+
+            if (match) {
+              if (other.purchasePrice !== undefined) match.purchasePrice = other.purchasePrice;
+              if (other.sellingPrice !== undefined) match.sellingPrice = other.sellingPrice;
+              if (match.quantity === 0 && other.quantity > 0) match.quantity = other.quantity;
+            } else {
+              combinedItems.push({ ...other });
+            }
+          });
+        });
+
+        const combinedSummary = buildMatchingSummary(combinedItems);
+        sheetDataMap['all'] = combinedSummary;
+        availableSheets.unshift({ name: 'all', count: combinedItems.length });
+      }
+
+      const initialSheet = availableSheets.length > 1 ? 'all' : availableSheets[0].name;
+      const initialData = sheetDataMap[initialSheet];
 
       setImportSummary({
         fileName: file.name,
-        totalRows: extractedItems.length,
-        matchedProducts,
-        newProducts,
-        missedProducts,
+        totalRows: initialData.totalRows,
+        availableSheets,
+        selectedSheet: initialSheet,
+        sheetDataMap,
+        matchedProducts: initialData.matchedProducts,
+        newProducts: initialData.newProducts,
+        missedProducts: initialData.missedProducts,
       });
       setIsImportModalOpen(true);
     } catch (err) {
@@ -3017,6 +3118,42 @@ const InventoryManagement: React.FC = () => {
           </div>
 
           <div className="overflow-y-auto py-4 space-y-4 flex-1">
+            {/* Sheet Selector (when workbook has multiple sheets) */}
+            {importSummary.availableSheets && importSummary.availableSheets.length > 1 && (
+              <div className="p-3 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5 text-blue-600" />
+                    Select Sheet to Import:
+                  </span>
+                  <span className="text-[11px] text-slate-500 font-medium">
+                    {importSummary.availableSheets.length - 1} sheets found in workbook
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {importSummary.availableSheets.map(sh => (
+                    <button
+                      key={sh.name}
+                      type="button"
+                      onClick={() => handleSelectImportSheet(sh.name)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition flex items-center gap-1.5 ${
+                        importSummary.selectedSheet === sh.name
+                          ? "bg-blue-600 text-white shadow-xs"
+                          : "bg-white text-slate-700 hover:bg-slate-200/80 border border-slate-200"
+                      }`}
+                    >
+                      <span>{sh.name === 'all' ? 'All Sheets Combined' : sh.name}</span>
+                      <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded-full ${
+                        importSummary.selectedSheet === sh.name ? "bg-white/25 text-white" : "bg-slate-100 text-slate-600"
+                      }`}>
+                        {sh.count}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Summary Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="p-3.5 bg-blue-50/70 border border-blue-200/80 rounded-xl">
