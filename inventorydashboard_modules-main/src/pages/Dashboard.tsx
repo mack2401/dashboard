@@ -7,19 +7,17 @@ import {
   IndianRupee,
   FileText,
   Users,
-  Award,
   Trophy,
   ArrowRight,
   Search,
   Calendar,
   PieChart as PieIcon,
   ChevronRight,
-  RefreshCw,
   CheckCircle2,
   Clock,
   Sparkles,
   Layers,
-  ArrowUpRight,
+  History,
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -33,19 +31,22 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
 
-// Vibrant, accessible palette for the Pie Chart
+// Vibrant Sky Blue accented palette for the Pie Chart
 const PIE_COLORS = [
-  "#3b82f6", // Blue
-  "#10b981", // Emerald
-  "#f59e0b", // Amber
-  "#8b5cf6", // Violet
-  "#ec4899", // Pink
-  "#06b6d4", // Cyan
-  "#f97316", // Orange
-  "#14b8a6", // Teal
-  "#6366f1", // Indigo
-  "#64748b", // Slate
+  "#0284c7", // Sky-600
+  "#0ea5e9", // Sky-500
+  "#38bdf8", // Sky-400
+  "#10b981", // Emerald-500
+  "#f59e0b", // Amber-500
+  "#8b5cf6", // Violet-500
+  "#06b6d4", // Cyan-500
+  "#ec4899", // Pink-500
+  "#f97316", // Orange-500
+  "#64748b", // Slate-500
 ];
+
+type TimeFilterMode = "yesterday" | "today" | "past";
+type PastMode = "past7" | "past30" | "allPast" | "specific";
 
 interface ParsedItem {
   productName: string;
@@ -87,12 +88,23 @@ const isToday = (date: Date | null): boolean => {
   );
 };
 
-const isThisMonth = (date: Date | null): boolean => {
+const isYesterday = (date: Date | null): boolean => {
   if (!date) return false;
-  const now = new Date();
+  const yesterday = new Date();
+  yesterday.setDate(yesterday.getDate() - 1);
   return (
-    date.getMonth() === now.getMonth() &&
-    date.getFullYear() === now.getFullYear()
+    date.getDate() === yesterday.getDate() &&
+    date.getMonth() === yesterday.getMonth() &&
+    date.getFullYear() === yesterday.getFullYear()
+  );
+};
+
+const isSameDay = (d1: Date | null, d2: Date | null): boolean => {
+  if (!d1 || !d2) return false;
+  return (
+    d1.getDate() === d2.getDate() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getFullYear() === d2.getFullYear()
   );
 };
 
@@ -145,7 +157,16 @@ const Dashboard: React.FC = () => {
   const [bills, setBills] = useState<any[]>([]);
   const [employees, setEmployees] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
-  const [timeFilter, setTimeFilter] = useState<"today" | "month" | "all">("today");
+
+  // Time filter: yesterday, today, past
+  const [timeFilter, setTimeFilter] = useState<TimeFilterMode>("today");
+  const [pastMode, setPastMode] = useState<PastMode>("past7");
+  const [specificPastDate, setSpecificPastDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    return d.toISOString().split("T")[0];
+  });
+
   const [componentSearch, setComponentSearch] = useState<string>("");
 
   // 1. Subscribe to Firestore Bills
@@ -191,28 +212,112 @@ const Dashboard: React.FC = () => {
     return () => unsubEmployees();
   }, []);
 
-  // Filter bills based on selected time filter (defaults to Today)
+  // Filter bills based on selected timeframe (Yesterday, Today, Past Dates)
   const filteredBills = useMemo(() => {
     if (timeFilter === "today") {
       return bills.filter((b) => isToday(parseDate(b.billDate || b.createdAt)));
     }
-    if (timeFilter === "month") {
-      return bills.filter((b) => isThisMonth(parseDate(b.billDate || b.createdAt)));
-    }
-    return bills;
-  }, [bills, timeFilter]);
 
-  // Today's specific metrics & components
-  const todaySales = useMemo(() => {
+    if (timeFilter === "yesterday") {
+      return bills.filter((b) =>
+        isYesterday(parseDate(b.billDate || b.createdAt))
+      );
+    }
+
+    if (timeFilter === "past") {
+      const now = new Date();
+      const startOfToday = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate()
+      );
+
+      if (pastMode === "specific" && specificPastDate) {
+        const targetDate = new Date(specificPastDate);
+        return bills.filter((b) =>
+          isSameDay(parseDate(b.billDate || b.createdAt), targetDate)
+        );
+      }
+
+      if (pastMode === "past7") {
+        const sevenDaysAgo = new Date(startOfToday);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        return bills.filter((b) => {
+          const d = parseDate(b.billDate || b.createdAt);
+          return d && d >= sevenDaysAgo && d < startOfToday;
+        });
+      }
+
+      if (pastMode === "past30") {
+        const thirtyDaysAgo = new Date(startOfToday);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        return bills.filter((b) => {
+          const d = parseDate(b.billDate || b.createdAt);
+          return d && d >= thirtyDaysAgo && d < startOfToday;
+        });
+      }
+
+      // allPast: all records created before today
+      return bills.filter((b) => {
+        const d = parseDate(b.billDate || b.createdAt);
+        return d && d < startOfToday;
+      });
+    }
+
+    return bills;
+  }, [bills, timeFilter, pastMode, specificPastDate]);
+
+  // Dynamic titles and labels based on active filter
+  const timeFilterTitle = useMemo(() => {
+    if (timeFilter === "today") return "Today's Sales & Components Breakdown";
+    if (timeFilter === "yesterday")
+      return "Yesterday's Sales & Components Breakdown";
+    if (timeFilter === "past") {
+      if (pastMode === "specific" && specificPastDate) {
+        const d = new Date(specificPastDate);
+        const formatted = isNaN(d.getTime())
+          ? specificPastDate
+          : d.toLocaleDateString("en-IN", {
+              day: "numeric",
+              month: "short",
+              year: "numeric",
+            });
+        return `Sales & Components on ${formatted}`;
+      }
+      if (pastMode === "past7") return "Past 7 Days Sales & Components Breakdown";
+      if (pastMode === "past30")
+        return "Past 30 Days Sales & Components Breakdown";
+      return "All Past Dates Sales & Components Breakdown";
+    }
+    return "Sales & Components Breakdown";
+  }, [timeFilter, pastMode, specificPastDate]);
+
+  const timeFilterCardLabel = useMemo(() => {
+    if (timeFilter === "today") return "Today's Total Sales";
+    if (timeFilter === "yesterday") return "Yesterday's Total Sales";
+    if (timeFilter === "past") {
+      if (pastMode === "specific") return "Selected Past Date Sales";
+      if (pastMode === "past7") return "Past 7 Days Sales";
+      if (pastMode === "past30") return "Past 30 Days Sales";
+      return "All Past Sales";
+    }
+    return "Total Sales";
+  }, [timeFilter, pastMode]);
+
+  // Selected period total sales
+  const periodSales = useMemo(() => {
     return filteredBills.reduce(
       (sum, b) => sum + (Number(b.totalAmount) || 0),
       0
     );
   }, [filteredBills]);
 
-  // Aggregated Components sold today
+  // Aggregated Components sold in selected period
   const componentsSold = useMemo(() => {
-    const compMap: Record<string, { name: string; quantity: number; total: number }> = {};
+    const compMap: Record<
+      string,
+      { name: string; quantity: number; total: number }
+    > = {};
 
     filteredBills.forEach((bill) => {
       const items = extractBillItems(bill);
@@ -240,7 +345,7 @@ const Dashboard: React.FC = () => {
     );
   }, [componentsSold, componentSearch]);
 
-  // Pie chart data: top 6 items + "Others" category
+  // Pie chart data: top 5 items + "Others" category
   const pieChartData = useMemo(() => {
     if (componentsSold.length === 0) return [];
     if (componentsSold.length <= 6) {
@@ -295,7 +400,6 @@ const Dashboard: React.FC = () => {
     const staffMap: Record<string, StaffPerformance> = {};
 
     bills.forEach((bill) => {
-      // Resolve staff name
       let staffName = "Unassigned Staff";
       if (bill.assignedToName && String(bill.assignedToName).trim() !== "") {
         staffName = String(bill.assignedToName).trim();
@@ -334,76 +438,135 @@ const Dashboard: React.FC = () => {
       {/* 1. TOP SECTION: TWO HORIZONTAL PARTS (LEFT: SALES & ITEMS | RIGHT: PIE) */}
       {/* ========================================================================= */}
       <section className="space-y-4">
-        {/* Section Header with Quick Period Toggles */}
+        {/* Section Header with Yesterday, Today, and Past Dates */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
           <div>
             <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-              <span className="w-2.5 h-6 bg-blue-600 rounded-full inline-block"></span>
-              Today's Sales & Components Breakdown
+              <span className="w-2.5 h-6 bg-sky-500 rounded-full inline-block"></span>
+              {timeFilterTitle}
             </h2>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-              Real-time component units sold and cumulative sales performance
+              Live component sales and cumulative performance analytics
             </p>
           </div>
 
-          {/* Timeframe pill selector */}
+          {/* Timeframe pill selector: Yesterday, Today, Past Dates */}
           <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200/80 self-start sm:self-auto">
+            <button
+              onClick={() => setTimeFilter("yesterday")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                timeFilter === "yesterday"
+                  ? "bg-sky-500 text-white shadow-xs"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+              }`}
+            >
+              Yesterday
+            </button>
             <button
               onClick={() => setTimeFilter("today")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 timeFilter === "today"
-                  ? "bg-blue-600 text-white shadow-xs"
+                  ? "bg-sky-500 text-white shadow-xs"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
               }`}
             >
               Today
             </button>
             <button
-              onClick={() => setTimeFilter("month")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                timeFilter === "month"
-                  ? "bg-blue-600 text-white shadow-xs"
+              onClick={() => setTimeFilter("past")}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
+                timeFilter === "past"
+                  ? "bg-sky-500 text-white shadow-xs"
                   : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
               }`}
             >
-              This Month
-            </button>
-            <button
-              onClick={() => setTimeFilter("all")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                timeFilter === "all"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
-              }`}
-            >
-              All Time
+              <History className="w-3.5 h-3.5" />
+              <span>Past Dates</span>
             </button>
           </div>
         </div>
 
+        {/* Sub-selector for Past Dates */}
+        {timeFilter === "past" && (
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-sky-50/70 p-3 rounded-xl border border-sky-100 text-xs animate-in fade-in duration-200">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="font-bold text-sky-900 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-sky-600" />
+                Past Range:
+              </span>
+              <button
+                onClick={() => setPastMode("past7")}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  pastMode === "past7"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "bg-white text-sky-800 hover:bg-sky-100/70 border border-sky-200/60"
+                }`}
+              >
+                Past 7 Days
+              </button>
+              <button
+                onClick={() => setPastMode("past30")}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  pastMode === "past30"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "bg-white text-sky-800 hover:bg-sky-100/70 border border-sky-200/60"
+                }`}
+              >
+                Past 30 Days
+              </button>
+              <button
+                onClick={() => setPastMode("allPast")}
+                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
+                  pastMode === "allPast"
+                    ? "bg-sky-600 text-white shadow-2xs"
+                    : "bg-white text-sky-800 hover:bg-sky-100/70 border border-sky-200/60"
+                }`}
+              >
+                All Past
+              </button>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-gray-600 text-[11px] font-medium">
+                Or pick specific date:
+              </span>
+              <input
+                type="date"
+                max={
+                  new Date(Date.now() - 86400000).toISOString().split("T")[0]
+                }
+                value={specificPastDate}
+                onChange={(e) => {
+                  setSpecificPastDate(e.target.value);
+                  setPastMode("specific");
+                }}
+                className={`px-2 py-1 text-xs rounded-md border transition-all ${
+                  pastMode === "specific"
+                    ? "border-sky-500 ring-2 ring-sky-500/20 bg-white text-sky-900 font-semibold"
+                    : "border-gray-200 bg-white text-gray-700"
+                }`}
+              />
+            </div>
+          </div>
+        )}
+
         {/* Horizontal Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          {/* PART 1 (LEFT, 7 COLS): Total Sales & Components + Qty sold today */}
+          {/* PART 1 (LEFT, 7 COLS): Total Sales & Components + Qty sold */}
           <div className="lg:col-span-7 flex flex-col space-y-4">
-            {/* Today's Total Sales Highlight Card */}
-            <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
+            {/* Period Total Sales Highlight Card - Sky Blue Theme */}
+            <div className="bg-gradient-to-r from-[#0ea5e9] via-[#0284c7] to-[#0369a1] rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
               <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 text-blue-100 text-xs sm:text-sm font-medium tracking-wide uppercase">
+                  <div className="flex items-center gap-2 text-sky-100 text-xs sm:text-sm font-medium tracking-wide uppercase">
                     <Clock className="w-4 h-4" />
-                    <span>
-                      {timeFilter === "today"
-                        ? "Today's Total Sales"
-                        : timeFilter === "month"
-                        ? "This Month's Sales"
-                        : "Total Sales"}
-                    </span>
+                    <span>{timeFilterCardLabel}</span>
                   </div>
                   <div className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">
-                    {formatCurrency(todaySales)}
+                    {formatCurrency(periodSales)}
                   </div>
-                  <p className="text-xs text-blue-100/90 mt-1">
+                  <p className="text-xs text-sky-100/90 mt-1">
                     Generated across{" "}
                     <strong className="text-white font-bold">
                       {filteredBills.length}
@@ -413,13 +576,13 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="bg-white/15 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 flex flex-col items-start sm:items-end">
-                  <span className="text-[11px] font-semibold text-blue-100 uppercase tracking-wider">
+                  <span className="text-[11px] font-semibold text-sky-100 uppercase tracking-wider">
                     Units Sold
                   </span>
                   <span className="text-2xl font-black text-white mt-0.5">
                     {componentsSold.reduce((sum, c) => sum + c.quantity, 0)}
                   </span>
-                  <span className="text-[11px] text-blue-200">
+                  <span className="text-[11px] text-sky-200">
                     {componentsSold.length} unique component
                     {componentsSold.length === 1 ? "" : "s"}
                   </span>
@@ -431,12 +594,17 @@ const Dashboard: React.FC = () => {
             <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs flex-1 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50">
                 <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-blue-600" />
+                  <Layers className="w-4 h-4 text-sky-600" />
                   <h3 className="font-bold text-gray-900 text-sm sm:text-base">
-                    Components & Quantity Sold{" "}
-                    {timeFilter === "today" ? "Today" : ""}
+                    Components & Quantity Sold (
+                    {timeFilter === "yesterday"
+                      ? "Yesterday"
+                      : timeFilter === "today"
+                      ? "Today"
+                      : "Past Dates"}
+                    )
                   </h3>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
                     {displayComponents.length}
                   </span>
                 </div>
@@ -449,7 +617,7 @@ const Dashboard: React.FC = () => {
                     value={componentSearch}
                     onChange={(e) => setComponentSearch(e.target.value)}
                     placeholder="Search component..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
                   />
                 </div>
               </div>
@@ -460,20 +628,17 @@ const Dashboard: React.FC = () => {
                   <div className="py-12 px-4 text-center">
                     <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                     <p className="text-sm font-medium text-gray-700">
-                      No components sold{" "}
-                      {timeFilter === "today"
-                        ? "today yet"
-                        : "in this period"}
+                      No components sold in this period
                     </p>
                     <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
                       Items sold from newly generated bills will immediately appear here.
                     </p>
                     {timeFilter === "today" && bills.length > 0 && (
                       <button
-                        onClick={() => setTimeFilter("all")}
-                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                        onClick={() => setTimeFilter("past")}
+                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700"
                       >
-                        <span>View all-time component sales</span>
+                        <span>View past component sales</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -495,7 +660,7 @@ const Dashboard: React.FC = () => {
                       {displayComponents.map((item, idx) => (
                         <tr
                           key={`${item.name}-${idx}`}
-                          className="hover:bg-blue-50/30 transition-colors"
+                          className="hover:bg-sky-50/40 transition-colors"
                         >
                           <td className="py-2.5 px-4 font-medium text-gray-900">
                             <div className="flex items-center gap-2">
@@ -506,13 +671,16 @@ const Dashboard: React.FC = () => {
                                     PIE_COLORS[idx % PIE_COLORS.length],
                                 }}
                               />
-                              <span className="truncate max-w-[200px] sm:max-w-[280px]" title={item.name}>
+                              <span
+                                className="truncate max-w-[200px] sm:max-w-[280px]"
+                                title={item.name}
+                              >
                                 {item.name}
                               </span>
                             </div>
                           </td>
                           <td className="py-2.5 px-4 text-center">
-                            <span className="inline-block px-2 py-0.5 rounded-full font-bold bg-blue-50 text-blue-700 border border-blue-200/60">
+                            <span className="inline-block px-2 py-0.5 rounded-full font-bold bg-sky-50 text-sky-700 border border-sky-200/60">
                               {item.quantity}
                             </span>
                           </td>
@@ -532,7 +700,7 @@ const Dashboard: React.FC = () => {
           <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-5 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <PieIcon className="w-4 h-4 text-indigo-600" />
+                <PieIcon className="w-4 h-4 text-sky-600" />
                 <h3 className="font-bold text-gray-900 text-sm sm:text-base">
                   Component Share Pie Chart
                 </h3>
@@ -552,7 +720,7 @@ const Dashboard: React.FC = () => {
                     No Data Available for Pie Chart
                   </p>
                   <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-                    The chart will populate automatically as components are sold today.
+                    The chart will populate automatically as components are sold.
                   </p>
                 </div>
               ) : (
@@ -586,7 +754,7 @@ const Dashboard: React.FC = () => {
                           name,
                         ]}
                         contentStyle={{
-                          backgroundColor: "#1e293b",
+                          backgroundColor: "#0f172a",
                           borderColor: "#334155",
                           borderRadius: "0.75rem",
                           color: "#ffffff",
@@ -619,7 +787,7 @@ const Dashboard: React.FC = () => {
       {/* ========================================================================= */}
       <section className="space-y-3 pt-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-blue-600" />
+          <Sparkles className="w-4 h-4 text-sky-600" />
           <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
             Quick Navigation Modules
           </h2>
@@ -632,17 +800,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/inventory")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-blue-500 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-sky-50/50 hover:to-white border border-gray-200/90 hover:border-sky-500 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-blue-600 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Package className="w-6 h-6" />
               </div>
               <div>
-                <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-sky-600">
                   Stock & Catalog
                 </span>
-                <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors">
+                <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-sky-600 transition-colors">
                   Inventory
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
@@ -650,7 +818,7 @@ const Dashboard: React.FC = () => {
                 </p>
               </div>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-blue-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -728,10 +896,10 @@ const Dashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Total Sales Card */}
-          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-6 flex items-center justify-between hover:border-gray-300 transition-all">
+          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-6 flex items-center justify-between hover:border-sky-300 transition-all">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                <IndianRupee className="w-4 h-4 text-emerald-600" />
+                <IndianRupee className="w-4 h-4 text-sky-600" />
                 <span>Total Cumulative Sales</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -742,16 +910,16 @@ const Dashboard: React.FC = () => {
               </p>
             </div>
 
-            <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center flex-shrink-0 shadow-2xs border border-emerald-100">
+            <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 shadow-2xs border border-sky-100">
               <IndianRupee className="w-7 h-7" />
             </div>
           </div>
 
           {/* No of Bills Card */}
-          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-6 flex items-center justify-between hover:border-gray-300 transition-all">
+          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-6 flex items-center justify-between hover:border-sky-300 transition-all">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                <FileText className="w-4 h-4 text-blue-600" />
+                <FileText className="w-4 h-4 text-sky-600" />
                 <span>No. of Bills</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -769,7 +937,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-2xs border border-blue-100">
+            <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 shadow-2xs border border-sky-100">
               <FileText className="w-7 h-7" />
             </div>
           </div>
@@ -843,7 +1011,7 @@ const Dashboard: React.FC = () => {
                     return (
                       <tr
                         key={staff.name}
-                        className={`hover:bg-blue-50/30 transition-colors ${
+                        className={`hover:bg-sky-50/40 transition-colors ${
                           idx === 0 ? "bg-amber-50/20" : ""
                         }`}
                       >
@@ -871,7 +1039,7 @@ const Dashboard: React.FC = () => {
                         {/* Staff Name & Initial Icon */}
                         <td className="py-3 px-4 font-semibold text-gray-900">
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs">
+                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-sky-500 to-sky-700 text-white flex items-center justify-center font-bold text-xs uppercase shadow-2xs">
                               {staff.name.charAt(0)}
                             </div>
                             <div>
@@ -904,7 +1072,7 @@ const Dashboard: React.FC = () => {
 
                         {/* Total Sales Value */}
                         <td className="py-3 px-4 text-right">
-                          <span className="font-extrabold text-blue-600 text-sm sm:text-base">
+                          <span className="font-extrabold text-sky-600 text-sm sm:text-base">
                             {formatCurrency(staff.totalSales)}
                           </span>
                         </td>

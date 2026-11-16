@@ -74,7 +74,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
       <aside 
         className={`
           fixed top-3 bottom-3 left-3 z-40
-          bg-gradient-to-b from-[#3b5bfd] via-[#4361ee] to-[#3a56e4]
+          bg-gradient-to-b from-[#0ea5e9] via-[#0284c7] to-[#0369a1]
           rounded-[28px] shadow-xl shadow-blue-600/20
           transition-all duration-300 ease-in-out select-none
           flex flex-col justify-between py-4
@@ -140,7 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Welcome</p>
                 <p className="text-xs font-bold text-white capitalize truncate">{user?.name || user?.role || "User"}</p>
               </div>
-              <span className="px-2.5 py-0.5 text-[10px] font-bold bg-white text-[#3b5bfd] rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+              <span className="px-2.5 py-0.5 text-[10px] font-bold bg-white text-[#0284c7] rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
                 {user?.role || "Staff"}
               </span>
             </div>
@@ -197,7 +197,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                     {/* Icon */}
                     <span 
                       className={`shrink-0 transition-transform duration-200 ${
-                        isActive ? "text-[#3b5bfd]" : "text-white group-hover:scale-110"
+                        isActive ? "text-[#0284c7]" : "text-white group-hover:scale-110"
                       }`}
                     >
                       {item.icon}
@@ -260,7 +260,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                           ${isCollapsed ? "justify-center p-2 rounded-xl" : "gap-2.5 px-3 py-2 rounded-l-xl text-xs font-medium"}
                           ${
                             isActive
-                              ? "bg-gray-50 text-[#3b5bfd] font-bold shadow-xs"
+                              ? "bg-gray-50 text-[#0284c7] font-bold shadow-xs"
                               : "text-white/80 hover:text-white hover:bg-white/10"
                           }
                         `}
