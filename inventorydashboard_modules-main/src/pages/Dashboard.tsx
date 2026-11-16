@@ -267,30 +267,7 @@ const Dashboard: React.FC = () => {
     return bills;
   }, [bills, timeFilter, pastMode, specificPastDate]);
 
-  // Dynamic titles and labels based on active filter
-  const timeFilterTitle = useMemo(() => {
-    if (timeFilter === "today") return "Today's Sales & Components Breakdown";
-    if (timeFilter === "yesterday")
-      return "Yesterday's Sales & Components Breakdown";
-    if (timeFilter === "past") {
-      if (pastMode === "specific" && specificPastDate) {
-        const d = new Date(specificPastDate);
-        const formatted = isNaN(d.getTime())
-          ? specificPastDate
-          : d.toLocaleDateString("en-IN", {
-              day: "numeric",
-              month: "short",
-              year: "numeric",
-            });
-        return `Sales & Components on ${formatted}`;
-      }
-      if (pastMode === "past7") return "Past 7 Days Sales & Components Breakdown";
-      if (pastMode === "past30")
-        return "Past 30 Days Sales & Components Breakdown";
-      return "All Past Dates Sales & Components Breakdown";
-    }
-    return "Sales & Components Breakdown";
-  }, [timeFilter, pastMode, specificPastDate]);
+  // Dynamic labels based on active filter
 
   const timeFilterCardLabel = useMemo(() => {
     if (timeFilter === "today") return "Today's Total Sales";
@@ -378,22 +355,27 @@ const Dashboard: React.FC = () => {
     return topItems;
   }, [componentsSold]);
 
-  // All-time Cumulative Total Sales & No. of Bills
+  // All-time Total Sales
   const allTimeTotalSales = useMemo(() => {
     return bills.reduce((sum, b) => sum + (Number(b.totalAmount) || 0), 0);
   }, [bills]);
 
-  const paidBillsCount = useMemo(() => {
-    return bills.filter(
+  // Today's Bills Calculation
+  const todayBills = useMemo(() => {
+    return bills.filter((b) => isToday(parseDate(b.billDate || b.createdAt)));
+  }, [bills]);
+
+  const todayPaidBillsCount = useMemo(() => {
+    return todayBills.filter(
       (b) =>
         String(b.status || "").toLowerCase() === "paid" ||
         String(b.paymentStatus || "").toLowerCase() === "completed"
     ).length;
-  }, [bills]);
+  }, [todayBills]);
 
-  const pendingBillsCount = useMemo(() => {
-    return bills.length - paidBillsCount;
-  }, [bills, paidBillsCount]);
+  const todayPendingBillsCount = useMemo(() => {
+    return todayBills.length - todayPaidBillsCount;
+  }, [todayBills, todayPaidBillsCount]);
 
   // Staff Performance Leaderboard
   const staffLeaderboard = useMemo(() => {
@@ -441,13 +423,10 @@ const Dashboard: React.FC = () => {
         {/* Section Header with Yesterday, Today, and Past Dates */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
               <span className="w-2.5 h-6 bg-sky-500 rounded-full inline-block"></span>
-              {timeFilterTitle}
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-              Live component sales and cumulative performance analytics
-            </p>
+              iBots DashBoard
+            </h1>
           </div>
 
           {/* Timeframe pill selector: Yesterday, Today, Past Dates */}
@@ -900,7 +879,7 @@ const Dashboard: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
                 <IndianRupee className="w-4 h-4 text-sky-600" />
-                <span>Total Cumulative Sales</span>
+                <span>Total Sales</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
                 {formatCurrency(allTimeTotalSales)}
@@ -915,7 +894,7 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* No of Bills Card */}
+          {/* No of Bills Card (Today's) */}
           <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-6 flex items-center justify-between hover:border-sky-300 transition-all">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
@@ -923,16 +902,16 @@ const Dashboard: React.FC = () => {
                 <span>No. of Bills</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                {bills.length}
+                {todayBills.length}
               </div>
               <div className="flex items-center gap-2 pt-0.5">
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
                   <CheckCircle2 className="w-3 h-3" />
-                  {paidBillsCount} Paid
+                  {todayPaidBillsCount} Paid Today
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
                   <Clock className="w-3 h-3" />
-                  {pendingBillsCount} Pending
+                  {todayPendingBillsCount} Pending Today
                 </span>
               </div>
             </div>
