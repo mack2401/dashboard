@@ -17,6 +17,7 @@ import {
   CheckCircle,
   Clock,
   BarChart2,
+  BarChart3,
   LineChart as LineChartIcon,
 } from "lucide-react";
 import {
@@ -625,20 +626,12 @@ export default function ComparisonAnalytics({
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white flex items-center justify-center shadow-xs">
-            <ArrowUpDown className="w-5 h-5" />
+            <BarChart3 className="w-5 h-5" />
           </div>
           <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
-                Sales & Volume Comparison
-              </h2>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 uppercase tracking-wider">
-                MOM & YOY
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Compare daily selling prices and quantities between months, or monthly trends across years.
-            </p>
+            <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+              Sales & Volume Comparison
+            </h2>
           </div>
         </div>
 

@@ -13,6 +13,8 @@ import {
   Package,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Settings,
   GraduationCap,
   BarChart3,
@@ -21,7 +23,12 @@ import {
 } from "lucide-react";
 import { useAuth } from "../App"; 
 
-const Sidebar = () => {
+interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse }) => {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isManagementOpen, setIsManagementOpen] = useState(false);
@@ -68,12 +75,36 @@ const Sidebar = () => {
         <Menu size={24} />
       </button>
 
-      {/* Sidebar - Positioned for fixed, full height. Hidden by default on mobile, shown with 'isOpen' */}
+      {/* Desktop Unhide Arrow Button - Shown when sidebar is collapsed/hidden */}
+      {isCollapsed && onToggleCollapse && (
+        <button
+          onClick={onToggleCollapse}
+          className="hidden md:flex fixed top-6 left-0 z-40 items-center gap-1.5 pl-2.5 pr-3.5 py-2 bg-slate-900/95 hover:bg-slate-800 text-slate-200 hover:text-white rounded-r-xl shadow-2xl border-y border-r border-slate-700/80 hover:border-sky-500/50 backdrop-blur-xs transition-all duration-200 cursor-pointer group"
+          title="Unhide navigation panel"
+          aria-label="Unhide navigation panel"
+        >
+          <ChevronRight size={18} className="text-sky-400 group-hover:text-sky-300 group-hover:translate-x-0.5 transition-transform" />
+          <span className="text-xs font-semibold tracking-wide">Menu</span>
+        </button>
+      )}
+
+      {/* Desktop Toggle Arrow on the right border of sidebar (when expanded) */}
+      {!isCollapsed && onToggleCollapse && (
+        <button
+          onClick={onToggleCollapse}
+          className="hidden md:flex fixed top-6 left-[242px] z-50 items-center justify-center w-7 h-7 bg-slate-900 hover:bg-sky-600 text-slate-300 hover:text-white rounded-full border border-slate-700 shadow-md transition-all duration-300 cursor-pointer group"
+          title="Hide navigation panel"
+          aria-label="Hide navigation panel"
+        >
+          <ChevronLeft size={15} className="group-hover:-translate-x-0.5 transition-transform" />
+        </button>
+      )}
+
+      {/* Sidebar - Positioned for fixed, full height */}
       <aside 
         className={`
-          w-64 h-screen bg-slate-900 border-r border-slate-800 shadow-2xl p-4 fixed top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out
-          md:translate-x-0 md:block
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          w-64 h-screen bg-slate-900 border-r border-slate-800 shadow-2xl p-4 fixed top-0 left-0 overflow-y-auto z-40 transition-transform duration-300 ease-in-out
+          ${isCollapsed ? '-translate-x-full md:-translate-x-full pointer-events-none' : (isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0')}
         `}
       >
         <div className="flex justify-between items-center mb-6 pt-1">
@@ -84,14 +115,29 @@ const Sidebar = () => {
               className="h-7 w-auto max-w-[130px] object-contain"
             />
           </div>
-          {/* Close Button - Visible only on mobile inside the sidebar */}
-          <button 
-            onClick={() => setIsOpen(false)} 
-            className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
+
+          <div className="flex items-center gap-1">
+            {/* Desktop Hide Button inside header */}
+            {onToggleCollapse && (
+              <button 
+                onClick={onToggleCollapse}
+                className="hidden md:flex p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-colors cursor-pointer"
+                title="Hide navigation panel"
+                aria-label="Hide navigation panel"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            )}
+
+            {/* Close Button - Visible only on mobile inside the sidebar */}
+            <button 
+              onClick={() => setIsOpen(false)} 
+              className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
+              aria-label="Close menu"
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         {/* User Role Card */}
