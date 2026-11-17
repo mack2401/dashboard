@@ -367,6 +367,7 @@ const InventoryManagement: React.FC = () => {
   const [fastMovingPeriod, setFastMovingPeriod] = useState<'today' | 'yesterday' | 'past7' | 'past30' | 'all'>('today');
   const [fastMovingCustomDate, setFastMovingCustomDate] = useState<string>('');
   const [fastMovingSearch, setFastMovingSearch] = useState<string>('');
+  const [fastMovingFilterLowStock, setFastMovingFilterLowStock] = useState<boolean>(false);
 
   const [employees, setEmployees] = useState<any[]>([]);
 
@@ -799,20 +800,39 @@ const InventoryManagement: React.FC = () => {
   }, [enquiries, fastMovingPeriod, fastMovingCustomDate, productLookup]);
 
   const filteredApprovedFastMoving = useMemo(() => {
-    if (!fastMovingSearch.trim()) return approvedFastMovingItems;
+    let list = approvedFastMovingItems;
+    if (fastMovingFilterLowStock) {
+      list = list.filter((item) => item.isLowStock);
+    }
+    if (!fastMovingSearch.trim()) return list;
     const q = fastMovingSearch.toLowerCase();
-    return approvedFastMovingItems.filter(
+    return list.filter(
       (item) => item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
     );
-  }, [approvedFastMovingItems, fastMovingSearch]);
+  }, [approvedFastMovingItems, fastMovingSearch, fastMovingFilterLowStock]);
 
   const filteredEnquiryFastMoving = useMemo(() => {
-    if (!fastMovingSearch.trim()) return enquiryFastMovingItems;
+    let list = enquiryFastMovingItems;
+    if (fastMovingFilterLowStock) {
+      list = list.filter((item) => item.isLowStock);
+    }
+    if (!fastMovingSearch.trim()) return list;
     const q = fastMovingSearch.toLowerCase();
-    return enquiryFastMovingItems.filter(
+    return list.filter(
       (item) => item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
     );
-  }, [enquiryFastMovingItems, fastMovingSearch]);
+  }, [enquiryFastMovingItems, fastMovingSearch, fastMovingFilterLowStock]);
+
+  const lowStockFastMovingCount = useMemo(() => {
+    const set = new Set<string>();
+    approvedFastMovingItems.forEach((i) => {
+      if (i.isLowStock) set.add(i.name.toLowerCase());
+    });
+    enquiryFastMovingItems.forEach((i) => {
+      if (i.isLowStock) set.add(i.name.toLowerCase());
+    });
+    return set.size;
+  }, [approvedFastMovingItems, enquiryFastMovingItems]);
 
   // ============ FILTERED TRANSACTIONS ============
   const filteredTransactions = useMemo(() => {
@@ -4070,59 +4090,69 @@ const InventoryManagement: React.FC = () => {
               </div>
             </div>
 
-            {/* KPI Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Units Sold</span>
-                  <span className="p-2 rounded-xl bg-green-50 text-green-600">
-                    <ShoppingCart className="w-4 h-4" />
-                  </span>
+            {/* Low Stock Fast-Moving Filter Card */}
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div
+                onClick={() => setFastMovingFilterLowStock(prev => !prev)}
+                className={`flex-1 sm:max-w-md p-4 rounded-2xl shadow-xs border transition-all duration-200 flex items-center justify-between cursor-pointer group hover:shadow-md ${
+                  fastMovingFilterLowStock
+                    ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-500/30 shadow-sm'
+                    : 'bg-white border-gray-200/80 hover:border-amber-300'
+                }`}
+                title={fastMovingFilterLowStock ? 'Showing low stock items only. Click to view all fast-moving items.' : 'Click to filter and show only low stock fast-moving items.'}
+              >
+                <div className="flex items-center gap-3.5">
+                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+                    fastMovingFilterLowStock
+                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs scale-105'
+                      : 'bg-amber-50 text-amber-600 border-amber-100/70 group-hover:scale-105'
+                  }`}>
+                    <AlertCircle className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                        Low Stock Items
+                      </span>
+                      {fastMovingFilterLowStock ? (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 uppercase animate-pulse">
+                          Filtered (Active)
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-medium text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded group-hover:bg-amber-200 transition-colors">
+                          Click to filter &rarr;
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      {fastMovingFilterLowStock
+                        ? 'Showing only low stock fast-moving components — click to show all'
+                        : 'Fast-movers with inventory at or below threshold'}
+                    </p>
+                  </div>
                 </div>
-                <div className="text-2xl font-extrabold text-gray-900 mt-2">
-                  {approvedFastMovingItems.reduce((sum, i) => sum + i.quantity, 0)}
+
+                <div className="flex items-center gap-2.5">
+                  <div className="text-right">
+                    <div className="text-2xl font-black text-amber-600 tabular-nums">
+                      {lowStockFastMovingCount}
+                    </div>
+                    <span className="text-[10px] font-semibold text-gray-400 uppercase">
+                      items low
+                    </span>
+                  </div>
                 </div>
-                <p className="text-[11px] text-gray-400 mt-0.5">Across approved bills & orders</p>
               </div>
 
-              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Sales Value</span>
-                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
-                    <IndianRupee className="w-4 h-4" />
-                  </span>
-                </div>
-                <div className="text-xl sm:text-2xl font-extrabold text-gray-900 mt-2">
-                  {formatCurrency(approvedFastMovingItems.reduce((sum, i) => sum + i.totalValue, 0))}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-0.5">Revenue from fast-movers</p>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Enquiry Demand</span>
-                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
-                    <TrendingUp className="w-4 h-4" />
-                  </span>
-                </div>
-                <div className="text-2xl font-extrabold text-gray-900 mt-2">
-                  {enquiryFastMovingItems.reduce((sum, i) => sum + i.quantity, 0)}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-0.5">Units requested in enquiries</p>
-              </div>
-
-              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-gray-500 uppercase">Low Stock Alerts</span>
-                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600">
-                    <AlertCircle className="w-4 h-4" />
-                  </span>
-                </div>
-                <div className="text-2xl font-extrabold text-amber-600 mt-2">
-                  {approvedFastMovingItems.filter(i => i.isLowStock).length}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-0.5">Fast-movers running low</p>
-              </div>
+              {fastMovingFilterLowStock && (
+                <button
+                  onClick={() => setFastMovingFilterLowStock(false)}
+                  className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5 text-gray-400" />
+                  <span>Show All Fast-Movers</span>
+                </button>
+              )}
             </div>
 
             {/* Side-by-Side Tables: Approved Fast Moving vs Enquiry Fast Moving */}
@@ -4136,8 +4166,12 @@ const InventoryManagement: React.FC = () => {
                       Approved / Sold Fast Moving Components
                     </h3>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
-                    {filteredApprovedFastMoving.length} items
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    fastMovingFilterLowStock 
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                      : 'bg-green-100 text-green-700'
+                  }`}>
+                    {filteredApprovedFastMoving.length} {fastMovingFilterLowStock ? 'low stock' : 'items'}
                   </span>
                 </div>
 
@@ -4196,29 +4230,43 @@ const InventoryManagement: React.FC = () => {
                           <td colSpan={5} className="py-12 px-4 text-center">
                             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                             <p className="text-sm font-medium text-gray-700">
-                              No fast moving sales found for{" "}
-                              {fastMovingCustomDate
-                                ? `date ${fastMovingCustomDate}`
-                                : fastMovingPeriod === 'today'
-                                ? "today"
-                                : fastMovingPeriod === 'yesterday'
-                                ? "yesterday"
-                                : "this period"}
+                              {fastMovingFilterLowStock
+                                ? "No low stock items found among fast-moving sales for this period"
+                                : `No fast moving sales found for ${
+                                    fastMovingCustomDate
+                                      ? `date ${fastMovingCustomDate}`
+                                      : fastMovingPeriod === 'today'
+                                      ? "today"
+                                      : fastMovingPeriod === 'yesterday'
+                                      ? "yesterday"
+                                      : "this period"
+                                  }`}
                             </p>
-                            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-                              Sold items in bills will automatically rank here.
-                            </p>
-                            {fastMovingPeriod === 'today' && (
+                            {fastMovingFilterLowStock ? (
                               <button
-                                onClick={() => {
-                                  setFastMovingPeriod('all');
-                                  setFastMovingCustomDate('');
-                                }}
-                                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                onClick={() => setFastMovingFilterLowStock(false)}
+                                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 underline cursor-pointer"
                               >
-                                <span>View all previous dates</span>
-                                <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                                View all fast moving sales
                               </button>
+                            ) : (
+                              <>
+                                <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+                                  Sold items in bills will automatically rank here.
+                                </p>
+                                {fastMovingPeriod === 'today' && (
+                                  <button
+                                    onClick={() => {
+                                      setFastMovingPeriod('all');
+                                      setFastMovingCustomDate('');
+                                    }}
+                                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                  >
+                                    <span>View all previous dates</span>
+                                    <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                         </tr>
@@ -4237,8 +4285,12 @@ const InventoryManagement: React.FC = () => {
                       Enquiry Fast Moving Components
                     </h3>
                   </div>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                    {filteredEnquiryFastMoving.length} items
+                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    fastMovingFilterLowStock 
+                      ? 'bg-amber-100 text-amber-800 border border-amber-200' 
+                      : 'bg-blue-100 text-blue-700'
+                  }`}>
+                    {filteredEnquiryFastMoving.length} {fastMovingFilterLowStock ? 'low stock' : 'items'}
                   </span>
                 </div>
 
@@ -4297,29 +4349,43 @@ const InventoryManagement: React.FC = () => {
                           <td colSpan={5} className="py-12 px-4 text-center">
                             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                             <p className="text-sm font-medium text-gray-700">
-                              No enquiry demands found for{" "}
-                              {fastMovingCustomDate
-                                ? `date ${fastMovingCustomDate}`
-                                : fastMovingPeriod === 'today'
-                                ? "today"
-                                : fastMovingPeriod === 'yesterday'
-                                ? "yesterday"
-                                : "this period"}
+                              {fastMovingFilterLowStock
+                                ? "No low stock items found among enquiry fast-movers for this period"
+                                : `No enquiry demands found for ${
+                                    fastMovingCustomDate
+                                      ? `date ${fastMovingCustomDate}`
+                                      : fastMovingPeriod === 'today'
+                                      ? "today"
+                                      : fastMovingPeriod === 'yesterday'
+                                      ? "yesterday"
+                                      : "this period"
+                                  }`}
                             </p>
-                            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-                              Enquiry materials will automatically rank here.
-                            </p>
-                            {fastMovingPeriod === 'today' && (
+                            {fastMovingFilterLowStock ? (
                               <button
-                                onClick={() => {
-                                  setFastMovingPeriod('all');
-                                  setFastMovingCustomDate('');
-                                }}
-                                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                onClick={() => setFastMovingFilterLowStock(false)}
+                                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 underline cursor-pointer"
                               >
-                                <span>View all previous dates</span>
-                                <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                                View all enquiry fast-movers
                               </button>
+                            ) : (
+                              <>
+                                <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+                                  Enquiry materials will automatically rank here.
+                                </p>
+                                {fastMovingPeriod === 'today' && (
+                                  <button
+                                    onClick={() => {
+                                      setFastMovingPeriod('all');
+                                      setFastMovingCustomDate('');
+                                    }}
+                                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                  >
+                                    <span>View all previous dates</span>
+                                    <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                                  </button>
+                                )}
+                              </>
                             )}
                           </td>
                         </tr>
