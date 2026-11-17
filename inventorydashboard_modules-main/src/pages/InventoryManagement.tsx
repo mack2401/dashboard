@@ -3122,7 +3122,7 @@ const InventoryManagement: React.FC = () => {
               <table className="w-full text-sm text-left">
                 <thead className="bg-gray-50 text-gray-700 uppercase">
                   <tr>
-                    <th className="px-4 py-3">Product Name</th>
+                    <th className="px-4 py-3">Item name</th>
                     <th className="px-4 py-3">Details</th>
                     <th className="px-4 py-3">Stock & Price</th>
                     <th className="px-4 py-3">Requested By</th>
@@ -3683,7 +3683,38 @@ const InventoryManagement: React.FC = () => {
         </div>
 
         {/* Statistics */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 sm:gap-4 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 mb-6">
+          {/* Total SKUs (Item-wise Count) */}
+          <div 
+            onClick={() => {
+              setActiveTab('all');
+              setFilterStock('all');
+            }}
+            className={`bg-white p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
+              filterStock === 'all' && activeTab === 'all'
+                ? 'border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/20' 
+                : 'border-gray-200/80 hover:border-indigo-300'
+            }`}
+            title="Total unique items in catalog (Stock Keeping Units - Item-wise count)"
+          >
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
+                Total SKUs
+              </span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/70 group-hover:scale-105 transition-transform">
+                <Box className="w-4 h-4" />
+              </div>
+            </div>
+            <div className="mt-3 flex items-baseline justify-between">
+              <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate tabular-nums">
+                {stats.totalProducts.toLocaleString('en-IN')}
+              </p>
+              <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
+                SKUs
+              </span>
+            </div>
+          </div>
+
           {/* Total SOH */}
           <div 
             onClick={() => {
@@ -4115,7 +4146,7 @@ const InventoryManagement: React.FC = () => {
                     <thead className="bg-gray-50/80 text-gray-600 uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-gray-150">
                       <tr>
                         <th className="px-3 py-2.5 text-center w-12">#</th>
-                        <th className="px-3 py-2.5">Component</th>
+                        <th className="px-3 py-2.5">Item name</th>
                         <th className="px-3 py-2.5 text-center">Stock (SOH)</th>
                         <th className="px-3 py-2.5 text-center">Qty Sold</th>
                         <th className="px-3 py-2.5 text-right">Total (₹)</th>
@@ -4216,7 +4247,7 @@ const InventoryManagement: React.FC = () => {
                     <thead className="bg-gray-50/80 text-gray-600 uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-gray-150">
                       <tr>
                         <th className="px-3 py-2.5 text-center w-12">#</th>
-                        <th className="px-3 py-2.5">Component</th>
+                        <th className="px-3 py-2.5">Item name</th>
                         <th className="px-3 py-2.5 text-center">Stock (SOH)</th>
                         <th className="px-3 py-2.5 text-center">Requested Qty</th>
                         <th className="px-3 py-2.5 text-right">Total (₹)</th>
@@ -4437,7 +4468,7 @@ const InventoryManagement: React.FC = () => {
                   <table className="w-full">
                     <thead>
                       <tr className="border-b border-gray-200">
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Product</th>
+                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Item name</th>
                         <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Type</th>
                         <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Quantity</th>
                         <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Amount</th>
@@ -4583,7 +4614,20 @@ const InventoryManagement: React.FC = () => {
                     </button>
                   </th>
                   <th className="py-3.5 px-2.5 text-center font-bold text-gray-900">
-                    Product
+                    <button
+                      onClick={() => {
+                        setSortField('name');
+                        setSortDirection(sortField === 'name' && sortDirection === 'asc' ? 'desc' : 'asc');
+                      }}
+                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
+                    >
+                      Item name
+                      {sortField === 'name' && (
+                        sortDirection === 'asc' ? 
+                          <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
+                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
+                      )}
+                    </button>
                   </th>
                   <th className="py-3.5 px-2 text-center font-bold text-gray-900">
                     <button
