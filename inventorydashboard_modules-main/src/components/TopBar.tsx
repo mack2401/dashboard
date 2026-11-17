@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Bell, X, CheckCircle2, Shield, User as UserIcon } from "lucide-react";
+import { Search, Bell, X, Shield, User as UserIcon } from "lucide-react";
 import { useAuth } from "../App";
+import { useNotifications } from "../hooks/useNotifications";
+import NotificationsPopover from "./NotificationsPopover";
 
 interface TopBarProps {
   onSearch?: (query: string) => void;
@@ -8,6 +10,14 @@ interface TopBarProps {
 
 const TopBar: React.FC<TopBarProps> = ({ onSearch }) => {
   const { user } = useAuth();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    clearAll,
+    dismissNotification,
+  } = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
@@ -91,45 +101,34 @@ const TopBar: React.FC<TopBarProps> = ({ onSearch }) => {
 
       {/* Right Controls: Notifications & Profile Badge */}
       <div className="flex items-center gap-2 sm:gap-3.5">
-        {/* Notification Icon */}
+        {/* Notification Icon & Interactive Real-World Dropdown */}
         <div className="relative" ref={notificationRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
             className="relative p-2 sm:p-2.5 rounded-xl border border-[#E1E5F0] bg-white hover:bg-[#F0F0FF] text-[#78839A] hover:text-[#7889F5] transition-all cursor-pointer shadow-2xs"
-            title="Notifications"
+            title={unreadCount > 0 ? `${unreadCount} unread notification${unreadCount > 1 ? "s" : ""}` : "Notifications"}
             aria-label="Notifications"
           >
             <Bell size={19} />
-            {/* Active Notification Dot in Lavender */}
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#7889F5] ring-2 ring-white" />
+            {/* Dynamic Active Notification Badge */}
+            {unreadCount > 0 && (
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[#7889F5] text-white text-[10px] font-extrabold flex items-center justify-center ring-2 ring-white shadow-xs animate-in zoom-in-75 duration-150">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
           </button>
 
           {/* Notifications Dropdown Popover */}
           {showNotifications && (
-            <div className="absolute right-0 mt-2 w-72 sm:w-80 bg-white border border-[#E1E5F0] rounded-2xl shadow-xl shadow-[#25324A]/5 py-3 z-50 animate-in fade-in zoom-in-95 duration-150">
-              <div className="px-4 pb-2.5 border-b border-[#E1E5F0] flex items-center justify-between">
-                <span className="text-xs font-bold uppercase tracking-wider text-[#25324A]">
-                  Notifications
-                </span>
-                <span className="text-[11px] font-semibold text-[#7889F5] bg-[#F0F0FF] px-2 py-0.5 rounded-full">
-                  1 New
-                </span>
-              </div>
-              <div className="p-3">
-                <div className="p-2.5 rounded-xl bg-[#F5F6FC] border border-[#E1E5F0] flex items-start gap-3">
-                  <div className="p-1.5 rounded-lg bg-[#F0F0FF] text-[#7889F5] shrink-0 mt-0.5">
-                    <CheckCircle2 size={16} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-[#25324A]">System Ready</p>
-                    <p className="text-[11px] text-[#78839A] mt-0.5">
-                      All inventory modules, billing, and analytics are synced.
-                    </p>
-                    <span className="text-[10px] text-[#78839A] mt-1 block">Just now</span>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <NotificationsPopover
+              notifications={notifications}
+              unreadCount={unreadCount}
+              onMarkAsRead={markAsRead}
+              onMarkAllAsRead={markAllAsRead}
+              onClearAll={clearAll}
+              onDismiss={dismissNotification}
+              onClose={() => setShowNotifications(false)}
+            />
           )}
         </div>
 
