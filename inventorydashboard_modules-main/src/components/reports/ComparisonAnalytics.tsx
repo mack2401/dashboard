@@ -115,6 +115,7 @@ export default function ComparisonAnalytics({
   // View state: MOM vs YOY
   const [comparisonMode, setComparisonMode] = useState<"mom" | "yoy">("mom");
   const [chartMetric, setChartMetric] = useState<"price" | "quantity">("price");
+  const [isOpen, setIsOpen] = useState<boolean>(false);
 
   // MOM Controls: Month 1 (Base) and Month 2 (Comparison)
   // Default Month 2 = Current Month, Month 1 = Previous Month
@@ -922,58 +923,80 @@ export default function ComparisonAnalytics({
   };
 
   return (
-    <section className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-5 sm:p-6 mb-6 font-sans">
+    <section className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4 sm:p-5 mb-6 font-sans transition-all">
       {/* Top Header Bar & Tabs */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white flex items-center justify-center shadow-xs">
-            <BarChart3 className="w-5 h-5" />
+      <div 
+        onClick={() => setIsOpen(prev => !prev)}
+        className={`flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer select-none ${
+          isOpen ? "pb-5 border-b border-gray-100" : ""
+        }`}
+      >
+        <div className="flex items-center justify-between w-full md:w-auto">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <BarChart3 className="w-5 h-5" />
+            </div>
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
+                Values & Volume Comparison
+              </h2>
+            </div>
           </div>
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight">
-              Values & Volume Comparison
-            </h2>
+          <div className="md:hidden flex items-center text-gray-400">
+            <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2.5">
-          {/* MOM / YOY Switcher Tabs */}
-          <div className="bg-gray-100 p-1 rounded-xl flex items-center border border-gray-200/80">
-            <button
-              onClick={() => setComparisonMode("mom")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                comparisonMode === "mom"
-                  ? "bg-white text-blue-600 shadow-xs"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <Calendar className="w-3.5 h-3.5" />
-              <span>Month-over-Month (MOM)</span>
-            </button>
-            <button
-              onClick={() => setComparisonMode("yoy")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                comparisonMode === "yoy"
-                  ? "bg-white text-indigo-600 shadow-xs"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
-            >
-              <TrendingUp className="w-3.5 h-3.5" />
-              <span>Year-over-Year (YOY)</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-2.5 self-end md:self-auto" onClick={(e) => isOpen && e.stopPropagation()}>
+          {isOpen && (
+            <>
+              {/* MOM / YOY Switcher Tabs */}
+              <div className="bg-gray-100 p-1 rounded-xl flex items-center border border-gray-200/80">
+                <button
+                  onClick={() => setComparisonMode("mom")}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    comparisonMode === "mom"
+                      ? "bg-white text-blue-600 shadow-xs"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <Calendar className="w-3.5 h-3.5" />
+                  <span>Month-over-Month (MOM)</span>
+                </button>
+                <button
+                  onClick={() => setComparisonMode("yoy")}
+                  className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                    comparisonMode === "yoy"
+                      ? "bg-white text-indigo-600 shadow-xs"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Year-over-Year (YOY)</span>
+                </button>
+              </div>
 
-          {/* Export to Excel - Darkened Button Option */}
-          <button
-            onClick={handleExportComparison}
-            className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 border border-slate-950 shadow-md shadow-slate-900/25 transition-all cursor-pointer hover:scale-102 active:scale-98"
-            title="Download comparison report to formatted Excel spreadsheet"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-            <span>Export Excel</span>
-          </button>
+              {/* Export to Excel - Darkened Button Option */}
+              <button
+                onClick={handleExportComparison}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 border border-slate-950 shadow-md shadow-slate-900/25 transition-all cursor-pointer hover:scale-102 active:scale-98"
+                title="Download comparison report to formatted Excel spreadsheet"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                <span>Export Excel</span>
+              </button>
+            </>
+          )}
+
+          {/* Expand/Collapse Chevron Button */}
+          <div className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
+            <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+          </div>
         </div>
       </div>
+
+      {isOpen && (
+        <div className="animate-in fade-in duration-200">
 
       {/* Control Pickers & Presets Bar */}
       <div className="my-5 p-4 bg-slate-50 rounded-xl border border-gray-200/70 flex flex-wrap items-center justify-between gap-4">
@@ -1607,6 +1630,8 @@ export default function ComparisonAnalytics({
           )}
         </div>
       </div>
+      </div>
+      )}
     </section>
   );
 }

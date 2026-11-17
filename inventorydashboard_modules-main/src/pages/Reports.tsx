@@ -1051,81 +1051,8 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
-      {/* Visual Analytics Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Clients Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
-              Top Clients by Spend
-            </h3>
-            <span className="text-xs text-gray-400 font-medium">Top 5</span>
-          </div>
-          <div className="h-64">
-            {topClientsChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topClientsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
-                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    formatter={(val: any) => [`₹${Number(val).toLocaleString("en-IN")}`, "Total Spent"]}
-                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
-                  />
-                  <Bar dataKey="totalSpent" fill="#8B5CF6" radius={[6, 6, 0, 0]}>
-                    {topClientsChartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-sm text-gray-400">
-                No purchase data available
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Top Products Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <Package className="w-5 h-5 text-indigo-600" />
-              Top Purchased Products
-            </h3>
-            <span className="text-xs text-gray-400 font-medium">By Revenue</span>
-          </div>
-          <div className="h-64">
-            {topProductsChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProductsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
-                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    formatter={(val: any, name: any, item: any) => [
-                      `₹${Number(val).toLocaleString("en-IN")} (${item.payload.quantity} qty)`,
-                      "Total Revenue",
-                    ]}
-                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
-                  />
-                  <Bar dataKey="revenue" fill="#3B82F6" radius={[6, 6, 0, 0]}>
-                    {topProductsChartData.map((_, index) => (
-                      <Cell key={`prod-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-sm text-gray-400">
-                No product purchase data available
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* MOM and YOY Values & Volume Comparison Analytics (Collapsible) */}
+      <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
 
       {/* Filter and Search Bar */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
@@ -1227,13 +1154,22 @@ const Reports: React.FC = () => {
       </div>
 
       {/* Client Summary Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50/50">
-          <div>
-            <h3 className="font-bold text-gray-800 text-base">Client Purchase Summary</h3>
-            <p className="text-xs text-gray-500 mt-0.5">
-              Showing {filteredAndSortedClients.length} client{filteredAndSortedClients.length === 1 ? "" : "s"}
-            </p>
+      <div className="bg-white rounded-2xl shadow-xs border border-purple-200/90 overflow-hidden">
+        <div className="px-6 py-4.5 border-b border-purple-100 flex flex-wrap justify-between items-center bg-gradient-to-r from-purple-100/70 via-indigo-50/50 to-white">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs shrink-0">
+              <Users className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2.5">
+                <h2 className="text-xl font-black text-purple-950 tracking-tight">
+                  Client Purchase Summary
+                </h2>
+                <span className="px-2.5 py-0.5 bg-purple-200/80 text-purple-900 font-bold text-xs rounded-full border border-purple-300 shadow-2xs">
+                  {filteredAndSortedClients.length} Clients
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1252,33 +1188,35 @@ const Reports: React.FC = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-gray-50 text-gray-500 text-xs font-semibold uppercase tracking-wider border-b border-gray-100">
-                  <th className="px-6 py-3.5">Client & Contact</th>
-                  <th className="px-4 py-3.5 text-center">Orders Count</th>
-                  <th className="px-4 py-3.5 text-right">Total Spent</th>
-                  <th className="px-6 py-3.5">What All Purchased</th>
-                  <th className="px-4 py-3.5 text-center">Payment Mode</th>
-                  <th className="px-4 py-3.5 text-center">Last Order</th>
-                  <th className="px-4 py-3.5 text-center">Action</th>
+                <tr className="bg-slate-100/90 text-slate-800 text-xs font-black uppercase tracking-wider border-b-2 border-purple-200">
+                  <th className="px-5 py-3.5 border-r border-slate-200/90 bg-slate-100">Client & Contact</th>
+                  <th className="px-4 py-3.5 text-center border-r border-slate-200/90 bg-purple-100/60 text-purple-950">Orders Count</th>
+                  <th className="px-5 py-3.5 text-right border-r border-slate-200/90 bg-emerald-100/60 text-emerald-950">Total Spent</th>
+                  <th className="px-5 py-3.5 border-r border-slate-200/90 bg-slate-100">What All Purchased</th>
+                  <th className="px-4 py-3.5 text-center border-r border-slate-200/90 bg-indigo-100/60 text-indigo-950">Payment Mode</th>
+                  <th className="px-4 py-3.5 text-center border-r border-slate-200/90 bg-slate-100">Last Order</th>
+                  <th className="px-4 py-3.5 text-center bg-purple-100/50 text-purple-950">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-sm">
-                {filteredAndSortedClients.map((client) => (
+                {filteredAndSortedClients.map((client, idx) => (
                   <tr
                     key={client.key}
-                    className="hover:bg-purple-50/40 transition-colors cursor-pointer"
+                    className={`hover:bg-purple-50/60 transition-colors cursor-pointer ${
+                      idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"
+                    }`}
                     onClick={() => {
                       setSelectedClient(client);
                       setActiveModalTab("products");
                     }}
                   >
                     {/* Client & Contact */}
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4 border-r border-gray-100">
                       <div>
-                        <div className="font-semibold text-gray-900 flex items-center gap-1.5">
+                        <div className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
                           {client.customerName}
                           {client.companyName && (
-                            <span className="text-xs font-normal text-gray-500">({client.companyName})</span>
+                            <span className="text-xs font-semibold text-gray-500">({client.companyName})</span>
                           )}
                         </div>
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mt-1">
@@ -1304,42 +1242,42 @@ const Reports: React.FC = () => {
                       </div>
                     </td>
 
-                    {/* Orders Count (How many times purchased) */}
-                    <td className="px-4 py-4 text-center">
-                      <span className="inline-flex items-center justify-center px-2.5 py-1 bg-purple-100 text-purple-700 font-bold rounded-full text-xs">
+                    {/* Orders Count */}
+                    <td className="px-4 py-4 text-center border-r border-gray-100 bg-purple-50/30">
+                      <span className="inline-flex items-center justify-center px-3 py-1 bg-purple-100 text-purple-800 font-black rounded-full text-xs border border-purple-200 shadow-2xs">
                         {client.purchaseCount} order{client.purchaseCount === 1 ? "" : "s"}
                       </span>
                     </td>
 
-                    {/* Total Spent (How much purchased) */}
-                    <td className="px-4 py-4 text-right">
-                      <div className="font-bold text-gray-900">
+                    {/* Total Spent */}
+                    <td className="px-5 py-4 text-right border-r border-gray-100 bg-emerald-50/30">
+                      <div className="font-black text-gray-900 text-sm tabular-nums">
                         ₹{client.totalSpent.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       {client.purchaseCount > 0 && (
-                        <div className="text-xs text-gray-400">
+                        <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
                           Avg: ₹{(client.totalSpent / client.purchaseCount).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                         </div>
                       )}
                     </td>
 
                     {/* What All Purchased */}
-                    <td className="px-6 py-4">
+                    <td className="px-5 py-4 border-r border-gray-100">
                       {client.purchasedProducts.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5 max-w-md">
-                          {client.purchasedProducts.slice(0, 3).map((p, idx) => (
+                          {client.purchasedProducts.slice(0, 3).map((p, pIdx) => (
                             <span
-                              key={idx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-700 rounded text-xs"
+                              key={pIdx}
+                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-800 font-semibold rounded text-xs border border-gray-200/70"
                               title={`${p.productName} - Qty: ${p.totalQuantity} (₹${p.totalAmount.toFixed(0)})`}
                             >
-                              <Package className="w-3 h-3 text-gray-400" />
+                              <Package className="w-3 h-3 text-gray-400 shrink-0" />
                               <span className="truncate max-w-[130px]">{p.productName}</span>
-                              <span className="text-purple-600 font-semibold">x{p.totalQuantity}</span>
+                              <span className="text-purple-700 font-black">x{p.totalQuantity}</span>
                             </span>
                           ))}
                           {client.purchasedProducts.length > 3 && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 bg-purple-50 text-purple-600 font-medium rounded text-xs">
+                            <span className="inline-flex items-center px-1.5 py-0.5 bg-purple-100 text-purple-700 font-bold rounded text-xs">
                               +{client.purchasedProducts.length - 3} more
                             </span>
                           )}
@@ -1350,14 +1288,14 @@ const Reports: React.FC = () => {
                     </td>
 
                     {/* Primary Payment Mode */}
-                    <td className="px-4 py-4 text-center">
+                    <td className="px-4 py-4 text-center border-r border-gray-100 bg-indigo-50/30">
                       {client.primaryPaymentMode && client.primaryPaymentMode !== "N/A" ? (
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
                           client.primaryPaymentMode === "GPay"
-                            ? "bg-blue-50 text-blue-700 border border-blue-200"
+                            ? "bg-blue-100 text-blue-800 border border-blue-200"
                             : client.primaryPaymentMode === "Cash"
-                            ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                            : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                            : "bg-indigo-100 text-indigo-800 border border-indigo-200"
                         }`}>
                           <CreditCard className="w-3 h-3" />
                           {client.primaryPaymentMode}
@@ -1368,10 +1306,10 @@ const Reports: React.FC = () => {
                     </td>
 
                     {/* Last Order Date */}
-                    <td className="px-4 py-4 text-center text-xs text-gray-500">
+                    <td className="px-4 py-4 text-center text-xs text-gray-600 border-r border-gray-100">
                       {client.lastOrderDate ? (
                         <div>
-                          <div>{client.lastOrderDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                          <div className="font-bold text-gray-800">{client.lastOrderDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
                           <div className="text-[10px] text-gray-400">{client.lastOrderDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
                         </div>
                       ) : (
@@ -1386,7 +1324,7 @@ const Reports: React.FC = () => {
                           setSelectedClient(client);
                           setActiveModalTab("products");
                         }}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-700 rounded-lg text-xs font-medium transition-colors"
+                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
                       >
                         <Eye className="w-3.5 h-3.5" />
                         Details
@@ -1400,8 +1338,81 @@ const Reports: React.FC = () => {
         )}
       </div>
 
-      {/* MOM and YOY Values & Volume Comparison Analytics */}
-      <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
+      {/* Visual Analytics Charts (Graphs down below all) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Clients Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+              Top Clients by Spend
+            </h3>
+            <span className="text-xs text-gray-400 font-medium">Top 5</span>
+          </div>
+          <div className="h-64">
+            {topClientsChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topClientsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
+                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(val: any) => [`₹${Number(val).toLocaleString("en-IN")}`, "Total Spent"]}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                  />
+                  <Bar dataKey="totalSpent" fill="#8B5CF6" radius={[6, 6, 0, 0]}>
+                    {topClientsChartData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">
+                No purchase data available
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Top Products Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <Package className="w-5 h-5 text-indigo-600" />
+              Top Purchased Products
+            </h3>
+            <span className="text-xs text-gray-400 font-medium">By Revenue</span>
+          </div>
+          <div className="h-64">
+            {topProductsChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProductsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
+                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(val: any, name: any, item: any) => [
+                      `₹${Number(val).toLocaleString("en-IN")} (${item.payload.quantity} qty)`,
+                      "Total Revenue",
+                    ]}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                  />
+                  <Bar dataKey="revenue" fill="#3B82F6" radius={[6, 6, 0, 0]}>
+                    {topProductsChartData.map((_, index) => (
+                      <Cell key={`prod-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">
+                No product purchase data available
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
 
       {/* Client Detailed Drill-down Modal */}
       {selectedClient && (
