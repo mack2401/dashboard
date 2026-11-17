@@ -43,7 +43,8 @@ import {
   ClipboardList,
   Check,
   MessageSquare,
-  MoreVertical
+  MoreVertical,
+  History
 } from 'lucide-react';
 import { db } from "../firebase";
 import { useAuth } from "../App";
@@ -3718,20 +3719,17 @@ const InventoryManagement: React.FC = () => {
             title="Total unique items in catalog (Stock Keeping Units - Item-wise count)"
           >
             <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wider truncate">
+              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wider truncate normal-case">
                 Total SKUs
               </span>
               <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/70 group-hover:scale-105 transition-transform">
                 <Box className="w-4 h-4" />
               </div>
             </div>
-            <div className="mt-3 flex items-baseline justify-between">
+            <div className="mt-3">
               <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate tabular-nums">
                 {stats.totalProducts.toLocaleString('en-IN')}
               </p>
-              <span className="text-[11px] font-semibold text-indigo-600 bg-indigo-50 px-1.5 py-0.5 rounded">
-                SKUs
-              </span>
             </div>
           </div>
 
@@ -3954,89 +3952,64 @@ const InventoryManagement: React.FC = () => {
 
         {activeTab === 'fast-moving' && (
           <div className="space-y-6 mb-6">
-            {/* Header controls: Periods (Today, Yesterday, Past Dates), Custom Date Picker, and Search */}
-            <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-5">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100">
-                <div>
+            {/* Header controls: Periods (Yesterday, Today, Past Dates) and Specific Date Picker on the right */}
+            <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4 sm:p-5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
                   <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
                     <span className="w-2.5 h-6 bg-blue-600 rounded-full inline-block"></span>
                     Fast Moving Components
                   </h2>
+
+                  {/* Period Pills: Yesterday, Today, Past Dates */}
+                  <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200/80 shrink-0">
+                    <button
+                      onClick={() => {
+                        setFastMovingPeriod('yesterday');
+                        setFastMovingCustomDate('');
+                      }}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        fastMovingPeriod === 'yesterday' && !fastMovingCustomDate
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      Yesterday
+                    </button>
+                    <button
+                      onClick={() => {
+                        setFastMovingPeriod('today');
+                        setFastMovingCustomDate('');
+                      }}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
+                        fastMovingPeriod === 'today' && !fastMovingCustomDate
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      Today
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (fastMovingPeriod !== 'all' && fastMovingPeriod !== 'past7' && fastMovingPeriod !== 'past30') {
+                          setFastMovingPeriod('all');
+                        }
+                        setFastMovingCustomDate('');
+                      }}
+                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
+                        (fastMovingPeriod === 'all' || fastMovingPeriod === 'past7' || fastMovingPeriod === 'past30') && !fastMovingCustomDate
+                          ? 'bg-blue-600 text-white shadow-xs'
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                      }`}
+                    >
+                      <History className="w-3.5 h-3.5" />
+                      <span>Past Dates</span>
+                    </button>
+                  </div>
                 </div>
 
-                {/* Period Pills */}
-                <div className="flex flex-wrap items-center gap-1.5 bg-gray-50 p-1.5 rounded-xl border border-gray-200/80">
-                  <button
-                    onClick={() => {
-                      setFastMovingPeriod('today');
-                      setFastMovingCustomDate('');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      fastMovingPeriod === 'today' && !fastMovingCustomDate
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    Today
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFastMovingPeriod('yesterday');
-                      setFastMovingCustomDate('');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      fastMovingPeriod === 'yesterday' && !fastMovingCustomDate
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    Yesterday
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFastMovingPeriod('past7');
-                      setFastMovingCustomDate('');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      fastMovingPeriod === 'past7' && !fastMovingCustomDate
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    Past 7 Days
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFastMovingPeriod('past30');
-                      setFastMovingCustomDate('');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      fastMovingPeriod === 'past30' && !fastMovingCustomDate
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    Past 30 Days
-                  </button>
-                  <button
-                    onClick={() => {
-                      setFastMovingPeriod('all');
-                      setFastMovingCustomDate('');
-                    }}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                      fastMovingPeriod === 'all' && !fastMovingCustomDate
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                    }`}
-                  >
-                    All Previous Dates
-                  </button>
-                </div>
-              </div>
-
-              {/* Secondary bar: Date picker & Search */}
-              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                {/* Specific Date Option on Right Side */}
+                <div className="flex items-center gap-2 self-start lg:self-auto shrink-0">
                   <span className="text-xs text-gray-500 font-medium flex items-center gap-1">
                     <Calendar className="w-3.5 h-3.5 text-gray-400" />
                     Specific Date:
@@ -4054,89 +4027,111 @@ const InventoryManagement: React.FC = () => {
                   {fastMovingCustomDate && (
                     <button
                       onClick={() => setFastMovingCustomDate('')}
-                      className="text-xs text-gray-400 hover:text-gray-600 underline"
+                      className="text-xs text-gray-400 hover:text-gray-600 underline cursor-pointer"
                     >
                       Clear
                     </button>
                   )}
                 </div>
-
-                <div className="relative w-full sm:w-64">
-                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={fastMovingSearch}
-                    onChange={(e) => setFastMovingSearch(e.target.value)}
-                    placeholder="Search fast-moving item..."
-                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-                  />
-                </div>
               </div>
+
+              {/* Sub-range for Past Dates */}
+              {(fastMovingPeriod === 'all' || fastMovingPeriod === 'past7' || fastMovingPeriod === 'past30') && !fastMovingCustomDate && (
+                <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-gray-100 text-xs animate-in fade-in duration-200">
+                  <span className="font-semibold text-gray-500">Past Range:</span>
+                  <button
+                    onClick={() => setFastMovingPeriod('past7')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                      fastMovingPeriod === 'past7'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'bg-white text-blue-800 hover:bg-blue-50 border border-blue-200/60'
+                    }`}
+                  >
+                    Past 7 Days
+                  </button>
+                  <button
+                    onClick={() => setFastMovingPeriod('past30')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                      fastMovingPeriod === 'past30'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'bg-white text-blue-800 hover:bg-blue-50 border border-blue-200/60'
+                    }`}
+                  >
+                    Past 30 Days
+                  </button>
+                  <button
+                    onClick={() => setFastMovingPeriod('all')}
+                    className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
+                      fastMovingPeriod === 'all'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'bg-white text-blue-800 hover:bg-blue-50 border border-blue-200/60'
+                    }`}
+                  >
+                    All Previous Dates
+                  </button>
+                </div>
+              )}
             </div>
 
-            {/* Low Stock Fast-Moving Filter Card */}
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div
+            {/* Small Low Stock KPI Card + Search Bar */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
+              {/* Small Low Stock KPI Card */}
+              <div 
                 onClick={() => setFastMovingFilterLowStock(prev => !prev)}
-                className={`flex-1 sm:max-w-md p-4 rounded-2xl shadow-xs border transition-all duration-200 flex items-center justify-between cursor-pointer group hover:shadow-md ${
+                className={`p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md w-full sm:w-60 md:w-64 ${
                   fastMovingFilterLowStock
-                    ? 'bg-amber-50/90 border-amber-400 ring-2 ring-amber-500/30 shadow-sm'
+                    ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-500 shadow-sm'
                     : 'bg-white border-gray-200/80 hover:border-amber-300'
                 }`}
-                title={fastMovingFilterLowStock ? 'Showing low stock items only. Click to view all fast-moving items.' : 'Click to filter and show only low stock fast-moving items.'}
+                title={fastMovingFilterLowStock ? 'Click to show all fast moving items' : 'Click to filter low stock fast-moving items only'}
               >
-                <div className="flex items-center gap-3.5">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border transition-all ${
+                <div className="flex items-center justify-between gap-1.5">
+                  <span className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wider truncate normal-case">
+                    Low Stock Items
+                  </span>
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border group-hover:scale-105 transition-transform ${
                     fastMovingFilterLowStock
-                      ? 'bg-amber-500 text-white border-amber-600 shadow-xs scale-105'
-                      : 'bg-amber-50 text-amber-600 border-amber-100/70 group-hover:scale-105'
+                      ? 'bg-amber-500 text-white border-amber-600'
+                      : 'bg-amber-50 text-amber-600 border-amber-100/70'
                   }`}>
-                    <AlertCircle className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Low Stock Items
-                      </span>
-                      {fastMovingFilterLowStock ? (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 uppercase animate-pulse">
-                          Filtered (Active)
-                        </span>
-                      ) : (
-                        <span className="text-[10px] font-medium text-amber-700 bg-amber-100/70 px-1.5 py-0.5 rounded group-hover:bg-amber-200 transition-colors">
-                          Click to filter &rarr;
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-[11px] text-gray-500 mt-0.5">
-                      {fastMovingFilterLowStock
-                        ? 'Showing only low stock fast-moving components — click to show all'
-                        : 'Fast-movers with inventory at or below threshold'}
-                    </p>
+                    <AlertCircle className="w-4 h-4" />
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2.5">
-                  <div className="text-right">
-                    <div className="text-2xl font-black text-amber-600 tabular-nums">
-                      {lowStockFastMovingCount}
-                    </div>
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase">
-                      items low
+                <div className="mt-3 flex items-baseline justify-between">
+                  <p className="text-xl sm:text-2xl font-bold text-amber-600 tracking-tight truncate tabular-nums">
+                    {lowStockFastMovingCount}
+                  </p>
+                  {fastMovingFilterLowStock ? (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 uppercase">
+                      Filtered
                     </span>
-                  </div>
+                  ) : (
+                    <span className="text-[11px] text-gray-400 group-hover:text-amber-600 transition-colors">
+                      Filter &rarr;
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {fastMovingFilterLowStock && (
-                <button
-                  onClick={() => setFastMovingFilterLowStock(false)}
-                  className="px-3.5 py-2 text-xs font-semibold text-gray-700 hover:text-gray-900 bg-white hover:bg-gray-50 border border-gray-200 rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
-                >
-                  <X className="w-3.5 h-3.5 text-gray-400" />
-                  <span>Show All Fast-Movers</span>
-                </button>
-              )}
+              {/* Search Bar */}
+              <div className="relative w-full sm:w-72 self-stretch sm:self-center">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                <input
+                  type="text"
+                  value={fastMovingSearch}
+                  onChange={(e) => setFastMovingSearch(e.target.value)}
+                  placeholder="Search fast-moving item..."
+                  className="w-full pl-9 pr-8 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-xs transition-all"
+                />
+                {fastMovingSearch && (
+                  <button
+                    onClick={() => setFastMovingSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Side-by-Side Tables: Approved Fast Moving vs Enquiry Fast Moving */}
