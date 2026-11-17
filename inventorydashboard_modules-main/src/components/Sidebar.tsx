@@ -178,26 +178,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
             </div>
           )}
 
-          {/* User Welcome Card */}
-          {!isCollapsed ? (
-            <div className="mx-3.5 mb-3 px-3.5 py-2 bg-white/10 backdrop-blur-xs border border-white/15 rounded-xl flex items-center justify-between shadow-2xs shrink-0">
-              <div className="truncate">
-                <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Welcome</p>
-                <p className="text-xs font-bold text-white capitalize truncate">{user?.name || user?.role || "User"}</p>
-              </div>
-              <span className="px-2.5 py-0.5 text-[10px] font-bold bg-white text-[#087EBC] rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
-                {user?.role || "Staff"}
-              </span>
-            </div>
-          ) : (
-            <div 
-              className="mx-auto mb-2.5 w-9 h-9 rounded-full bg-white/20 border border-white/25 flex items-center justify-center text-white font-bold text-xs shadow-2xs shrink-0"
-              title={`Signed in as ${user?.name || user?.role || "User"}`}
-            >
-              {(user?.name || user?.role || "U").charAt(0).toUpperCase()}
-            </div>
-          )}
-
           {/* Navigation Items with Inverted Curved Active Indicator */}
           <nav className="flex flex-col gap-1 sm:gap-1.5 overflow-y-auto no-scrollbar flex-1 min-h-0">
             {topNavItems.map((item) => (
