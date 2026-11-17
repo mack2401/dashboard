@@ -1,72 +1,102 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #087EBC;
-  --color-secondary: #119ED0;
-  --color-accent: #42B8E8;
-  --color-background: #F4F8FB;
-  --color-card: #FFFFFF;
-  --color-text: #172B3A;
-  --color-border: #DFE8EF;
+  --color-primary: #845adf;
+  --color-secondary: #23b7e5;
+  --color-accent: #26bf94;
+  --color-warning: #f5b849;
+  --color-danger: #e6533c;
+  --color-background: #f0f1f7;
+  --color-card: #ffffff;
+  --color-text: #111c43;
+  --color-border: #e9edf6;
 
-  --color-blue-50: #F4F8FB;
-  --color-blue-100: #E4F1F8;
-  --color-blue-200: #C4E2F1;
-  --color-blue-300: #8CC9E6;
-  --color-blue-400: #42B8E8;
-  --color-blue-500: #119ED0;
-  --color-blue-600: #087EBC;
-  --color-blue-700: #066597;
-  --color-blue-800: #05537B;
-  --color-blue-900: #172B3A;
+  /* Purple / Primary Palette (#845adf) */
+  --color-purple-50: #f5f3ff;
+  --color-purple-100: #ece6fa;
+  --color-purple-200: #d9cef7;
+  --color-purple-300: #bda8f2;
+  --color-purple-400: #9e7ded;
+  --color-purple-500: #845adf;
+  --color-purple-600: #7348cf;
+  --color-purple-700: #6035b8;
+  --color-purple-800: #4f2b96;
+  --color-purple-900: #111c43;
 
-  --color-sky-50: #F4F8FB;
-  --color-sky-100: #E4F1F8;
-  --color-sky-200: #C4E2F1;
-  --color-sky-300: #8CC9E6;
-  --color-sky-400: #42B8E8;
-  --color-sky-500: #119ED0;
-  --color-sky-600: #087EBC;
-  --color-sky-700: #066597;
-  --color-sky-800: #05537B;
-  --color-sky-900: #172B3A;
+  /* Map blue and sky to Ynex primary purple */
+  --color-blue-50: #f5f3ff;
+  --color-blue-100: #ece6fa;
+  --color-blue-200: #d9cef7;
+  --color-blue-300: #bda8f2;
+  --color-blue-400: #9e7ded;
+  --color-blue-500: #845adf;
+  --color-blue-600: #7348cf;
+  --color-blue-700: #6035b8;
+  --color-blue-800: #4f2b96;
+  --color-blue-900: #111c43;
 
-  --color-gray-50: #F4F8FB;
-  --color-gray-100: #EAF0F5;
-  --color-gray-200: #DFE8EF;
-  --color-gray-300: #C9D7E2;
-  --color-gray-400: #8FA5B6;
-  --color-gray-500: #5D7588;
-  --color-gray-600: #42586B;
-  --color-gray-700: #2C4355;
-  --color-gray-800: #1E3445;
-  --color-gray-900: #172B3A;
+  --color-sky-50: #f5f3ff;
+  --color-sky-100: #ece6fa;
+  --color-sky-200: #d9cef7;
+  --color-sky-300: #bda8f2;
+  --color-sky-400: #9e7ded;
+  --color-sky-500: #845adf;
+  --color-sky-600: #7348cf;
+  --color-sky-700: #6035b8;
+  --color-sky-800: #4f2b96;
+  --color-sky-900: #111c43;
 
-  --color-slate-50: #F4F8FB;
-  --color-slate-100: #EAF0F5;
-  --color-slate-200: #DFE8EF;
-  --color-slate-300: #C9D7E2;
-  --color-slate-400: #8FA5B6;
-  --color-slate-500: #5D7588;
-  --color-slate-600: #42586B;
-  --color-slate-700: #2C4355;
-  --color-slate-800: #1E3445;
-  --color-slate-900: #172B3A;
+  /* Cyan / Secondary Palette (#23b7e5) */
+  --color-cyan-50: #f0fafd;
+  --color-cyan-100: #e0f5fb;
+  --color-cyan-200: #b9ebf6;
+  --color-cyan-300: #7ddbf0;
+  --color-cyan-400: #3ac5e8;
+  --color-cyan-500: #23b7e5;
+  --color-cyan-600: #139bc6;
+  --color-cyan-700: #127ba0;
+
+  /* Slate & Gray Tones (matching Ynex dark text & soft cool gray) */
+  --color-gray-50: #f0f1f7;
+  --color-gray-100: #f4f5f8;
+  --color-gray-150: #e9edf6;
+  --color-gray-200: #e9edf6;
+  --color-gray-300: #d3dbe8;
+  --color-gray-400: #a3abb7;
+  --color-gray-500: #8c9097;
+  --color-gray-600: #535d74;
+  --color-gray-700: #334155;
+  --color-gray-800: #1c274c;
+  --color-gray-900: #111c43;
+
+  --color-slate-50: #f0f1f7;
+  --color-slate-100: #f4f5f8;
+  --color-slate-200: #e9edf6;
+  --color-slate-300: #d3dbe8;
+  --color-slate-400: #a3abb7;
+  --color-slate-500: #8c9097;
+  --color-slate-600: #535d74;
+  --color-slate-700: #334155;
+  --color-slate-800: #1c274c;
+  --color-slate-900: #111c43;
 }
 
 :root {
-  --primary: #087EBC;
-  --secondary: #119ED0;
-  --accent: #42B8E8;
-  --background: #F4F8FB;
-  --card: #FFFFFF;
-  --text: #172B3A;
-  --border: #DFE8EF;
+  --primary: #845adf;
+  --secondary: #23b7e5;
+  --accent: #26bf94;
+  --warning: #f5b849;
+  --danger: #e6533c;
+  --background: #f0f1f7;
+  --card: #ffffff;
+  --text: #111c43;
+  --border: #e9edf6;
+  --menu-bg: #111c43;
 }
 
 body {
-  background-color: #F4F8FB;
-  color: #172B3A;
+  background-color: #f0f1f7;
+  color: #111c43;
   font-family: inherit;
   -webkit-font-smoothing: antialiased;
 }
