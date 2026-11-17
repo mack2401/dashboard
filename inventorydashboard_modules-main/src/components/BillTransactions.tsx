@@ -109,6 +109,74 @@ const formatContactNumber = (contact?: string | number): string => {
   return cleaned || "-";
 };
 
+// Safe date resolver matching PNL.tsx
+const getBillDate = (b: any): Date => {
+  const raw = b?.billDate || b?.createdAt || b?.updatedAt;
+  if (raw?.toDate && typeof raw.toDate === "function") return raw.toDate();
+  if (raw instanceof Date) return raw;
+  if (typeof raw === "string" || typeof raw === "number") {
+    const parsed = new Date(raw);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  return new Date(0);
+};
+
+// Unified date range filter matching PNL.tsx
+const isDateInFilterRange = (d: Date, preset: string, customStart?: string, customEnd?: string): boolean => {
+  if (!d || isNaN(d.getTime())) return preset === "all";
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  switch (preset) {
+    case "all":
+      return true;
+    case "today":
+      return d >= startOfToday;
+    case "this_week": {
+      const startOfWeek = new Date(startOfToday);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      return d >= startOfWeek;
+    }
+    case "this_month": {
+      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      return d >= startOfMonth;
+    }
+    case "last_month": {
+      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return d >= startOfLastMonth && d <= endOfLastMonth;
+    }
+    case "this_quarter": {
+      const currentQuarter = Math.floor(now.getMonth() / 3);
+      const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
+      return d >= startOfQuarter;
+    }
+    case "this_fy": {
+      // Indian Financial Year: April 1 to March 31
+      const currentYear = now.getFullYear();
+      const fyStart = now.getMonth() >= 3 ? new Date(currentYear, 3, 1) : new Date(currentYear - 1, 3, 1);
+      return d >= fyStart;
+    }
+    case "custom": {
+      if (!customStart && !customEnd) return true;
+      const start = customStart ? new Date(customStart) : new Date(0);
+      start.setHours(0, 0, 0, 0);
+      const end = customEnd ? new Date(customEnd) : new Date(2100, 0, 1);
+      end.setHours(23, 59, 59, 999);
+      return d >= start && d <= end;
+    }
+    default: {
+      if (preset.includes("-")) {
+        const yyyy = d.getFullYear();
+        const mm = String(d.getMonth() + 1).padStart(2, "0");
+        return `${yyyy}-${mm}` === preset;
+      }
+      return true;
+    }
+  }
+};
+
 const BillTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<BillTransaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<BillTransaction[]>([]);
@@ -338,6 +406,43 @@ const BillTransactions: React.FC = () => {
     return null;
   };
 
+  // Helper to extract unit purchase cost (identical to PNL.tsx)
+  const getProductUnitCost = (p: any, fallbackItem?: any): number => {
+    if (fallbackItem) {
+      const explicit =
+        fallbackItem.purchasePrice ??
+        fallbackItem.costPrice ??
+        fallbackItem.cost ??
+        fallbackItem.buyingPrice;
+      if (explicit !== undefined && explicit !== null && !isNaN(Number(explicit)) && Number(explicit) > 0) {
+        return Number(explicit);
+      }
+    }
+    if (!p) return 0;
+    if (p.currentPrice !== undefined && p.currentPrice !== null && !isNaN(Number(p.currentPrice)) && Number(p.currentPrice) > 0) {
+      return Number(p.currentPrice);
+    }
+    if (p.purchasePrice !== undefined && p.purchasePrice !== null && !isNaN(Number(p.purchasePrice)) && Number(p.purchasePrice) > 0) {
+      return Number(p.purchasePrice);
+    }
+    const stockEntries = (p as any).stockEntries || [];
+    if (Array.isArray(stockEntries) && stockEntries.length > 0) {
+      const addEntries = stockEntries.filter((e: any) => e.type !== "deliver");
+      if (addEntries.length > 0) {
+        const totalCost = addEntries.reduce(
+          (sum: number, e: any) => sum + (Number(e.totalPrice) || ((Number(e.quantity) || 0) * (Number(e.unitPrice) || 0))),
+          0
+        );
+        const totalQty = addEntries.reduce((sum: number, e: any) => sum + (Number(e.quantity) || 0), 0);
+        if (totalQty > 0) return totalCost / totalQty;
+        if (addEntries[addEntries.length - 1]?.unitPrice) {
+          return Number(addEntries[addEntries.length - 1].unitPrice);
+        }
+      }
+    }
+    return Number(p.price || 0);
+  };
+
   // Fetch user role when auth user changes
   useEffect(() => {
     if (!authUser) return;
@@ -419,44 +524,20 @@ const BillTransactions: React.FC = () => {
       let fetchedBills: Bill[] = [];
       
       try {
-        if (userRole === "admin" || userRole === "manager") {
-          console.log("Admin/Manager: Fetching all bills");
-          fetchedBills = await billService.getBills();
-        } else {
-          console.log("Staff: Fetching staff bills");
-          fetchedBills = await billService.getStaffBills(authUser.uid);
-        }
+        fetchedBills = await billService.getBills();
         console.log("Primary fetch successful:", fetchedBills.length, "bills");
       } catch (roleError: any) {
-        console.warn("Primary fetch failed:", roleError.message);
-        
-        if (roleError.message?.includes("index") || roleError.message?.includes("permission")) {
-          console.log("Using fallback query with client-side filtering");
-          
-          try {
-            const billsRef = collection(db, "bills");
-            const simpleQuery = query(billsRef, orderBy("createdAt", "desc"));
-            const snap = await getDocs(simpleQuery);
-            
-            snap.forEach((doc) => {
-              fetchedBills.push({ id: doc.id, ...doc.data() } as Bill);
-            });
-            
-            console.log("Fallback fetched:", fetchedBills.length, "bills before filtering");
-            
-            if (userRole !== "admin" && userRole !== "manager") {
-              fetchedBills = fetchedBills.filter(bill => 
-                bill.createdBy === authUser.uid || 
-                bill.assignedTo === authUser.uid
-              );
-              console.log("After staff filtering:", fetchedBills.length, "bills");
-            }
-          } catch (fallbackError) {
-            console.error("Fallback also failed:", fallbackError);
-            throw fallbackError;
-          }
-        } else {
-          throw roleError;
+        console.warn("Primary fetch failed, using fallback query:", roleError.message);
+        try {
+          const billsRef = collection(db, "bills");
+          const snap = await getDocs(billsRef);
+          snap.forEach((doc) => {
+            fetchedBills.push({ id: doc.id, ...doc.data() } as Bill);
+          });
+          console.log("Fallback fetched all bills:", fetchedBills.length);
+        } catch (fallbackError) {
+          console.error("Fallback also failed:", fallbackError);
+          throw fallbackError;
         }
       }
 
@@ -481,138 +562,112 @@ const BillTransactions: React.FC = () => {
       const deduplicatedBills = Array.from(billMap.values());
       console.log("After deduplication:", deduplicatedBills.length, "bills (from", fetchedBills.length, "total)");
 
+      // Batch load enquiries map to avoid slow N+1 individual queries
+      const enquiriesMap = new Map<string, any>();
+      try {
+        const enquiriesSnap = await getDocs(collection(db, "enquiries"));
+        enquiriesSnap.forEach((docSnap) => {
+          const d = docSnap.data();
+          if (d.enqId) enquiriesMap.set(d.enqId, d);
+          enquiriesMap.set(docSnap.id, d);
+        });
+      } catch (err) {
+        console.warn("Could not batch load enquiries in BillTransactions:", err);
+      }
+
       // Process each bill with enquiry data
-      const processedTransactions = await Promise.all(
-        deduplicatedBills.map(async (bill) => {
-          let enquiryData: any = null;
-          let paymentSubStatus = "N/A";
+      const processedTransactions = deduplicatedBills.map((bill) => {
+        const enqIdToFind = bill.enquiryEnqId || bill.enquiryId;
+        const enquiryData = enqIdToFind ? enquiriesMap.get(enqIdToFind) : null;
+        const paymentSubStatus = enquiryData?.paymentSubStatus || (bill as any).paymentSubStatus || "N/A";
 
-          const enqIdToFind = bill.enquiryEnqId || bill.enquiryId;
-          if (enqIdToFind) {
-            try {
-              const enquiriesRef = collection(db, "enquiries");
-              const enquiryQuery = query(
-                enquiriesRef,
-                where("enqId", "==", enqIdToFind)
-              );
-              const enquirySnapshot = await getDocs(enquiryQuery);
+        const gstin = (bill.billedTo?.gstin || enquiryData?.companyDetails?.companyGST || enquiryData?.gstin || "").trim();
+        const hasTax = (bill.cgst && bill.cgst > 0) || (bill.sgst && bill.sgst > 0) || (bill.igst && bill.igst > 0) || bill.taxType === "cgst_sgst" || bill.taxType === "igst";
+        const isGST = !!gstin || hasTax;
+        const companyName = bill.billedTo?.name || enquiryData?.companyDetails?.companyName || "";
+        const placeOfSupply = bill.placeOfSupply || bill.billedTo?.state || enquiryData?.state || "Tamil Nadu";
 
-              if (!enquirySnapshot.empty) {
-                enquiryData = enquirySnapshot.docs[0].data();
-                paymentSubStatus = enquiryData?.paymentSubStatus || "N/A";
-                console.log(`Found paymentSubStatus for bill ${bill.id}: ${paymentSubStatus}`);
-              } else {
-                // Try finding by Firestore doc id
-                try {
-                  const docSnap = await getDoc(doc(db, "enquiries", enqIdToFind));
-                  if (docSnap.exists()) {
-                    enquiryData = docSnap.data();
-                    paymentSubStatus = enquiryData?.paymentSubStatus || "N/A";
-                  }
-                } catch (e) {
-                  // doc id lookup failed, ignore
-                }
-              }
-            } catch (err) {
-              console.error(`Error fetching enquiry for bill ${bill.id}:`, err);
+        // Safely parse bill items if stored as JSON string
+        let billItems = bill.items;
+        if (typeof billItems === "string") {
+          try {
+            billItems = JSON.parse(billItems);
+          } catch (e) {
+            billItems = [];
+          }
+        }
+
+        if ((!billItems || !Array.isArray(billItems) || billItems.length === 0) && enquiryData) {
+          try {
+            let parsed = enquiryData.materials || enquiryData.products || enquiryData.items;
+            if (typeof parsed === "string") {
+              parsed = JSON.parse(parsed);
             }
-          }
-
-          const gstin = (bill.billedTo?.gstin || enquiryData?.companyDetails?.companyGST || enquiryData?.gstin || "").trim();
-          const hasTax = (bill.cgst && bill.cgst > 0) || (bill.sgst && bill.sgst > 0) || (bill.igst && bill.igst > 0) || bill.taxType === "cgst_sgst" || bill.taxType === "igst";
-          const isGST = !!gstin || hasTax;
-          const companyName = bill.billedTo?.name || enquiryData?.companyDetails?.companyName || "";
-          const placeOfSupply = bill.placeOfSupply || bill.billedTo?.state || enquiryData?.state || "Tamil Nadu";
-
-          // Safely parse bill items if stored as JSON string
-          let billItems = bill.items;
-          if (typeof billItems === "string") {
-            try {
-              billItems = JSON.parse(billItems);
-            } catch (e) {
-              billItems = [];
+            if (Array.isArray(parsed)) {
+              billItems = parsed.map((m: any) => ({
+                productId: m.productId || m.id,
+                productName: m.productName || m.name || "Item",
+                quantity: Number(m.quantity) || 1,
+                price: Number(m.price) || 0,
+                total: Number(m.totalAmount || m.total || (Number(m.price || 0) * Number(m.quantity || 1))),
+                purchasePrice: m.purchasePrice !== undefined ? Number(m.purchasePrice) : undefined,
+                costPrice: m.costPrice,
+                cost: m.cost,
+                buyingPrice: m.buyingPrice,
+                sku: m.sku,
+                category: m.category,
+                hsn: m.hsn || m.hsnCode || "",
+              }));
             }
+          } catch (e) {
+            console.warn("Could not parse enquiry materials for bill:", bill.id, e);
           }
+        }
 
-          if ((!billItems || !Array.isArray(billItems) || billItems.length === 0) && enquiryData) {
-            try {
-              let parsed = enquiryData.materials || enquiryData.products || enquiryData.items;
-              if (typeof parsed === "string") {
-                parsed = JSON.parse(parsed);
-              }
-              if (Array.isArray(parsed)) {
-                billItems = parsed.map((m: any) => ({
-                  productId: m.productId || m.id,
-                  productName: m.productName || m.name || "Item",
-                  quantity: Number(m.quantity) || 1,
-                  price: Number(m.price) || 0,
-                  total: Number(m.totalAmount || m.total || (Number(m.price || 0) * Number(m.quantity || 1))),
-                  purchasePrice: m.purchasePrice !== undefined ? Number(m.purchasePrice) : undefined,
-                  hsn: m.hsn || m.hsnCode || "",
-                }));
-              }
-            } catch (e) {
-              console.warn("Could not parse enquiry materials for bill:", bill.id, e);
-            }
-          }
+        const productStatus = enquiryData?.status || (bill as any).enquiryStatus || "";
+        const paymentStatus = enquiryData?.paymentStatus || (bill as any).paymentStatus || "";
 
-          if (!enquiryData) {
-            return {
-              ...bill,
-              items: Array.isArray(billItems) ? billItems : [],
-              status: "quotation" as const,
-              paymentStatus: "pending" as const,
-              paymentType: "N/A",
-              paymentSubStatus: "N/A",
-              gstin,
-              isGST,
-              companyName,
-              placeOfSupply,
-            } as BillTransaction;
-          }
+        let status: "quotation" | "paid" | "dropped" = "quotation";
+        let transactionPaymentStatus: "pending" | "completed" = "pending";
 
-          const productStatus = enquiryData?.status || "";
-          const paymentStatus = enquiryData?.paymentStatus || "";
+        if (
+          productStatus.toLowerCase() === "dropped" ||
+          enquiryData?.status?.toLowerCase() === "dropped" ||
+          bill.status === "dropped"
+        ) {
+          status = "dropped";
+          transactionPaymentStatus = "pending";
+        } else if (
+          productStatus === "Approved" ||
+          productStatus === "Delivered" ||
+          productStatus === "Dispatched" ||
+          paymentStatus === "Paid" ||
+          paymentStatus === "PAID" ||
+          bill.paymentStatus === "completed" ||
+          bill.status === "paid"
+        ) {
+          status = "paid";
+          transactionPaymentStatus = "completed";
+        } else {
+          status = "quotation";
+          transactionPaymentStatus = "pending";
+        }
 
-          let status: "quotation" | "paid" | "dropped" = "quotation";
-          let transactionPaymentStatus: "pending" | "completed" = "pending";
-
-          if (productStatus.toLowerCase() === "dropped" || enquiryData?.status?.toLowerCase() === "dropped") {
-            status = "dropped";
-            transactionPaymentStatus = "pending";
-          } else if (
-            productStatus === "Approved" ||
-            productStatus === "Delivered" ||
-            productStatus === "Dispatched" ||
-            paymentStatus === "Paid" ||
-            paymentStatus === "PAID" ||
-            bill.paymentStatus === "completed" ||
-            bill.status === "paid"
-          ) {
-            status = "paid";
-            transactionPaymentStatus = "completed";
-          } else {
-            // Proforma details and quotations are all unified under quotation
-            status = "quotation";
-            transactionPaymentStatus = "pending";
-          }
-
-          return {
-            ...bill,
-            items: Array.isArray(billItems) ? billItems : [],
-            status,
-            paymentStatus: transactionPaymentStatus,
-            paymentType: paymentSubStatus,
-            paymentSubStatus,
-            enquiryEnqId: bill.enquiryEnqId,
-            gstin,
-            isGST,
-            companyName,
-            enquiryStatus: productStatus,
-            placeOfSupply,
-          } as BillTransaction;
-        })
-      );
+        return {
+          ...bill,
+          items: Array.isArray(billItems) ? billItems : [],
+          status,
+          paymentStatus: transactionPaymentStatus,
+          paymentType: paymentSubStatus,
+          paymentSubStatus,
+          enquiryEnqId: bill.enquiryEnqId,
+          gstin,
+          isGST,
+          companyName,
+          enquiryStatus: productStatus,
+          placeOfSupply,
+        } as BillTransaction;
+      });
 
       console.log("Final processed transactions:", processedTransactions.length);
       setTransactions(processedTransactions);
@@ -702,53 +757,11 @@ const BillTransactions: React.FC = () => {
       filtered = filtered.filter((b) => b.status === "dropped");
     }
 
-    // 4. Month / Date Range Filter
-    if (monthFilter === "custom") {
-      if (startDate) {
-        const start = new Date(startDate);
-        start.setHours(0, 0, 0, 0);
-        filtered = filtered.filter((b) => {
-          const d = b.billDate?.toDate
-            ? b.billDate.toDate()
-            : b.billDate
-            ? new Date(b.billDate)
-            : b.createdAt?.toDate
-            ? b.createdAt.toDate()
-            : new Date(0);
-          return d >= start;
-        });
-      }
-      if (endDate) {
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-        filtered = filtered.filter((b) => {
-          const d = b.billDate?.toDate
-            ? b.billDate.toDate()
-            : b.billDate
-            ? new Date(b.billDate)
-            : b.createdAt?.toDate
-            ? b.createdAt.toDate()
-            : new Date(0);
-          return d <= end;
-        });
-      }
-    } else if (monthFilter !== "all") {
-      // monthFilter is "YYYY-MM", e.g. "2026-08"
-      filtered = filtered.filter((b) => {
-        const d = b.billDate?.toDate
-          ? b.billDate.toDate()
-          : b.billDate
-          ? new Date(b.billDate)
-          : b.createdAt?.toDate
-          ? b.createdAt.toDate()
-          : null;
-        if (!d || isNaN(d.getTime())) return false;
-        const yyyy
-        = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        return `${yyyy}-${mm}` === monthFilter;
-      });
-    }
+    // 4. Unified Date Range Filter (matching PNL presets & monthly ledger)
+    filtered = filtered.filter((b) => {
+      const d = getBillDate(b);
+      return isDateInFilterRange(d, monthFilter, startDate, endDate);
+    });
 
     setFilteredTransactions(filtered);
     setCurrentPage(1);
@@ -816,7 +829,7 @@ const BillTransactions: React.FC = () => {
           paidSellVal += billTotal;
         }
 
-        // Calculate Purchase Value for this active bill record
+        // Calculate Purchase Value for this active bill record (identical to PNL.tsx)
         let billPurchase = 0;
         let billItemsQty = 0;
 
@@ -843,38 +856,12 @@ const BillTransactions: React.FC = () => {
         }
 
         if (Array.isArray(itemsList) && itemsList.length > 0) {
-          // Sum up item purchase costs from inventory catalog or explicit item cost
           for (const item of itemsList) {
             const qty = Number(item.quantity) || 1;
             billItemsQty += qty;
-
-            // 1. Check if item has explicit purchase price
-            const explicitItemCost =
-              (item as any).purchasePrice ??
-              (item as any).costPrice ??
-              (item as any).cost ??
-              (item as any).buyingPrice;
-
-            if (
-              explicitItemCost !== undefined &&
-              explicitItemCost !== null &&
-              !isNaN(Number(explicitItemCost)) &&
-              Number(explicitItemCost) > 0
-            ) {
-              billPurchase += Number(explicitItemCost) * qty;
-              continue;
-            }
-
-            // 2. Comprehensive matching with live inventory dashboard products
             const matchedProd = findInventoryProduct(item);
-            if (matchedProd) {
-              // In products collection, currentPrice is the unit purchase cost
-              const unitCost = Number(matchedProd.currentPrice ?? matchedProd.purchasePrice ?? 0);
-              if (unitCost > 0) {
-                billPurchase += unitCost * qty;
-                continue;
-              }
-            }
+            const unitCost = getProductUnitCost(matchedProd, item);
+            billPurchase += unitCost * qty;
           }
         }
 
@@ -1254,8 +1241,8 @@ const BillTransactions: React.FC = () => {
                 <div class="doc-type">PROFORMA INVOICE</div>
                 <div class="doc-meta">
                   <div>Proforma No: ${bill.invoiceNumber}</div>
-                  <div>Date: ${bill.billDate?.toDate().toLocaleDateString('en-IN') || new Date().toLocaleDateString('en-IN')}</div>
-                  <div>PO Date: ${bill.billDate?.toDate().toLocaleDateString('en-IN') || new Date().toLocaleDateString('en-IN')}</div>
+                  <div>Date: ${getBillDate(bill)?.toLocaleDateString('en-IN') || new Date().toLocaleDateString('en-IN')}</div>
+                  <div>PO Date: ${getBillDate(bill)?.toLocaleDateString('en-IN') || new Date().toLocaleDateString('en-IN')}</div>
                   <div style="margin-top: 4px;"><span class="status-badge">PROFORMA</span></div>
                 </div>
               </div>
@@ -1847,7 +1834,7 @@ const BillTransactions: React.FC = () => {
                 <div class="doc-type">${documentType}</div>
                 <div class="doc-meta">
                   <div>${documentLabel}: ${selectedBill.invoiceNumber}</div>
-                  <div>Date: ${selectedBill.billDate?.toDate().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) || new Date().toLocaleDateString('en-IN')}</div>
+                  <div>Date: ${getBillDate(selectedBill)?.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) || new Date().toLocaleDateString('en-IN')}</div>
                   ${!isQuotation && displayStatus ? `
                     <div><span class="status-badge ${statusClass}">${displayStatus}</span></div>
                   ` : ''}
@@ -2013,7 +2000,7 @@ const BillTransactions: React.FC = () => {
       "Place of Supply",
       "Bill Type",
       "Tax Type",
-      "Taxable Value (INR)",
+      "Taxable Values (INR)",
       "CGST (INR)",
       "SGST (INR)",
       "IGST (INR)",
@@ -2133,11 +2120,11 @@ const BillTransactions: React.FC = () => {
 
   if (authLoading || loading) {
     return (
-      <div className="flex justify-center items-center h-64">
+      <div className="min-h-screen bg-slate-50 flex justify-center items-center p-6">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">
-            {authLoading ? "Checking authentication..." : "Loading transactions..."}
+          <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600 mx-auto mb-3"></div>
+          <p className="text-xs text-gray-500 font-medium">
+            {authLoading ? "Checking authentication..." : "Loading bill transactions..."}
           </p>
         </div>
       </div>
@@ -2146,191 +2133,205 @@ const BillTransactions: React.FC = () => {
 
   if (error) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 m-6">
-        <div className="flex items-center gap-2 text-red-700">
-          <AlertCircle className="w-5 h-5" />
-          <p className="font-medium">Error: {error}</p>
+      <div className="min-h-screen bg-slate-50 p-6 font-sans">
+        <div className="max-w-7xl mx-auto bg-rose-50 border border-rose-200 rounded-2xl p-4">
+          <div className="flex items-center gap-2 text-rose-700">
+            <AlertCircle className="w-5 h-5" />
+            <p className="text-sm font-semibold">Error: {error}</p>
+          </div>
+          <button onClick={fetchTransactions} className="mt-2 text-rose-600 hover:text-rose-800 text-xs font-semibold underline cursor-pointer">
+            Try again
+          </button>
         </div>
-        <button onClick={fetchTransactions} className="mt-2 text-red-600 hover:text-red-800 text-sm underline">
-          Try again
-        </button>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow">
-      <div className="p-6 border-b">
-        <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Page Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-800">Bill Transactions</h2>
-            <p className="text-sm text-gray-500 mt-1">
-              View and manage your generated invoices and quotations
-              <span className={`ml-2 px-2 py-1 rounded-full text-xs capitalize ${getRoleBadgeColor(userRole)}`}>
-                {userRole}
-              </span>
-            </p>
+            <div className="flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                <FileText className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                    Bill Transactions
+                  </h1>
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${getRoleBadgeColor(userRole)}`}>
+                    {userRole}
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
+                  Real-time ledger of invoices, quotations, GST filings, and revenue analytics.
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="flex gap-3">
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               onClick={fetchTransactions}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer"
             >
-              <RefreshCw className="w-4 h-4" />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
               Refresh
             </button>
             <button
               onClick={handleExportCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition cursor-pointer"
             >
-              <Download className="w-4 h-4" />
+              <Download className="w-3.5 h-3.5" />
               Export CSV
             </button>
           </div>
         </div>
 
-        {/* Top Summary Statistics Cards (Purchase Value, Sell Value, Net Margin, Refund Value) */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          {/* 1. Purchase Value */}
-          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+        {/* Top Summary Statistics Cards (Purchase Values, Sale Values, Net Margin, Refund / Dropped Values) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {/* 1. Purchase Values */}
+          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Purchase Value</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ₹{statistics.purchaseValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-gray-500 mt-0.5 font-medium">
-                  {statistics.purchaseItemsCount > 0
-                    ? `${statistics.purchaseItemsCount} items billed`
-                    : "Total cost of goods"}
-                </p>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Purchase Values</span>
+              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                <ShoppingBag className="w-4 h-4" />
               </div>
-              <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100">
-                <ShoppingBag className="w-5 h-5" />
-              </div>
+            </div>
+            <div className="mt-2.5">
+              <p className="text-xl font-bold text-gray-900 tracking-tight truncate">
+                ₹{statistics.purchaseValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                {statistics.purchaseItemsCount > 0 ? `${statistics.purchaseItemsCount} items billed` : "Cost of goods"} &bull; Billed Purchase
+              </p>
             </div>
           </div>
 
-          {/* 2. Sell Value */}
-          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+          {/* 2. Sale Values */}
+          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sell Value</p>
-                <p className="text-2xl font-bold text-gray-900 mt-1">
-                  ₹{statistics.sellValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-blue-600 mt-0.5 font-medium">
-                  {statistics.activeBillsCount} Active {statistics.activeBillsCount === 1 ? "Bill" : "Bills"} &bull; ₹{statistics.paidSellValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Paid
-                </p>
+              <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Sale Values</span>
+              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <TrendingUp className="w-4 h-4" />
               </div>
-              <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
-                <TrendingUp className="w-5 h-5" />
-              </div>
+            </div>
+            <div className="mt-2.5">
+              <p className="text-xl font-bold text-blue-700 tracking-tight truncate">
+                ₹{statistics.sellValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-[11px] text-blue-600 mt-0.5 truncate">
+                {statistics.activeBillsCount} Active {statistics.activeBillsCount === 1 ? "Bill" : "Bills"} &bull; ₹{statistics.paidSellValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Paid
+              </p>
             </div>
           </div>
 
           {/* 3. Net Margin */}
-          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Margin</p>
-                <p className="text-2xl font-bold mt-1">
-                  <span className={statistics.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}>
-                    ₹{statistics.netMargin.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  </span>
-                </p>
-                <p className="text-xs mt-0.5 font-medium">
-                  <span className={statistics.marginPercentage >= 0 ? "text-emerald-700 font-semibold" : "text-rose-600 font-semibold"}>
-                    {statistics.marginPercentage >= 0 ? "+" : ""}{statistics.marginPercentage.toFixed(1)}% margin
-                  </span>{" "}
-                  &bull; {statistics.netMargin >= 0 ? "Net Profit" : "Net Loss"}
-                </p>
+              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Net Margin</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                <IndianRupee className="w-4 h-4" />
               </div>
-              <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100">
-                <IndianRupee className="w-5 h-5" />
-              </div>
+            </div>
+            <div className="mt-2.5">
+              <p className={`text-xl font-bold tracking-tight truncate ${statistics.netMargin >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
+                ₹{statistics.netMargin.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-[11px] mt-0.5 truncate">
+                <span className={statistics.marginPercentage >= 0 ? "text-emerald-700 font-semibold" : "text-rose-600 font-semibold"}>
+                  {statistics.marginPercentage >= 0 ? "+" : ""}{statistics.marginPercentage.toFixed(1)}% margin
+                </span>{" "}
+                &bull; Sale - Purchase
+              </p>
             </div>
           </div>
 
-          {/* 4. Refund Value */}
-          <div className="bg-white rounded-xl p-4 shadow-xs border border-gray-200 hover:shadow-sm transition">
+          {/* 4. Refund / Dropped Values */}
+          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
             <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Refund Value</p>
-                <p className="text-2xl font-bold text-amber-600 mt-1">
-                  ₹{statistics.refundValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                </p>
-                <p className="text-xs text-amber-700 mt-0.5 font-medium">
-                  {statistics.refundCount} Dropped / Cancelled {statistics.refundCount === 1 ? "Bill" : "Bills"}
-                </p>
+              <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Refund / Dropped Values</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <RotateCcw className="w-4 h-4" />
               </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center shrink-0 border border-amber-100">
-                <RotateCcw className="w-5 h-5" />
-              </div>
+            </div>
+            <div className="mt-2.5">
+              <p className="text-xl font-bold text-amber-700 tracking-tight truncate">
+                ₹{statistics.refundValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+              <p className="text-[11px] text-amber-600 mt-0.5 truncate">
+                {statistics.refundCount} Dropped / Cancelled {statistics.refundCount === 1 ? "Bill" : "Bills"}
+              </p>
             </div>
           </div>
         </div>
 
         {/* Quick Filter Pill Tabs with Counts */}
-        <div className="flex flex-wrap items-center gap-2 mb-4">
+        <div className="p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/90 flex flex-wrap items-center gap-1.5">
           <button
             onClick={() => setOrderStatusFilter("all")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               orderStatusFilter === "all"
-                ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-600 ring-offset-1"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
             }`}
           >
             All ({allCount})
           </button>
           <button
             onClick={() => setOrderStatusFilter("approved")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               orderStatusFilter === "approved"
-                ? "bg-green-600 text-white shadow-sm ring-2 ring-green-600 ring-offset-1"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-white text-emerald-800 shadow-xs border border-emerald-200/80"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
             }`}
           >
-            Invoice ({invoiceCount})
+            Invoices ({invoiceCount})
           </button>
           <button
             onClick={() => setOrderStatusFilter("quotation")}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
               orderStatusFilter === "quotation"
-                ? "bg-yellow-600 text-white shadow-sm ring-2 ring-yellow-600 ring-offset-1"
-                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                ? "bg-white text-amber-800 shadow-xs border border-amber-200/80"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
             }`}
           >
-            Quotation ({quotationCount})
+            Quotations ({quotationCount})
           </button>
           {droppedCount > 0 && (
             <button
               onClick={() => setOrderStatusFilter("dropped")}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 orderStatusFilter === "dropped"
-                  ? "bg-red-600 text-white shadow-sm ring-2 ring-red-600 ring-offset-1"
-                  : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                  ? "bg-white text-rose-800 shadow-xs border border-rose-200/80"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
               }`}
             >
               Dropped ({droppedCount})
             </button>
           )}
         </div>
-        
-        {/* Dynamic Multi-Criteria Filters Panel */}
-        <div className="bg-gray-50/80 p-4 rounded-xl border border-gray-200 mb-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-200/80 pb-3">
+
+        {/* Multi-Criteria Filters Panel */}
+        <div className="p-4 bg-white rounded-2xl shadow-xs border border-gray-200/90 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-2.5">
             <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-semibold text-gray-800">Filters</span>
+              <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+                <Filter className="w-3.5 h-3.5" />
+              </div>
+              <span className="text-xs font-bold text-gray-800">Filter Transactions</span>
               {(billTypeFilter !== "all" ||
                 orderStatusFilter !== "all" ||
                 monthFilter !== "all" ||
                 searchTerm ||
                 startDate ||
                 endDate) && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full font-medium">
-                  Active
+                <span className="text-[11px] bg-blue-50 text-blue-700 border border-blue-200/80 px-2 py-0.5 rounded-lg font-bold">
+                  Active Filter
                 </span>
               )}
             </div>
@@ -2349,7 +2350,7 @@ const BillTransactions: React.FC = () => {
                   setEndDate("");
                   setSearchTerm("");
                 }}
-                className="text-xs text-red-600 hover:text-red-800 font-medium flex items-center gap-1 hover:underline"
+                className="text-xs text-rose-600 hover:text-rose-700 font-semibold flex items-center gap-1 cursor-pointer transition"
               >
                 <X className="w-3.5 h-3.5" />
                 Reset All Filters
@@ -2357,11 +2358,11 @@ const BillTransactions: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
             {/* 1. Search */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
-                <Search className="w-3.5 h-3.5 text-gray-400" />
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Search className="w-3 h-3 text-gray-400" />
                 Search
               </label>
               <div className="relative">
@@ -2375,7 +2376,7 @@ const BillTransactions: React.FC = () => {
                   placeholder="Customer, Company, GSTIN, Inv #..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                  className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 />
                 {searchTerm && (
                   <button
@@ -2390,16 +2391,16 @@ const BillTransactions: React.FC = () => {
 
             {/* 2. Bill Type */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
-                <Building2 className="w-3.5 h-3.5 text-purple-600" />
-                Bill type:
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Building2 className="w-3 h-3 text-purple-600" />
+                Bill Type
               </label>
               <select
                 value={billTypeFilter}
                 onChange={(e) => setBillTypeFilter(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white font-medium text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="all">All</option>
+                <option value="all">All Types</option>
                 <option value="gst">GST (B2B) - All</option>
                 <option value="gst_cgst_sgst">&nbsp;&nbsp;↳ GST (B2B) - CGST + SGST</option>
                 <option value="gst_igst">&nbsp;&nbsp;↳ GST (B2B) - IGST</option>
@@ -2409,34 +2410,41 @@ const BillTransactions: React.FC = () => {
 
             {/* 3. Order Status */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
-                <Layers className="w-3.5 h-3.5 text-green-600" />
-                Order status:
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Layers className="w-3 h-3 text-emerald-600" />
+                Order Status
               </label>
               <select
                 value={orderStatusFilter}
                 onChange={(e) => setOrderStatusFilter(e.target.value as any)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white font-medium text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="all">All</option>
+                <option value="all">All Statuses</option>
                 <option value="approved">Approved</option>
                 <option value="quotation">Quotation</option>
                 <option value="dropped">Dropped</option>
               </select>
             </div>
 
-            {/* 4. Month / Date Range */}
+            {/* 4. Date Period */}
             <div>
-              <label className="block text-xs font-semibold text-gray-600 mb-1.5 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-blue-600" />
-                Month:
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <Calendar className="w-3 h-3 text-blue-600" />
+                Date Period
               </label>
               <select
                 value={monthFilter}
                 onChange={(e) => setMonthFilter(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white font-medium text-gray-800 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="all">All Months</option>
+                <option value="all">All Time</option>
+                <option value="today">Today</option>
+                <option value="this_week">This Week</option>
+                <option value="this_month">This Month</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_quarter">This Quarter</option>
+                <option value="this_fy">This Financial Year (FY)</option>
+                {availableMonths.length > 0 && <option disabled>── Monthly Ledger ──</option>}
                 {availableMonths.map((m) => (
                   <option key={m} value={m}>
                     {formatMonthLabel(m)}
@@ -2447,75 +2455,75 @@ const BillTransactions: React.FC = () => {
             </div>
           </div>
 
-          {/* Custom Date Range Inputs (Shown when 'custom' is selected) */}
+          {/* Custom Date Range Inputs */}
           {monthFilter === "custom" && (
-            <div className="flex flex-wrap items-center gap-4 pt-2 border-t border-gray-200">
+            <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-gray-100">
+              <span className="text-xs text-gray-500 font-medium">Custom Range:</span>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600 font-medium">From:</span>
                 <input
                   type="date"
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs border rounded-lg bg-white text-gray-800"
+                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-gray-50 text-gray-800"
                 />
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-gray-600 font-medium">To:</span>
+                <span className="text-xs text-gray-400">to</span>
                 <input
                   type="date"
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs border rounded-lg bg-white text-gray-800"
+                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-gray-50 text-gray-800"
                 />
               </div>
             </div>
           )}
         </div>
-      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead className="bg-gray-100/90 border-b-2 border-gray-200">
-            <tr>
-              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap w-10">
-                S.No.
-              </th>
-              <th className="px-2.5 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Enquiry ID
-              </th>
-              <th className="px-2.5 py-3 text-left text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Invoice #
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Date
-              </th>
-              <th className="px-2.5 py-3 text-left text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Customer
-              </th>
-              <th className="px-2 py-3 text-left text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Contact
-              </th>
-              <th className="px-2.5 py-3 text-right text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Amount
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Status
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Payment
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Payment Type
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap">
-                Generated By
-              </th>
-              <th className="px-2 py-3 text-center text-xs font-bold text-gray-700 uppercase whitespace-nowrap w-14">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+        {/* Transactions Table Card */}
+        <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 overflow-hidden">
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50/90 border-b border-gray-200/90">
+                <tr>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap w-10">
+                    S.No.
+                  </th>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Enquiry ID
+                  </th>
+                  <th className="px-2.5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Invoice #
+                  </th>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Date
+                  </th>
+                  <th className="px-2.5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Customer
+                  </th>
+                  <th className="px-2.5 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Contact
+                  </th>
+                  <th className="px-2.5 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Amount
+                  </th>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Status
+                  </th>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Payment
+                  </th>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Payment Type
+                  </th>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Generated By
+                  </th>
+                  <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap w-14">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-100">
             {currentItems.length > 0 ? (
               currentItems.map((bill, index) => {
                 const serialNumber = indexOfFirstItem + index + 1;
@@ -2569,17 +2577,25 @@ const BillTransactions: React.FC = () => {
                       })}
                     </td>
                     <td className="px-2 py-2.5 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-800">
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        bill.status === "paid" || bill.status === "approved"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                          : bill.status === "dropped"
+                          ? "bg-rose-50 text-rose-700 border border-rose-200/80"
+                          : "bg-amber-50 text-amber-700 border border-amber-200/80"
+                      }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
-                          bill.status === "paid" ? "bg-emerald-500" :
-                          bill.status === "dropped" ? "bg-rose-400" : "bg-amber-500"
+                          bill.status === "paid" || bill.status === "approved" ? "bg-emerald-500" :
+                          bill.status === "dropped" ? "bg-rose-500" : "bg-amber-500"
                         }`} />
                         {getStatusDisplay(bill.status)}
                       </span>
                     </td>
                     <td className="px-2 py-2.5 whitespace-nowrap text-center">
-                      <span className={`inline-flex items-center gap-1.5 text-xs font-medium ${
-                        bill.paymentStatus === "completed" ? "text-emerald-700" : "text-amber-700"
+                      <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                        bill.paymentStatus === "completed"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200/80"
+                          : "bg-amber-50 text-amber-700 border border-amber-200/80"
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
                           bill.paymentStatus === "completed" ? "bg-emerald-500" : "bg-amber-500"
@@ -2595,10 +2611,10 @@ const BillTransactions: React.FC = () => {
                       <div className="text-[10px] text-gray-400 capitalize">{bill.createdByRole}</div>
                     </td>
                     <td className="px-2 py-2.5 whitespace-nowrap text-center w-14">
-                      <div className="flex items-center justify-center gap-1.5">
+                      <div className="flex items-center justify-center gap-1">
                         <button
                           onClick={() => handleViewBill(bill)}
-                          className="text-blue-600 hover:text-blue-800 p-1 rounded-md hover:bg-blue-50 cursor-pointer transition"
+                          className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition"
                           title="View Bill"
                         >
                           <Eye className="w-4 h-4" />
@@ -2606,7 +2622,7 @@ const BillTransactions: React.FC = () => {
                         {hasDeleteAccess && (
                           <button
                             onClick={() => handleDeleteClick(bill)}
-                            className="text-red-600 hover:text-red-800 p-1 rounded-md hover:bg-red-50 cursor-pointer transition"
+                            className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg cursor-pointer transition"
                             title="Delete Bill"
                           >
                             <Trash2 className="w-4 h-4" />
@@ -2619,10 +2635,12 @@ const BillTransactions: React.FC = () => {
               })
           ) : (
               <tr>
-                <td colSpan={12} className="text-center py-12">
-                  <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                  <p className="text-base font-medium text-gray-700">No bill transactions match your filters</p>
-                  <p className="text-xs text-gray-400 mt-1">Try adjusting your Bill type, Order status, or Month filters</p>
+                <td colSpan={12} className="text-center py-12 px-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gray-100 text-gray-400 flex items-center justify-center mx-auto mb-3">
+                    <FileText className="w-6 h-6" />
+                  </div>
+                  <p className="text-sm font-bold text-gray-800">No bill transactions match your filters</p>
+                  <p className="text-xs text-gray-400 mt-1">Try adjusting your Bill type, Order status, or Date filters</p>
                   {(billTypeFilter !== "all" ||
                     orderStatusFilter !== "all" ||
                     monthFilter !== "all" ||
@@ -2638,7 +2656,7 @@ const BillTransactions: React.FC = () => {
                         setEndDate("");
                         setSearchTerm("");
                       }}
-                      className="mt-4 px-4 py-2 text-sm bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 font-medium"
+                      className="mt-4 px-3.5 py-1.5 text-xs bg-blue-50 text-blue-700 border border-blue-200/80 rounded-xl hover:bg-blue-100 font-bold transition cursor-pointer"
                     >
                       Reset All Filters
                     </button>
@@ -2651,29 +2669,31 @@ const BillTransactions: React.FC = () => {
       </div>
 
       {totalPages > 1 && (
-        <div className="px-6 py-4 border-t flex justify-between items-center">
-          <div className="text-sm text-gray-500">
-            Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredTransactions.length)} of {filteredTransactions.length} entries
+        <div className="px-5 py-3.5 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-gray-50/50">
+          <div className="text-xs font-medium text-gray-500">
+            Showing <span className="font-bold text-gray-800">{indexOfFirstItem + 1}</span> to <span className="font-bold text-gray-800">{Math.min(indexOfLastItem, filteredTransactions.length)}</span> of <span className="font-bold text-gray-800">{filteredTransactions.length}</span> entries
           </div>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
               disabled={currentPage === 1}
-              className="px-3 py-1 border rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
-            <span className="px-3 py-1">Page {currentPage} of {totalPages}</span>
+            <span className="text-xs font-semibold text-gray-700 px-2">Page {currentPage} of {totalPages}</span>
             <button
               onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
               disabled={currentPage === totalPages}
-              className="px-3 py-1 border rounded-lg disabled:opacity-50 hover:bg-gray-50"
+              className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
       )}
+    </div>
+  </div>
 
       {/* Bill Details Modal */}
       {selectedBill && (
@@ -2697,7 +2717,7 @@ const BillTransactions: React.FC = () => {
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500">Date</p>
-                  <p className="font-semibold">{selectedBill.billDate?.toDate().toLocaleDateString()}</p>
+                  <p className="font-semibold">{getBillDate(selectedBill)?.toLocaleDateString('en-IN') || "N/A"}</p>
                 </div>
                 <div className="bg-gray-50 p-3 rounded-lg">
                   <p className="text-xs text-gray-500">Total Amount</p>

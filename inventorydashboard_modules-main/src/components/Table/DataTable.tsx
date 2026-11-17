@@ -58,6 +58,7 @@ interface DataTableProps<T extends { id?: string }> {
   onDateRangeChange?: (key: string, range: { from: string; to: string }) => void;
   totalRecords?: number;
   onExportAllPages?: (dateRange?: { from: string; to: string }) => Promise<T[]>;
+  headerBgColor?: string;
 }
 
 interface ExportFilter {
@@ -100,6 +101,7 @@ export default function DataTable<T extends { id?: string }>(
     onDateRangeChange,
     totalRecords,
     onExportAllPages,
+    headerBgColor,
   } = props;
 
   const { data: collData, loading: collLoading, create, remove } =
@@ -888,8 +890,10 @@ export default function DataTable<T extends { id?: string }>(
 
   return (
     <div className="w-full">
-      <div className="bg-purple-500 px-4 py-1 text-white font-semibold text-lg flex items-center justify-between">
-        <div>{title}</div>
+      <div className={`px-4 py-2 text-white font-bold text-sm flex items-center justify-between border-b border-white/10 ${headerBgColor || "bg-slate-900"}`}>
+        <div className="flex items-center gap-2">
+          <span>{title}</span>
+        </div>
         {sumColumn && (
           <div className="flex items-center gap-3">
             {filteredTotal !== undefined && filteredTotal !== null && (
