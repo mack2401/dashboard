@@ -433,7 +433,7 @@ const Dashboard: React.FC = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
               <span className="w-2 sm:w-2.5 h-7 sm:h-9 bg-sky-500 rounded-full inline-block shrink-0"></span>
-              iBots DashBoard
+              DashBoard
             </h1>
           </div>
 
