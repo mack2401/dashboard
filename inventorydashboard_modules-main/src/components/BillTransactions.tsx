@@ -9,6 +9,7 @@ import {
   onSnapshot,
   doc,
   getDoc,
+  updateDoc,
 } from "firebase/firestore";
 import { 
   getAuth, 
@@ -70,8 +71,9 @@ interface TermsCondition {
   id: number;
   text: string;
 }
-interface BillTransaction extends Bill {
+interface BillTransaction extends Omit<Bill, "status"> {
   id: string;
+  status: 'pending' | 'paid' | 'cancelled' | 'quotation' | 'dropped' | 'approved' | string;
   originalBillId?: string;
   paymentType?: string;
   paymentSubStatus?: string;
@@ -82,6 +84,11 @@ interface BillTransaction extends Bill {
   companyName?: string;
   enquiryStatus?: string;
   placeOfSupply?: string;
+  taxableValue?: number;
+  shippingCharges?: number;
+  customerAddress?: string;
+  description?: string;
+  cessAmount?: number;
 }
 const defaultBankDetails: BankDetails = {
   beneficiaryName: "Protowiz Private Limited",
@@ -569,7 +576,7 @@ const BillTransactions: React.FC = () => {
       try {
         const enquiriesSnap = await getDocs(collection(db, "enquiries"));
         enquiriesSnap.forEach((docSnap) => {
-          const d = { id: docSnap.id, ...docSnap.data() };
+          const d: any = { id: docSnap.id, ...docSnap.data() };
           allEnquiriesList.push(d);
           if (d.enqId) {
             const rawId = String(d.enqId).trim();
@@ -832,7 +839,7 @@ const BillTransactions: React.FC = () => {
         if (
           productStatus.toLowerCase() === "dropped" ||
           enquiryData?.status?.toLowerCase() === "dropped" ||
-          bill.status === "dropped"
+          (bill.status as string) === "dropped"
         ) {
           status = "dropped";
           transactionPaymentStatus = "pending";
@@ -883,8 +890,8 @@ const BillTransactions: React.FC = () => {
   const availableMonths = React.useMemo(() => {
     const monthsSet = new Set<string>();
     transactions.forEach((b) => {
-      const d = b.billDate?.toDate ? b.billDate.toDate() : (b.billDate ? new Date(b.billDate) : (b.createdAt?.toDate ? b.createdAt.toDate() : null));
-      if (d && !isNaN(d.getTime())) {
+      const d = getBillDate(b);
+      if (d && !isNaN(d.getTime()) && d.getTime() > 0) {
         const yyyy = d.getFullYear();
         const mm = String(d.getMonth() + 1).padStart(2, "0");
         monthsSet.add(`${yyyy}-${mm}`);
@@ -998,7 +1005,7 @@ const BillTransactions: React.FC = () => {
       // Check if this record is dropped / cancelled / refunded
       const isDroppedOrRefunded =
         bill.status === "dropped" ||
-        bill.paymentStatus === "refunded" ||
+        (bill.paymentStatus as any) === "refunded" ||
         (bill as any).refunded === true ||
         (typeof bill.paymentSubStatus === "string" && bill.paymentSubStatus.toLowerCase().includes("refund")) ||
         (typeof bill.enquiryStatus === "string" && bill.enquiryStatus.toLowerCase() === "dropped");
@@ -1550,7 +1557,7 @@ const BillTransactions: React.FC = () => {
                 <div class="terms-title">Terms & Conditions:</div>
                 <ul>
                   ${termsToPrint && termsToPrint.length > 0 ? 
-                    termsToPrint.map((term, index) => `<li>${index + 1}. ${term.text}</li>`).join('') 
+                    termsToPrint.map((term: any, index: number) => `<li>${index + 1}. ${term.text}</li>`).join('') 
                     : `
                       <li>1. Payment: 100% advance</li>
                       <li>2. Delivery: 10-12 days maximum from advance initiation</li>
@@ -2127,7 +2134,7 @@ const BillTransactions: React.FC = () => {
                 <div class="terms-title">Terms & Conditions:</div>
                 <ul class="terms-list">
                   ${termsToPrint && termsToPrint.length > 0 ? 
-                    termsToPrint.map((term, index) => `
+                    termsToPrint.map((term: any, index: number) => `
                       <li>${index + 1}. ${term.text}</li>
                     `).join('') 
                     : `
@@ -3357,14 +3364,8 @@ const BillTransactions: React.FC = () => {
                     </td>
                     <td className="px-2 py-2.5 whitespace-nowrap text-xs text-gray-600 text-center font-medium">
                       {(() => {
-                        const d = bill.billDate?.toDate
-                          ? bill.billDate.toDate()
-                          : bill.billDate
-                          ? new Date(bill.billDate)
-                          : bill.createdAt?.toDate
-                          ? bill.createdAt.toDate()
-                          : null;
-                        return d && !isNaN(d.getTime()) ? d.toLocaleDateString("en-IN") : "N/A";
+                        const d = getBillDate(bill);
+                        return d && !isNaN(d.getTime()) && d.getTime() > 0 ? d.toLocaleDateString("en-IN") : "N/A";
                       })()}
                     </td>
                     <td className="px-2.5 py-2.5 max-w-[130px]">

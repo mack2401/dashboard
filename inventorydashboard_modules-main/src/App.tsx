@@ -106,14 +106,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const empDoc = await getDoc(doc(db, "employees", auth.currentUser.uid));
       const empData = empDoc.exists() ? empDoc.data() : null;
       const empName = empData?.employeeName || empData?.name || auth.currentUser!.displayName;
-      setUser((prev) => ({
+      setUser({
         uid: auth.currentUser!.uid,
         email: auth.currentUser!.email,
         name: empName || (auth.currentUser!.email ? auth.currentUser!.email.split('@')[0] : null),
         role: empData?.role ?? undefined,
         teamId: empData?.teamId ?? null,
         employeeLoaded: !!empDoc.exists(),
-      }));
+      });
     } catch (err) {
       console.error("refreshEmployeeDoc error:", err);
     } finally {

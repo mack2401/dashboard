@@ -108,11 +108,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
       {/* Modern Curved Sidebar matching reference image */}
       <aside 
         className={`
-          fixed top-3 bottom-3 left-3 z-40
+          fixed top-0 bottom-0 left-0 z-40
           bg-gradient-to-b from-[#119ED0] via-[#087EBC] to-[#066597]
-          rounded-[28px] shadow-xl shadow-[#087EBC]/20
+          rounded-r-[28px] shadow-xl shadow-[#087EBC]/20
           transition-all duration-300 ease-in-out select-none
-          flex flex-col justify-between py-3
+          flex flex-col justify-between py-3.5
           ${isCollapsed ? "overflow-visible w-[72px]" : "overflow-y-auto no-scrollbar w-[256px]"}
           ${isOpen ? "translate-x-0" : "-translate-x-[120%] md:translate-x-0"}
         `}
@@ -179,7 +179,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
           )}
 
           {/* Navigation Items with Inverted Curved Active Indicator */}
-          <nav className="flex flex-col gap-1 sm:gap-1.5 overflow-y-auto no-scrollbar flex-1 min-h-0">
+          <nav className="flex flex-col gap-1.5 sm:gap-2.5 overflow-y-auto no-scrollbar flex-1 min-h-0 py-1">
             {topNavItems.map((item) => (
               <NavLink
                 key={item.name}
@@ -187,7 +187,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 onClick={() => handleNavClick(false)}
                 className={({ isActive }) => `
                   relative flex items-center transition-colors duration-150 group
-                  ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-2.5 rounded-l-[24px]"}
+                  ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3 rounded-l-[24px]"}
                   ${
                     isActive
                       ? isCollapsed
@@ -253,7 +253,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               <button
                 onClick={handleEnquiriesClick}
                 className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium cursor-pointer group ${
-                  isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-2.5 rounded-l-xl"
+                  isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-3 rounded-l-xl"
                 } ${isEnquiriesActive && !isEnquiriesOpen ? (isCollapsed ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs" : "bg-white/15 text-white font-semibold") : ""}`}
               >
                 <div className="flex items-center gap-3.5">
@@ -306,7 +306,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 onClick={() => handleNavClick(false)}
                 className={({ isActive }) => `
                   relative flex items-center transition-colors duration-150 group
-                  ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-2.5 rounded-l-[24px]"}
+                  ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3 rounded-l-[24px]"}
                   ${
                     isActive
                       ? isCollapsed
@@ -373,7 +373,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 <button
                   onClick={handleManagementClick}
                   className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium cursor-pointer group ${
-                    isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-2.5 rounded-l-xl"
+                    isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-3 rounded-l-xl"
                   } ${isManagementActive && !isManagementOpen ? (isCollapsed ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs" : "bg-white/15 text-white font-semibold") : ""}`}
                 >
                   <div className="flex items-center gap-3.5">
@@ -422,14 +422,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
         </div>
 
         {/* Bottom Actions: Logout */}
-        <div className="shrink-0 pt-3 px-2.5 pb-1 border-t border-white/15 mt-3 sm:mt-4">
+        <div className="shrink-0 pt-3.5 px-3 pb-3 border-t border-white/15 mt-auto">
           <button
             onClick={() => {
               logout();
               handleNavClick(true);
             }}
             className={`relative flex items-center transition-all duration-200 text-white hover:bg-rose-500/25 font-semibold cursor-pointer group ${
-              isCollapsed ? "w-10 h-10 mx-auto justify-center rounded-xl" : "w-full gap-3.5 px-3.5 py-2.5 rounded-xl"
+              isCollapsed ? "w-10 h-10 mx-auto justify-center rounded-xl" : "w-full gap-3.5 px-3.5 py-3 rounded-xl"
             }`}
             title={isCollapsed ? "" : "Logout"}
           >
