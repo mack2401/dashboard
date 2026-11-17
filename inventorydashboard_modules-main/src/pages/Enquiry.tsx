@@ -1078,7 +1078,6 @@ export default function EnquiryPage() {
                   {categoryFilter === "all" ? "Viewing Both" : categoryFilter === "ecommerce" ? "E-commerce Only" : "Academic Only"}
                 </span>
               </div>
-              <p className="text-[11px] text-gray-500">Filter enquiries between E-commerce components and Academic training</p>
             </div>
           </div>
 
