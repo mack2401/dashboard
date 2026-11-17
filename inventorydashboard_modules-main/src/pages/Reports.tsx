@@ -113,6 +113,23 @@ const Reports: React.FC = () => {
   const [selectedClient, setSelectedClient] = useState<ClientReport | null>(null);
   const [activeModalTab, setActiveModalTab] = useState<"products" | "orders">("products");
 
+  // Prevent background scrolling when client details modal is open
+  useEffect(() => {
+    if (selectedClient) {
+      const originalOverflow = document.body.style.overflow;
+      const originalPaddingRight = document.body.style.paddingRight;
+      const scrollBarWidth = window.innerWidth - document.documentElement.clientWidth;
+      document.body.style.overflow = "hidden";
+      if (scrollBarWidth > 0) {
+        document.body.style.paddingRight = `${scrollBarWidth}px`;
+      }
+      return () => {
+        document.body.style.overflow = originalOverflow;
+        document.body.style.paddingRight = originalPaddingRight;
+      };
+    }
+  }, [selectedClient]);
+
   // Fetch enquiries and bills in real-time
   useEffect(() => {
     setLoading(true);
@@ -577,172 +594,195 @@ const Reports: React.FC = () => {
 
     const LOGO_URL = "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
 
-    const printWindow = window.open("", "_blank");
-    if (!printWindow) {
-      alert("Please allow popups to generate the PDF report.");
-      return;
-    }
+    const reportHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>${periodTitle} - ${dateRangeStr}</title>
+    <script>
+      // Isolate window from parent opener to prevent freezing parent dashboard during print preview
+      try {
+        window.opener = null;
+      } catch(e) {}
+    </script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px 30px; background: white; color: #1e293b; font-size: 12px; }
+      .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6366f1; padding-bottom: 15px; margin-bottom: 20px; }
+      .company-info h2 { font-size: 20px; color: #1e1b4b; font-weight: 800; }
+      .company-info p { color: #64748b; font-size: 11px; margin-top: 2px; }
+      .report-title-box { text-align: right; }
+      .report-title { font-size: 18px; font-weight: 700; color: #4338ca; }
+      .report-date { font-size: 12px; color: #64748b; font-weight: 600; margin-top: 4px; }
+      
+      .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+      .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
+      .kpi-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; }
+      .kpi-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px; }
+      
+      .section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin: 15px 0 8px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+      
+      table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+      th { background: #f1f5f9; color: #334155; font-weight: 600; text-align: left; padding: 6px 8px; border: 1px solid #e2e8f0; }
+      td { padding: 6px 8px; border: 1px solid #e2e8f0; color: #334155; }
+      tr:nth-child(even) td { background: #fafafa; }
+      .text-right { text-align: right; }
+      .text-center { text-align: center; }
+      
+      .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; }
+      
+      @media print {
+        .no-print { display: none !important; }
+        body { padding: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="no-print" style="text-align: center; margin-bottom: 20px; background: #e0e7ff; padding: 12px; border-radius: 8px;">
+      <button onclick="setTimeout(function(){ window.print(); }, 50);" style="padding: 9px 22px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 12px; font-size: 13px;">🖨 Print / Save as PDF</button>
+      <button onclick="window.close();" style="padding: 9px 18px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">✕ Close</button>
+    </div>
 
-    printWindow.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${periodTitle} - ${dateRangeStr}</title>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px 30px; background: white; color: #1e293b; font-size: 12px; }
-            .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #6366f1; padding-bottom: 15px; margin-bottom: 20px; }
-            .company-info h2 { font-size: 20px; color: #1e1b4b; font-weight: 800; }
-            .company-info p { color: #64748b; font-size: 11px; margin-top: 2px; }
-            .report-title-box { text-align: right; }
-            .report-title { font-size: 18px; font-weight: 700; color: #4338ca; }
-            .report-date { font-size: 12px; color: #64748b; font-weight: 600; margin-top: 4px; }
-            
-            .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
-            .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; }
-            .kpi-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; }
-            .kpi-value { font-size: 18px; font-weight: 800; color: #0f172a; margin-top: 4px; }
-            
-            .section-title { font-size: 13px; font-weight: 700; color: #1e293b; margin: 15px 0 8px 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
-            
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
-            th { background: #f1f5f9; color: #334155; font-weight: 600; text-align: left; padding: 6px 8px; border: 1px solid #e2e8f0; }
-            td { padding: 6px 8px; border: 1px solid #e2e8f0; color: #334155; }
-            tr:nth-child(even) td { background: #fafafa; }
-            .text-right { text-align: right; }
-            .text-center { text-align: center; }
-            
-            .footer { margin-top: 30px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; }
-            
-            @media print {
-              .no-print { display: none !important; }
-              body { padding: 0; }
+    <div class="header-container">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="${LOGO_URL}" alt="Logo" style="height: 42px;" onerror="this.style.display='none'" />
+        <div class="company-info">
+          <h2>Protowiz Private Limited</h2>
+          <p>Order Flow & Inventory Management System</p>
+        </div>
+      </div>
+      <div class="report-title-box">
+        <div class="report-title">${periodTitle}</div>
+        <div class="report-date">${dateRangeStr}</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Enquiries</div>
+        <div class="kpi-value">${periodEnquiries.length}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Invoices / Orders</div>
+        <div class="kpi-value">${periodBills.length}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Revenue</div>
+        <div class="kpi-value" style="color: #16a34a;">₹${totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Conversion Rate</div>
+        <div class="kpi-value" style="color: #6366f1;">
+          ${periodEnquiries.length > 0 ? ((periodBills.length / periodEnquiries.length) * 100).toFixed(1) : 0}%
+        </div>
+      </div>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+      <div>
+        <div class="section-title">Enquiry Status Breakdown</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Status</th>
+              <th class="text-center">Count</th>
+              <th class="text-right">Total Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.entries(statusMap).length === 0 ? '<tr><td colspan="3" class="text-center">No enquiries in this period</td></tr>' : 
+              Object.entries(statusMap).map(([status, d]) => `
+                <tr>
+                  <td><strong>${status}</strong></td>
+                  <td class="text-center">${d.count}</td>
+                  <td class="text-right">₹${d.totalVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                </tr>
+              `).join('')
             }
-          </style>
-        </head>
-        <body>
-          <div class="no-print" style="text-align: center; margin-bottom: 20px; background: #e0e7ff; padding: 10px; border-radius: 8px;">
-            <button onclick="window.print();" style="padding: 8px 20px; background: #4f46e5; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; margin-right: 10px;">🖨 Print / Save as PDF</button>
-            <button onclick="window.close();" style="padding: 8px 16px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer;">✕ Close</button>
-          </div>
+          </tbody>
+        </table>
+      </div>
 
-          <div class="header-container">
-            <div style="display: flex; align-items: center; gap: 12px;">
-              <img src="${LOGO_URL}" alt="Logo" style="height: 42px;" onerror="this.style.display='none'" />
-              <div class="company-info">
-                <h2>Protowiz Private Limited</h2>
-                <p>Order Flow & Inventory Management System</p>
-              </div>
-            </div>
-            <div class="report-title-box">
-              <div class="report-title">${periodTitle}</div>
-              <div class="report-date">${dateRangeStr}</div>
-            </div>
-          </div>
+      <div>
+        <div class="section-title">Source of Enquiry Breakdown</div>
+        <table>
+          <thead>
+            <tr>
+              <th>Source / Mode</th>
+              <th class="text-center">Leads</th>
+              <th class="text-right">Total Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${Object.entries(sourceMap).length === 0 ? '<tr><td colspan="3" class="text-center">No source data</td></tr>' : 
+              Object.entries(sourceMap).map(([src, d]) => `
+                <tr>
+                  <td><strong>${src}</strong></td>
+                  <td class="text-center">${d.count}</td>
+                  <td class="text-right">₹${d.totalVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+                </tr>
+              `).join('')
+            }
+          </tbody>
+        </table>
+      </div>
+    </div>
 
-          <div class="kpi-grid">
-            <div class="kpi-card">
-              <div class="kpi-label">Total Enquiries</div>
-              <div class="kpi-value">${periodEnquiries.length}</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Invoices / Orders</div>
-              <div class="kpi-value">${periodBills.length}</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Total Revenue</div>
-              <div class="kpi-value" style="color: #16a34a;">₹${totalRevenue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</div>
-            </div>
-            <div class="kpi-card">
-              <div class="kpi-label">Conversion Rate</div>
-              <div class="kpi-value" style="color: #6366f1;">
-                ${periodEnquiries.length > 0 ? ((periodBills.length / periodEnquiries.length) * 100).toFixed(1) : 0}%
-              </div>
-            </div>
-          </div>
+    <div class="section-title">Top Products / Materials in This Period</div>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Product Name</th>
+          <th class="text-center">Total Quantity</th>
+          <th class="text-right">Total Amount (₹)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${topProducts.length === 0 ? '<tr><td colspan="4" class="text-center">No products recorded in this period</td></tr>' : 
+          topProducts.map(([name, data], idx) => `
+            <tr>
+              <td style="width: 30px;">${idx + 1}</td>
+              <td><strong>${name}</strong></td>
+              <td class="text-center">${data.qty}</td>
+              <td class="text-right font-bold">₹${data.totalVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
+            </tr>
+          `).join('')
+        }
+      </tbody>
+    </table>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-            <div>
-              <div class="section-title">Enquiry Status Breakdown</div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Status</th>
-                    <th class="text-center">Count</th>
-                    <th class="text-right">Total Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${Object.entries(statusMap).length === 0 ? '<tr><td colspan="3" class="text-center">No enquiries in this period</td></tr>' : 
-                    Object.entries(statusMap).map(([status, d]) => `
-                      <tr>
-                        <td><strong>${status}</strong></td>
-                        <td class="text-center">${d.count}</td>
-                        <td class="text-right">₹${d.totalVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                      </tr>
-                    `).join('')
-                  }
-                </tbody>
-              </table>
-            </div>
+    <div class="footer">
+      <div>Generated automatically by iBots Dashboard on ${new Date().toLocaleString('en-IN')}</div>
+      <div>Confidential & Proprietary - Protowiz Private Limited</div>
+    </div>
+  </body>
+</html>`;
 
-            <div>
-              <div class="section-title">Source of Enquiry Breakdown</div>
-              <table>
-                <thead>
-                  <tr>
-                    <th>Source / Mode</th>
-                    <th class="text-center">Leads</th>
-                    <th class="text-right">Total Value</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${Object.entries(sourceMap).length === 0 ? '<tr><td colspan="3" class="text-center">No source data</td></tr>' : 
-                    Object.entries(sourceMap).map(([src, d]) => `
-                      <tr>
-                        <td><strong>${src}</strong></td>
-                        <td class="text-center">${d.count}</td>
-                        <td class="text-right">₹${d.totalVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                      </tr>
-                    `).join('')
-                  }
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div class="section-title">Top Products / Materials in This Period</div>
-          <table>
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Product Name</th>
-                <th class="text-center">Total Quantity</th>
-                <th class="text-right">Total Amount (₹)</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${topProducts.length === 0 ? '<tr><td colspan="4" class="text-center">No products recorded in this period</td></tr>' : 
-                topProducts.map(([name, data], idx) => `
-                  <tr>
-                    <td style="width: 30px;">${idx + 1}</td>
-                    <td><strong>${name}</strong></td>
-                    <td class="text-center">${data.qty}</td>
-                    <td class="text-right font-bold">₹${data.totalVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}</td>
-                  </tr>
-                `).join('')
-              }
-            </tbody>
-          </table>
-
-          <div class="footer">
-            <div>Generated automatically by iBots Dashboard on ${new Date().toLocaleString('en-IN')}</div>
-            <div>Confidential & Proprietary - Protowiz Private Limited</div>
-          </div>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
+    // Open via isolated Blob URL with rel="noopener noreferrer"
+    // This detaches the report window from parent thread so print preview sidebar never blocks the dashboard
+    try {
+      const blob = new Blob([reportHtml], { type: "text/html;charset=utf-8" });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 120000);
+    } catch {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        try {
+          printWindow.opener = null;
+        } catch (_) {}
+        printWindow.document.open();
+        printWindow.document.write(reportHtml);
+        printWindow.document.close();
+      }
+    }
   };
 
   return (
@@ -754,9 +794,6 @@ const Reports: React.FC = () => {
             <Users className="text-purple-600 w-8 h-8" />
             Client & Business Reports
           </h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Automatic Daily, Weekly & Monthly PDF summaries, and complete client purchase history.
-          </p>
         </div>
 
         <div className="flex items-center gap-2.5 flex-wrap">
@@ -1202,8 +1239,16 @@ const Reports: React.FC = () => {
 
       {/* Client Detailed Drill-down Modal */}
       {selectedClient && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+        <div 
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-6 backdrop-blur-xs animate-fade-in overscroll-contain"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setSelectedClient(null);
+          }}
+        >
+          <div 
+            className="bg-white w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Modal Header */}
             <div className="px-6 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white flex justify-between items-center">
               <div className="flex items-center gap-3">
@@ -1291,7 +1336,7 @@ const Reports: React.FC = () => {
             </div>
 
             {/* Modal Content Body */}
-            <div className="p-6 overflow-y-auto flex-1 space-y-4">
+            <div className="p-6 overflow-y-auto overscroll-contain flex-1 space-y-4">
               {/* Tab 1: What All Purchased */}
               {activeModalTab === "products" && (
                 <div>
