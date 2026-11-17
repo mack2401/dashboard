@@ -1,5 +1,5 @@
 import { NavLink, useLocation, useNavigate } from "react-router-dom";
-import React, { useState } from "react"; 
+import React, { useState } from "react";
 import {
   LayoutDashboard,
   Calculator,
@@ -7,8 +7,8 @@ import {
   Users,
   UsersRound,
   LogOut,
-  Menu, 
-  X, 
+  Menu,
+  X,
   ListTodo,
   Package,
   ChevronDown,
@@ -21,7 +21,7 @@ import {
   ShoppingCart,
   Layers
 } from "lucide-react";
-import { useAuth } from "../App"; 
+import { useAuth } from "../App";
 
 interface SidebarProps {
   isCollapsed?: boolean;
@@ -33,10 +33,10 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
   const location = useLocation();
   const navigate = useNavigate();
   const [isOpen, setIsOpen] = useState(false);
-  const [isManagementOpen, setIsManagementOpen] = useState(() => 
+  const [isManagementOpen, setIsManagementOpen] = useState(() =>
     location.pathname.startsWith("/admin/manage-users") || location.pathname.startsWith("/manage-teams")
   );
-  const [isEnquiriesOpen, setIsEnquiriesOpen] = useState(() => 
+  const [isEnquiriesOpen, setIsEnquiriesOpen] = useState(() =>
     location.pathname.startsWith("/enquiries")
   );
 
@@ -51,15 +51,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
   ];
 
   const bottomNavItems = [
-    { name: "Bills", path:"/bills", icon:<Receipt size={20}/>},
+    { name: "Bills", path: "/bills", icon: <Receipt size={20} /> },
     { name: "PNL", path: "/pnl", icon: <TrendingUp size={20} /> },
-    { name: "Tasks", path:"/task", icon:<ListTodo size={20}/>},
+    { name: "Tasks", path: "/task", icon: <ListTodo size={20} /> },
     { name: "Dropped", path: "/dropped", icon: <Calculator size={20} /> },
-    { name: "Inventory", path:"/inventory", icon:<Package size={20}/>},
-    { name: "Training", path:"/training", icon:<GraduationCap size={20}/>},
-    { name: "Reports", path:"/reports", icon:<BarChart3 size={20}/>},
+    { name: "Inventory", path: "/inventory", icon: <Package size={20} /> },
+    { name: "Training", path: "/training", icon: <GraduationCap size={20} /> },
+    { name: "Reports", path: "/reports", icon: <BarChart3 size={20} /> },
   ];
-  
+
   const managementItems = [
     { name: "Manage Users", path: "/admin/manage-users", icon: <Users size={17} /> },
     { name: "Manage Teams", path: "/manage-teams", icon: <UsersRound size={17} /> },
@@ -97,8 +97,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
   return (
     <>
       {/* Mobile 3-Line Menu Button - Visible on small screens, hidden on md and up */}
-      <button 
-        onClick={() => setIsOpen(true)} 
+      <button
+        onClick={() => setIsOpen(true)}
         className="md:hidden fixed top-4 left-4 z-40 p-2 text-slate-700 bg-white/95 rounded-xl shadow-md border border-slate-200/90 backdrop-blur-xs hover:bg-slate-50 cursor-pointer"
         aria-label="Open menu"
       >
@@ -106,11 +106,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
       </button>
 
       {/* Modern Curved Sidebar matching reference image */}
-      <aside 
+      <aside
         className={`
           fixed top-0 bottom-0 left-0 z-40
-          bg-gradient-to-b from-[#111c43] via-[#141e48] to-[#0e1638]
-          rounded-r-[28px] shadow-xl shadow-[#111c43]/30
+          bg-gradient-to-b from-[#119ED0] via-[#087EBC] to-[#066597]
+          rounded-r-[28px] shadow-xl shadow-[#087EBC]/20
           transition-all duration-300 ease-in-out select-none
           flex flex-col justify-between py-3.5
           ${isCollapsed ? "overflow-visible w-[72px]" : "overflow-y-auto no-scrollbar w-[256px]"}
@@ -122,9 +122,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
           {!isCollapsed ? (
             <div className="flex items-center justify-between px-3.5 mb-3 shrink-0">
               <div className="flex items-center bg-white px-3 py-1.5 rounded-xl shadow-xs">
-                <img 
-                  src="/ibots-logo.png" 
-                  alt="iBots" 
+                <img
+                  src="/ibots-logo.png"
+                  alt="iBots"
                   className="h-6.5 w-auto max-w-[125px] object-contain"
                 />
               </div>
@@ -132,7 +132,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               <div className="flex items-center gap-1">
                 {/* Desktop Collapse Button */}
                 {onToggleCollapse && (
-                  <button 
+                  <button
                     onClick={onToggleCollapse}
                     className="hidden md:flex p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
                     title="Collapse sidebar"
@@ -143,8 +143,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 )}
 
                 {/* Mobile Close Button */}
-                <button 
-                  onClick={() => setIsOpen(false)} 
+                <button
+                  onClick={() => setIsOpen(false)}
                   className="md:hidden p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
                   aria-label="Close menu"
                 >
@@ -154,19 +154,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
             </div>
           ) : (
             <div className="flex flex-col items-center gap-2 mb-2.5 px-2 shrink-0">
-              <div 
-                onClick={onToggleCollapse} 
+              <div
+                onClick={onToggleCollapse}
                 className="w-10 h-10 bg-white rounded-xl shadow-xs p-1 flex items-center justify-center cursor-pointer hover:shadow-md hover:scale-105 transition-all"
                 title="Expand sidebar"
               >
-                <img 
-                  src="/ibots-logo.png" 
-                  alt="iBots" 
+                <img
+                  src="/ibots-logo.png"
+                  alt="iBots"
                   className="w-full h-full object-contain"
                 />
               </div>
               {onToggleCollapse && (
-                <button 
+                <button
                   onClick={onToggleCollapse}
                   className="hidden md:flex p-1.5 text-white/90 hover:text-white hover:bg-white/15 rounded-xl transition-colors cursor-pointer justify-center"
                   title="Expand sidebar"
@@ -188,12 +188,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 className={({ isActive }) => `
                   relative flex items-center transition-colors duration-150 group
                   ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3 rounded-l-[24px]"}
-                  ${
-                    isActive
-                      ? isCollapsed
-                        ? "bg-[#f0f1f7] text-[#845adf] font-bold shadow-xs"
-                        : "bg-[#f0f1f7] text-[#845adf] font-bold z-10"
-                      : "text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-xl"
+                  ${isActive
+                    ? isCollapsed
+                      ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs"
+                      : "bg-[#F4F8FB] text-[#087EBC] font-bold z-10"
+                    : "text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-xl"
                   }
                 `}
               >
@@ -203,16 +202,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                     {isActive && !isCollapsed && (
                       <>
                         {/* Top Inverted Curve */}
-                        <svg 
-                          className="absolute -top-5 right-0 w-5 h-5 pointer-events-none fill-[#f0f1f7]" 
+                        <svg
+                          className="absolute -top-5 right-0 w-5 h-5 pointer-events-none fill-[#F4F8FB]"
                           viewBox="0 0 20 20"
                         >
                           <path d="M 20 0 V 20 H 0 C 11.0457 20 20 11.0457 20 0 Z" />
                         </svg>
 
                         {/* Bottom Inverted Curve */}
-                        <svg 
-                          className="absolute -bottom-5 right-0 w-5 h-5 pointer-events-none fill-[#f0f1f7]" 
+                        <svg
+                          className="absolute -bottom-5 right-0 w-5 h-5 pointer-events-none fill-[#F4F8FB]"
                           viewBox="0 0 20 20"
                         >
                           <path d="M 20 20 V 0 H 0 C 11.0457 0 20 8.9543 20 20 Z" />
@@ -221,10 +220,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                     )}
 
                     {/* Icon */}
-                    <span 
-                      className={`shrink-0 transition-transform duration-200 ${
-                        isActive ? "text-[#845adf]" : "text-white group-hover:scale-110"
-                      }`}
+                    <span
+                      className={`shrink-0 transition-transform duration-200 ${isActive ? "text-[#087EBC]" : "text-white group-hover:scale-110"
+                        }`}
                     >
                       {item.icon}
                     </span>
@@ -238,9 +236,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
 
                     {/* Floating Tooltip (Collapsed Mode) */}
                     {isCollapsed && (
-                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#111c43] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#e9edf6]/30 flex items-center">
+                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#172B3A] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#DFE8EF]/30 flex items-center">
                         <span>{item.name}</span>
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#111c43]"></div>
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#172B3A]"></div>
                       </div>
                     )}
                   </>
@@ -252,12 +250,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
             <div className="flex flex-col">
               <button
                 onClick={handleEnquiriesClick}
-                className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium cursor-pointer group ${
-                  isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-3 rounded-l-xl"
-                } ${isEnquiriesActive && !isEnquiriesOpen ? (isCollapsed ? "bg-[#f0f1f7] text-[#845adf] font-bold shadow-xs" : "bg-white/15 text-white font-semibold") : ""}`}
+                className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium cursor-pointer group ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-3 rounded-l-xl"
+                  } ${isEnquiriesActive && !isEnquiriesOpen ? (isCollapsed ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs" : "bg-white/15 text-white font-semibold") : ""}`}
               >
                 <div className="flex items-center gap-3.5">
-                  <span className={`${isEnquiriesActive && isCollapsed ? "text-[#845adf]" : "text-white"} group-hover:scale-110 transition-transform`}>
+                  <span className={`${isEnquiriesActive && isCollapsed ? "text-[#087EBC]" : "text-white"} group-hover:scale-110 transition-transform`}>
                     <Calculator size={20} />
                   </span>
                   {!isCollapsed && <span className="text-sm font-semibold">Enquiries</span>}
@@ -265,9 +262,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 {!isCollapsed && (isEnquiriesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
 
                 {isCollapsed && (
-                  <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#111c43] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#e9edf6]/30 flex items-center">
+                  <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#172B3A] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#DFE8EF]/30 flex items-center">
                     <span>Enquiries</span>
-                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#111c43]"></div>
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#172B3A]"></div>
                   </div>
                 )}
               </button>
@@ -284,10 +281,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                       className={({ isActive }) => `
                         relative flex items-center transition-all duration-200 group
                         gap-2.5 px-3 py-2 rounded-l-xl text-xs font-medium
-                        ${
-                          isActive
-                            ? "bg-[#f0f1f7] text-[#845adf] font-bold shadow-xs"
-                            : "text-white/80 hover:text-white hover:bg-white/10"
+                        ${isActive
+                          ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs"
+                          : "text-white/80 hover:text-white hover:bg-white/10"
                         }
                       `}
                     >
@@ -307,12 +303,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 className={({ isActive }) => `
                   relative flex items-center transition-colors duration-150 group
                   ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3 rounded-l-[24px]"}
-                  ${
-                    isActive
-                      ? isCollapsed
-                        ? "bg-[#f0f1f7] text-[#845adf] font-bold shadow-xs"
-                        : "bg-[#f0f1f7] text-[#845adf] font-bold z-10"
-                      : "text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-xl"
+                  ${isActive
+                    ? isCollapsed
+                      ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs"
+                      : "bg-[#F4F8FB] text-[#087EBC] font-bold z-10"
+                    : "text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-xl"
                   }
                 `}
               >
@@ -322,16 +317,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                     {isActive && !isCollapsed && (
                       <>
                         {/* Top Inverted Curve */}
-                        <svg 
-                          className="absolute -top-5 right-0 w-5 h-5 pointer-events-none fill-[#f0f1f7]" 
+                        <svg
+                          className="absolute -top-5 right-0 w-5 h-5 pointer-events-none fill-[#F4F8FB]"
                           viewBox="0 0 20 20"
                         >
                           <path d="M 20 0 V 20 H 0 C 11.0457 20 20 11.0457 20 0 Z" />
                         </svg>
 
                         {/* Bottom Inverted Curve */}
-                        <svg 
-                          className="absolute -bottom-5 right-0 w-5 h-5 pointer-events-none fill-[#f0f1f7]" 
+                        <svg
+                          className="absolute -bottom-5 right-0 w-5 h-5 pointer-events-none fill-[#F4F8FB]"
                           viewBox="0 0 20 20"
                         >
                           <path d="M 20 20 V 0 H 0 C 11.0457 0 20 8.9543 20 20 Z" />
@@ -340,10 +335,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                     )}
 
                     {/* Icon */}
-                    <span 
-                      className={`shrink-0 transition-transform duration-200 ${
-                        isActive ? "text-[#845adf]" : "text-white group-hover:scale-110"
-                      }`}
+                    <span
+                      className={`shrink-0 transition-transform duration-200 ${isActive ? "text-[#087EBC]" : "text-white group-hover:scale-110"
+                        }`}
                     >
                       {item.icon}
                     </span>
@@ -357,9 +351,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
 
                     {/* Floating Tooltip (Collapsed Mode) */}
                     {isCollapsed && (
-                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#111c43] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#e9edf6]/30 flex items-center">
+                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#172B3A] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#DFE8EF]/30 flex items-center">
                         <span>{item.name}</span>
-                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#111c43]"></div>
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#172B3A]"></div>
                       </div>
                     )}
                   </>
@@ -372,12 +366,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               <div className="flex flex-col">
                 <button
                   onClick={handleManagementClick}
-                  className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium cursor-pointer group ${
-                    isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-3 rounded-l-xl"
-                  } ${isManagementActive && !isManagementOpen ? (isCollapsed ? "bg-[#f0f1f7] text-[#845adf] font-bold shadow-xs" : "bg-white/15 text-white font-semibold") : ""}`}
+                  className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium cursor-pointer group ${isCollapsed ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-xl" : "justify-between ml-3.5 pl-3.5 pr-3 py-3 rounded-l-xl"
+                    } ${isManagementActive && !isManagementOpen ? (isCollapsed ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs" : "bg-white/15 text-white font-semibold") : ""}`}
                 >
                   <div className="flex items-center gap-3.5">
-                    <span className={`${isManagementActive && isCollapsed ? "text-[#845adf]" : "text-white"} group-hover:scale-110 transition-transform`}>
+                    <span className={`${isManagementActive && isCollapsed ? "text-[#087EBC]" : "text-white"} group-hover:scale-110 transition-transform`}>
                       <Settings size={20} />
                     </span>
                     {!isCollapsed && <span className="text-sm font-semibold">Management</span>}
@@ -385,9 +378,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                   {!isCollapsed && (isManagementOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
 
                   {isCollapsed && (
-                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#111c43] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#e9edf6]/30 flex items-center">
+                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-[#172B3A] text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-[#DFE8EF]/30 flex items-center">
                       <span>Management</span>
-                      <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#111c43]"></div>
+                      <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#172B3A]"></div>
                     </div>
                   )}
                 </button>
@@ -403,10 +396,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                         className={({ isActive }) => `
                           relative flex items-center transition-all duration-200 group
                           gap-2.5 px-3 py-2 rounded-l-xl text-xs font-medium
-                          ${
-                            isActive
-                              ? "bg-[#f0f1f7] text-[#845adf] font-bold shadow-xs"
-                              : "text-white/80 hover:text-white hover:bg-white/10"
+                          ${isActive
+                            ? "bg-[#F4F8FB] text-[#087EBC] font-bold shadow-xs"
+                            : "text-white/80 hover:text-white hover:bg-white/10"
                           }
                         `}
                       >
@@ -428,9 +420,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               logout();
               handleNavClick(true);
             }}
-            className={`relative flex items-center transition-all duration-200 text-white hover:bg-rose-500/25 font-semibold cursor-pointer group ${
-              isCollapsed ? "w-10 h-10 mx-auto justify-center rounded-xl" : "w-full gap-3.5 px-3.5 py-3 rounded-xl"
-            }`}
+            className={`relative flex items-center transition-all duration-200 text-white hover:bg-rose-500/25 font-semibold cursor-pointer group ${isCollapsed ? "w-10 h-10 mx-auto justify-center rounded-xl" : "w-full gap-3.5 px-3.5 py-3 rounded-xl"
+              }`}
             title={isCollapsed ? "" : "Logout"}
           >
             <span className="shrink-0 group-hover:scale-110 transition-transform text-rose-200 group-hover:text-white">
@@ -449,8 +440,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
 
       {/* Mobile Backdrop Overlay */}
       {isOpen && (
-        <div 
-          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 md:hidden" 
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 md:hidden"
           onClick={() => setIsOpen(false)}
         ></div>
       )}

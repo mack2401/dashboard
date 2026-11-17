@@ -33,18 +33,18 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
 
-// Ynex Theme Palette matching Primary (#845adf), Cyan (#23b7e5), Green (#26bf94)
+// Navy & Lavender Palette: Primary (#7889F5), Secondary (#A5AEFF), Royal Navy (#293F70)
 const PIE_COLORS = [
-  "#845adf", // Primary Purple
-  "#23b7e5", // Cyan / Sky
-  "#26bf94", // Mint Green
-  "#f5b849", // Amber / Gold
-  "#e6533c", // Coral Red
-  "#49b6f5", // Light Blue
-  "#5b67c7", // Indigo
-  "#a55eea", // Lavender
-  "#111c43", // Deep Navy
-  "#8c9097", // Slate
+  "#7889F5", // Lavender – Primary
+  "#A5AEFF", // Soft Purple – Secondary
+  "#293F70", // Royal Navy – Active/Hover
+  "#1E315B", // Deep Navy – Sidebar
+  "#6272E5", // Deep Lavender
+  "#8E9BF7", // Muted Lavender
+  "#B7BEFB", // Soft Periwinkle
+  "#4E5ECB", // Royal Indigo
+  "#3C4962", // Slate Navy
+  "#78839A", // Secondary Text
 ];
 
 type TimeFilterMode = "yesterday" | "today" | "past";
@@ -570,8 +570,8 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* PART 1 (LEFT, 7 COLS): Total Sales & Components + Qty sold */}
           <div className="lg:col-span-7 flex flex-col space-y-4">
-            {/* Period Total Sales Highlight Card - Ynex Purple Theme */}
-            <div className="bg-gradient-to-br from-[#845adf] via-[#7348cf] to-[#6c5ffc] rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
+            {/* Period Total Sales Highlight Card - Navy & Lavender Theme */}
+            <div className="bg-gradient-to-br from-[#7889F5] via-[#6272E5] to-[#293F70] rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
               <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -863,17 +863,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/bills")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#845adf] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#7889F5] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#845adf] group-hover:bg-[#845adf] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#7889F5] group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Receipt className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#845adf] transition-colors">
+              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#7889F5] transition-colors">
                 Billing
               </h3>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#845adf] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -884,17 +884,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/enquiries")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#845adf] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#7889F5] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#845adf] group-hover:bg-[#845adf] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#7889F5] group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Calculator className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#845adf] transition-colors">
+              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#7889F5] transition-colors">
                 Enquiry
               </h3>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#845adf] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>

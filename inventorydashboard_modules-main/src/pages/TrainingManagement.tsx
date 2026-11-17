@@ -398,7 +398,7 @@ const TrainingManagement: React.FC = () => {
         {/* Header */}
         <div className="bg-white rounded-2xl shadow-lg p-6 mb-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-[#845adf] via-[#7348cf] to-[#6035b8] bg-clip-text text-transparent mb-4 md:mb-0">
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70] bg-clip-text text-transparent mb-4 md:mb-0">
               Training Management System
             </h1>
             <button
@@ -407,7 +407,7 @@ const TrainingManagement: React.FC = () => {
                 setEditingId(null);
                 setShowForm(true);
               }}
-              className="px-6 py-3 bg-gradient-to-r from-[#845adf] via-[#7348cf] to-[#6035b8] text-white rounded-xl hover:from-[#7348cf] hover:to-[#6035b8] transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
+              className="px-6 py-3 bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70] text-white rounded-xl hover:from-[#6272E5] hover:to-[#293F70] transition-all transform hover:scale-105 shadow-lg flex items-center gap-2"
             >
               <span className="text-lg">+</span> Add New Training
             </button>
@@ -616,7 +616,7 @@ const TrainingManagement: React.FC = () => {
                             setPaymentData(training.payment || {});
                             setShowPaymentForm(true);
                           }}
-                          className="p-2 text-[#845adf] hover:bg-blue-50 rounded-lg transition-colors"
+                          className="p-2 text-[#7889F5] hover:bg-blue-50 rounded-lg transition-colors"
                           title="Payment"
                         >
                           <CreditCard className="w-5 h-5" />
@@ -705,7 +705,7 @@ const TrainingManagement: React.FC = () => {
         {showForm && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-gradient-to-r from-[#845adf] via-[#7348cf] to-[#6035b8] text-white p-6 rounded-t-2xl">
+              <div className="sticky top-0 bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70] text-white p-6 rounded-t-2xl">
                 <h2 className="text-2xl font-bold">{editingId ? 'Edit' : 'Add'} Training</h2>
               </div>
               
@@ -1080,7 +1080,7 @@ const TrainingManagement: React.FC = () => {
                 <div className="flex gap-4 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-[#845adf] via-[#7348cf] to-[#6035b8] text-white rounded-xl hover:from-[#7348cf] hover:to-[#6035b8] transition-all font-semibold"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70] text-white rounded-xl hover:from-[#6272E5] hover:to-[#293F70] transition-all font-semibold"
                   >
                     {editingId ? 'Update' : 'Save'} Training
                   </button>
@@ -1105,7 +1105,7 @@ const TrainingManagement: React.FC = () => {
         {showPaymentForm && selectedTraining && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full">
-              <div className="sticky top-0 bg-gradient-to-r from-[#845adf] via-[#7348cf] to-[#6035b8] text-white p-6 rounded-t-2xl">
+              <div className="sticky top-0 bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70] text-white p-6 rounded-t-2xl">
                 <h2 className="text-2xl font-bold">Payment Details - {selectedTraining.name}</h2>
               </div>
               
@@ -1117,7 +1117,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.preferredCourse || selectedTraining.course}
                       onChange={(e) => setPaymentData({...paymentData, preferredCourse: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     >
                       <option value="">Select Course</option>
                       <option value="Electronics">Electronics</option>
@@ -1138,7 +1138,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.courseFees || ''}
                       onChange={(e) => setPaymentData({...paymentData, courseFees: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     />
                   </div>
                   <div>
@@ -1147,7 +1147,7 @@ const TrainingManagement: React.FC = () => {
                       type="text"
                       value={paymentData.discount || ''}
                       onChange={(e) => setPaymentData({...paymentData, discount: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     />
                   </div>
                   <div>
@@ -1156,7 +1156,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.batchTiming}
                       onChange={(e) => setPaymentData({...paymentData, batchTiming: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     >
                       <option value="10AM-12PM">10AM - 12PM</option>
                       <option value="12PM-2PM">12PM - 2PM</option>
@@ -1172,7 +1172,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.startDate ? new Date(paymentData.startDate).toISOString().split('T')[0] : ''}
                       onChange={(e) => setPaymentData({...paymentData, startDate: new Date(e.target.value)})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     />
                   </div>
                   <div>
@@ -1181,7 +1181,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.paymentStatus}
                       onChange={(e) => setPaymentData({...paymentData, paymentStatus: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     >
                       <option value="Pending">Pending</option>
                       <option value="Paid">Paid</option>
@@ -1194,7 +1194,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.paidAmount || ''}
                       onChange={(e) => setPaymentData({...paymentData, paidAmount: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     />
                   </div>
                   <div>
@@ -1203,7 +1203,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.paymentMode}
                       onChange={(e) => setPaymentData({...paymentData, paymentMode: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     >
                       <option value="Cash">Cash</option>
                       <option value="UPI">UPI</option>
@@ -1217,7 +1217,7 @@ const TrainingManagement: React.FC = () => {
                       required
                       value={paymentData.paymentDate ? new Date(paymentData.paymentDate).toISOString().split('T')[0] : ''}
                       onChange={(e) => setPaymentData({...paymentData, paymentDate: new Date(e.target.value)})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#845adf]"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#7889F5]"
                     />
                   </div>
                 </div>
@@ -1225,7 +1225,7 @@ const TrainingManagement: React.FC = () => {
                 <div className="flex gap-4 pt-4">
                   <button
                     type="submit"
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-[#845adf] via-[#7348cf] to-[#6035b8] text-white rounded-xl hover:from-[#7348cf] hover:to-[#6035b8] transition-all font-semibold"
+                    className="flex-1 px-6 py-3 bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70] text-white rounded-xl hover:from-[#6272E5] hover:to-[#293F70] transition-all font-semibold"
                   >
                     Save Payment
                   </button>
@@ -1249,7 +1249,7 @@ const TrainingManagement: React.FC = () => {
         {showDetails && selectedTraining && (
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="sticky top-0 bg-gradient-to-r from-[#845adf] via-[#7348cf] to-[#6035b8] text-white p-6 rounded-t-2xl flex justify-between items-center">
+              <div className="sticky top-0 bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70] text-white p-6 rounded-t-2xl flex justify-between items-center">
                 <h2 className="text-2xl font-bold">Training Details - {selectedTraining.enqId}</h2>
                 <button
                   onClick={() => setShowDetails(false)}
