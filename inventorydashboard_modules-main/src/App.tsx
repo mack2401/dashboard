@@ -35,7 +35,15 @@ type AppUser = {
   employeeLoaded?: boolean;      // true if employee doc existed and was read
 };
 
-const AuthContext = createContext<any>(null);
+const defaultAuthContext: any = {
+  user: null,
+  loading: true,
+  login: async () => {},
+  logout: async () => {},
+  refreshEmployeeDoc: async () => {},
+};
+
+const AuthContext = createContext<any>(defaultAuthContext);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
@@ -120,7 +128,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => useContext(AuthContext) || defaultAuthContext;
 
 export default function App() {
   return (
