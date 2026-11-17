@@ -107,16 +107,16 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
         <Menu size={22} />
       </button>
 
-      {/* Modern Curved Sidebar matching reference image */}
+      {/* Attached Square Sidebar */}
       <aside 
         className={`
-          fixed top-3 bottom-3 left-3 z-40
+          fixed top-0 bottom-0 left-0 z-40 h-screen
           bg-gradient-to-b from-[#1E315B] via-[#213562] to-[#192A4E]
-          rounded-[28px] shadow-xl shadow-[#1E315B]/30
+          border-r border-[#293F70] shadow-md
           transition-all duration-300 ease-in-out select-none
           flex flex-col justify-between py-3
           ${isCollapsed ? "overflow-visible w-[72px]" : "overflow-y-auto no-scrollbar w-[256px]"}
-          ${isOpen ? "translate-x-0" : "-translate-x-[120%] md:translate-x-0"}
+          ${isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
         `}
       >
         <div className="flex flex-col flex-1 min-h-0">
