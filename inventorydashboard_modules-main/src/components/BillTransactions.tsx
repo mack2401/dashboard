@@ -81,6 +81,7 @@ interface BillTransaction extends Bill {
   enquiryEnqId?: string;
   gstin?: string;
   isGST?: boolean;
+  billType?: "B2B" | "B2C";
   companyName?: string;
   enquiryStatus?: string;
   placeOfSupply?: string;
@@ -195,7 +196,7 @@ const BillTransactions: React.FC = () => {
   const savedSearchTermRef = useRef<string>("");
 
   // Dynamic filter state variables
-  const [billTypeFilter, setBillTypeFilter] = useState<"all" | "gst" | "gst_cgst_sgst" | "gst_igst" | "non_gst">("all");
+  const [billTypeFilter, setBillTypeFilter] = useState<"all" | "b2b" | "b2c">("all");
   const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "approved" | "quotation" | "dropped">("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
   const [startDate, setStartDate] = useState<string>("");
@@ -587,6 +588,29 @@ const BillTransactions: React.FC = () => {
         const companyName = bill.billedTo?.name || enquiryData?.companyDetails?.companyName || "";
         const placeOfSupply = bill.placeOfSupply || bill.billedTo?.state || enquiryData?.state || "Tamil Nadu";
 
+        // Determine B2B vs B2C
+        const rawType = String(
+          (bill as any).clientType ||
+          (bill as any).type ||
+          (bill as any).billType ||
+          (bill as any).customerType ||
+          enquiryData?.type ||
+          ""
+        ).toUpperCase().trim();
+
+        let billType: "B2B" | "B2C" = "B2C";
+        if (rawType.includes("B2B")) {
+          billType = "B2B";
+        } else if (rawType.includes("B2C")) {
+          billType = "B2C";
+        } else if (gstin && gstin.length > 0 && gstin.toLowerCase() !== "urp" && gstin.toLowerCase() !== "n/a") {
+          billType = "B2B";
+        } else if (isGST) {
+          billType = "B2B";
+        } else {
+          billType = "B2C";
+        }
+
         // Safely parse bill items if stored as JSON string
         let billItems = bill.items;
         if (typeof billItems === "string") {
@@ -663,6 +687,7 @@ const BillTransactions: React.FC = () => {
           enquiryEnqId: bill.enquiryEnqId,
           gstin,
           isGST,
+          billType,
           companyName,
           enquiryStatus: productStatus,
           placeOfSupply,
@@ -725,27 +750,11 @@ const BillTransactions: React.FC = () => {
       );
     }
 
-    // 2. Bill Type Filter (GST vs Non-GST)
-    if (billTypeFilter === "gst") {
-      filtered = filtered.filter((b) => b.isGST);
-    } else if (billTypeFilter === "gst_cgst_sgst") {
-      filtered = filtered.filter(
-        (b) =>
-          b.isGST &&
-          (b.taxType === "cgst_sgst" ||
-            (b.placeOfSupply && b.placeOfSupply.toLowerCase().includes("tamil nadu")) ||
-            (!b.taxType && !b.igst))
-      );
-    } else if (billTypeFilter === "gst_igst") {
-      filtered = filtered.filter(
-        (b) =>
-          b.isGST &&
-          (b.taxType === "igst" ||
-            (b.igst && b.igst > 0) ||
-            (b.placeOfSupply && !b.placeOfSupply.toLowerCase().includes("tamil nadu")))
-      );
-    } else if (billTypeFilter === "non_gst") {
-      filtered = filtered.filter((b) => !b.isGST);
+    // 2. Bill Type Filter (B2B vs B2C)
+    if (billTypeFilter === "b2b" || (billTypeFilter as string) === "gst") {
+      filtered = filtered.filter((b) => b.billType === "B2B");
+    } else if (billTypeFilter === "b2c" || (billTypeFilter as string) === "non_gst") {
+      filtered = filtered.filter((b) => b.billType === "B2C");
     }
 
     // 3. Order Status Filter (All, Approved/Paid, Quotation, Dropped)
@@ -2028,7 +2037,7 @@ const BillTransactions: React.FC = () => {
       const igst = Number(bill.igst || 0).toFixed(2);
       const shipping = Number(bill.shippingCharges || 0).toFixed(2);
       const total = Number(bill.totalAmount || 0).toFixed(2);
-      const billTypeStr = bill.isGST ? "GST (B2B)" : "Non-GST (B2C)";
+      const billTypeStr = bill.billType || (bill.isGST ? "B2B" : "B2C");
       const taxTypeStr =
         bill.taxType === "cgst_sgst"
           ? "CGST + SGST"
@@ -2069,8 +2078,8 @@ const BillTransactions: React.FC = () => {
     link.setAttribute("href", encodedUri);
 
     let filePrefix = "bills";
-    if (billTypeFilter === "gst") filePrefix = "GST_B2B_bills";
-    else if (billTypeFilter === "non_gst") filePrefix = "Non_GST_B2C_bills";
+    if (billTypeFilter === "b2b") filePrefix = "B2B_bills";
+    else if (billTypeFilter === "b2c") filePrefix = "B2C_bills";
     if (orderStatusFilter !== "all") filePrefix += `_${orderStatusFilter}`;
     if (monthFilter !== "all" && monthFilter !== "custom") filePrefix += `_${monthFilter}`;
 
@@ -2401,10 +2410,8 @@ const BillTransactions: React.FC = () => {
                 className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="all">All Types</option>
-                <option value="gst">GST (B2B) - All</option>
-                <option value="gst_cgst_sgst">&nbsp;&nbsp;↳ GST (B2B) - CGST + SGST</option>
-                <option value="gst_igst">&nbsp;&nbsp;↳ GST (B2B) - IGST</option>
-                <option value="non_gst">Non-GST (B2C)</option>
+                <option value="b2b">B2B</option>
+                <option value="b2c">B2C</option>
               </select>
             </div>
 
@@ -2557,15 +2564,24 @@ const BillTransactions: React.FC = () => {
                       <div className="text-xs font-semibold text-gray-900 truncate" title={bill.customerName}>
                         {bill.customerName}
                       </div>
-                      {bill.gstin ? (
-                        <div className="text-[10px] font-mono text-purple-700 bg-purple-50 px-1 py-0.5 rounded border border-purple-200 truncate max-w-[115px] mt-0.5" title={`GSTIN: ${bill.gstin}`}>
-                          GST: {bill.gstin}
-                        </div>
-                      ) : bill.customerCity ? (
-                        <div className="text-[10px] text-gray-400 truncate mt-0.5" title={bill.customerCity}>
-                          {bill.customerCity}
-                        </div>
-                      ) : null}
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold border ${
+                          bill.billType === "B2B"
+                            ? "bg-purple-50 text-purple-700 border-purple-200"
+                            : "bg-blue-50 text-blue-700 border-blue-200"
+                        }`}>
+                          {bill.billType || "B2C"}
+                        </span>
+                        {bill.gstin ? (
+                          <div className="text-[10px] font-mono text-purple-700 bg-purple-50 px-1 py-0.5 rounded border border-purple-200 truncate max-w-[90px]" title={`GSTIN: ${bill.gstin}`}>
+                            GST: {bill.gstin}
+                          </div>
+                        ) : bill.customerCity ? (
+                          <div className="text-[10px] text-gray-400 truncate max-w-[90px]" title={bill.customerCity}>
+                            {bill.customerCity}
+                          </div>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="px-2 py-2.5 whitespace-nowrap text-xs text-gray-600 font-mono">
                       {formatContactNumber(bill.customerContact)}
