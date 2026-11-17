@@ -1055,24 +1055,24 @@ const Reports: React.FC = () => {
       <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
 
       {/* Filter and Search Bar */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 space-y-3">
+      <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4 space-y-3">
         <div className="flex flex-col md:flex-row gap-3 items-center justify-between">
           {/* Search Input */}
           <div className="relative w-full md:w-96">
-            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-3.5 h-3.5" />
             <input
               type="text"
               placeholder="Search by client name, mobile, email, city, or product..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 focus:bg-white"
+              className="w-full pl-9 pr-8 py-2 bg-white border border-gray-200 rounded-xl text-xs focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-xs transition-all"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm("")}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </div>
@@ -1080,41 +1080,49 @@ const Reports: React.FC = () => {
           {/* Filters & Sorting */}
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
             {/* Date Preset Filter */}
-            <div className="flex items-center gap-1 bg-gray-100 p-1 rounded-lg text-xs font-medium text-gray-600">
+            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200/80 text-xs font-medium text-gray-600">
               <button
                 onClick={() => setDateFilter("all")}
-                className={`px-2.5 py-1.5 rounded-md transition-colors ${dateFilter === "all" ? "bg-white text-purple-700 shadow-xs" : "hover:text-gray-900"}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  dateFilter === "all" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
                 All Time
               </button>
               <button
                 onClick={() => setDateFilter("this_month")}
-                className={`px-2.5 py-1.5 rounded-md transition-colors ${dateFilter === "this_month" ? "bg-white text-purple-700 shadow-xs" : "hover:text-gray-900"}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  dateFilter === "this_month" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
                 This Month
               </button>
               <button
                 onClick={() => setDateFilter("last_30_days")}
-                className={`px-2.5 py-1.5 rounded-md transition-colors ${dateFilter === "last_30_days" ? "bg-white text-purple-700 shadow-xs" : "hover:text-gray-900"}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  dateFilter === "last_30_days" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
                 Last 30 Days
               </button>
               <button
                 onClick={() => setDateFilter("custom")}
-                className={`px-2.5 py-1.5 rounded-md transition-colors ${dateFilter === "custom" ? "bg-white text-purple-700 shadow-xs" : "hover:text-gray-900"}`}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                  dateFilter === "custom" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                }`}
               >
                 Custom
               </button>
             </div>
 
             {/* Sort Dropdown */}
-            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-700">
+            <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-700 shadow-xs">
               <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
               <span>Sort:</span>
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent border-none text-xs focus:ring-0 cursor-pointer font-semibold text-purple-700"
+                className="bg-transparent border-none text-xs focus:ring-0 cursor-pointer font-bold text-gray-800"
               >
                 <option value="spent">Highest Spend</option>
                 <option value="orders">Most Orders</option>
@@ -1123,7 +1131,7 @@ const Reports: React.FC = () => {
               </select>
               <button
                 onClick={() => setSortOrder(sortOrder === "asc" ? "desc" : "asc")}
-                className="ml-1 p-1 hover:bg-gray-200 rounded text-gray-500"
+                className="ml-1 p-1 hover:bg-gray-100 rounded text-gray-500 cursor-pointer"
                 title={`Sort ${sortOrder === "asc" ? "Descending" : "Ascending"}`}
               >
                 {sortOrder === "asc" ? "▲" : "▼"}
@@ -1134,48 +1142,42 @@ const Reports: React.FC = () => {
 
         {/* Custom Date Range Row */}
         {dateFilter === "custom" && (
-          <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-gray-100 text-xs">
+          <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100 text-xs">
             <span className="text-gray-500 font-medium">From:</span>
             <input
               type="date"
               value={customStartDate}
               onChange={(e) => setCustomStartDate(e.target.value)}
-              className="px-2.5 py-1.5 border border-gray-200 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
             />
             <span className="text-gray-500 font-medium">To:</span>
             <input
               type="date"
               value={customEndDate}
               onChange={(e) => setCustomEndDate(e.target.value)}
-              className="px-2.5 py-1.5 border border-gray-200 rounded-md bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-purple-500"
+              className="px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
             />
           </div>
         )}
       </div>
 
       {/* Client Summary Table */}
-      <div className="bg-white rounded-2xl shadow-xs border border-purple-200/90 overflow-hidden">
-        <div className="px-6 py-4.5 border-b border-purple-100 flex flex-wrap justify-between items-center bg-gradient-to-r from-purple-100/70 via-indigo-50/50 to-white">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-purple-600 text-white flex items-center justify-center shadow-xs shrink-0">
-              <Users className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2.5">
-                <h2 className="text-xl font-black text-purple-950 tracking-tight">
-                  Client Purchase Summary
-                </h2>
-                <span className="px-2.5 py-0.5 bg-purple-200/80 text-purple-900 font-bold text-xs rounded-full border border-purple-300 shadow-2xs">
-                  {filteredAndSortedClients.length} Clients
-                </span>
-              </div>
-            </div>
+      <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 overflow-hidden">
+        <div className="p-4 sm:p-5 border-b border-gray-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white">
+          <div className="flex items-center gap-2.5">
+            <span className="w-2.5 h-6 bg-blue-600 rounded-full inline-block"></span>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">
+              Client Purchase Summary
+            </h2>
+            <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200/80">
+              {filteredAndSortedClients.length} clients
+            </span>
           </div>
         </div>
 
         {loading ? (
           <div className="p-12 text-center text-gray-500">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600 mx-auto mb-3"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-3"></div>
             <p className="text-sm">Loading client purchase records...</p>
           </div>
         ) : filteredAndSortedClients.length === 0 ? (
@@ -1186,40 +1188,52 @@ const Reports: React.FC = () => {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-              <thead>
-                <tr className="bg-slate-100/90 text-slate-800 text-xs font-black uppercase tracking-wider border-b-2 border-purple-200">
-                  <th className="px-5 py-3.5 border-r border-slate-200/90 bg-slate-100">Client & Contact</th>
-                  <th className="px-4 py-3.5 text-center border-r border-slate-200/90 bg-purple-100/60 text-purple-950">Orders Count</th>
-                  <th className="px-5 py-3.5 text-right border-r border-slate-200/90 bg-emerald-100/60 text-emerald-950">Total Spent</th>
-                  <th className="px-5 py-3.5 border-r border-slate-200/90 bg-slate-100">What All Purchased</th>
-                  <th className="px-4 py-3.5 text-center border-r border-slate-200/90 bg-indigo-100/60 text-indigo-950">Payment Mode</th>
-                  <th className="px-4 py-3.5 text-center border-r border-slate-200/90 bg-slate-100">Last Order</th>
-                  <th className="px-4 py-3.5 text-center bg-purple-100/50 text-purple-950">Action</th>
+            <table className="w-full text-xs">
+              <thead className="bg-gray-50/90 border-b border-gray-200/90">
+                <tr>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Client Name
+                  </th>
+                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Orders
+                  </th>
+                  <th className="px-4 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Total Spent
+                  </th>
+                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Purchased Items
+                  </th>
+                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Payment Mode
+                  </th>
+                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                    Last Order
+                  </th>
+                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap w-16">
+                    Action
+                  </th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-sm">
-                {filteredAndSortedClients.map((client, idx) => (
+              <tbody className="bg-white divide-y divide-gray-100">
+                {filteredAndSortedClients.map((client) => (
                   <tr
                     key={client.key}
-                    className={`hover:bg-purple-50/60 transition-colors cursor-pointer ${
-                      idx % 2 === 0 ? "bg-white" : "bg-slate-50/40"
-                    }`}
+                    className="hover:bg-gray-50/80 transition-colors cursor-pointer"
                     onClick={() => {
                       setSelectedClient(client);
                       setActiveModalTab("products");
                     }}
                   >
                     {/* Client & Contact */}
-                    <td className="px-5 py-4 border-r border-gray-100">
+                    <td className="px-4 py-3 whitespace-nowrap">
                       <div>
-                        <div className="font-bold text-gray-900 flex items-center gap-1.5 text-sm">
+                        <div className="font-semibold text-gray-900 text-xs flex items-center gap-1.5">
                           {client.customerName}
                           {client.companyName && (
-                            <span className="text-xs font-semibold text-gray-500">({client.companyName})</span>
+                            <span className="text-[11px] font-normal text-gray-500">({client.companyName})</span>
                           )}
                         </div>
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 mt-1">
+                        <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
                           {client.contactNumber && (
                             <span className="flex items-center gap-1">
                               <Phone className="w-3 h-3 text-gray-400" />
@@ -1243,73 +1257,71 @@ const Reports: React.FC = () => {
                     </td>
 
                     {/* Orders Count */}
-                    <td className="px-4 py-4 text-center border-r border-gray-100 bg-purple-50/30">
-                      <span className="inline-flex items-center justify-center px-3 py-1 bg-purple-100 text-purple-800 font-black rounded-full text-xs border border-purple-200 shadow-2xs">
-                        {client.purchaseCount} order{client.purchaseCount === 1 ? "" : "s"}
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                        {client.purchaseCount} {client.purchaseCount === 1 ? 'order' : 'orders'}
                       </span>
                     </td>
 
                     {/* Total Spent */}
-                    <td className="px-5 py-4 text-right border-r border-gray-100 bg-emerald-50/30">
-                      <div className="font-black text-gray-900 text-sm tabular-nums">
+                    <td className="px-4 py-3 whitespace-nowrap text-right">
+                      <div className="font-bold text-gray-900 font-mono text-xs tabular-nums">
                         ₹{client.totalSpent.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
                       {client.purchaseCount > 0 && (
-                        <div className="text-[11px] font-semibold text-gray-400 mt-0.5">
+                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">
                           Avg: ₹{(client.totalSpent / client.purchaseCount).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                         </div>
                       )}
                     </td>
 
                     {/* What All Purchased */}
-                    <td className="px-5 py-4 border-r border-gray-100">
+                    <td className="px-4 py-3 max-w-xs">
                       {client.purchasedProducts.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5 max-w-md">
-                          {client.purchasedProducts.slice(0, 3).map((p, pIdx) => (
+                        <div className="flex flex-wrap gap-1">
+                          {client.purchasedProducts.slice(0, 2).map((p, pIdx) => (
                             <span
                               key={pIdx}
-                              className="inline-flex items-center gap-1 px-2 py-0.5 bg-gray-100 text-gray-800 font-semibold rounded text-xs border border-gray-200/70"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium max-w-[130px] truncate"
                               title={`${p.productName} - Qty: ${p.totalQuantity} (₹${p.totalAmount.toFixed(0)})`}
                             >
-                              <Package className="w-3 h-3 text-gray-400 shrink-0" />
-                              <span className="truncate max-w-[130px]">{p.productName}</span>
-                              <span className="text-purple-700 font-black">x{p.totalQuantity}</span>
+                              <span className="truncate">{p.productName}</span>
+                              <span className="text-blue-600 font-bold">x{p.totalQuantity}</span>
                             </span>
                           ))}
-                          {client.purchasedProducts.length > 3 && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 bg-purple-100 text-purple-700 font-bold rounded text-xs">
-                              +{client.purchasedProducts.length - 3} more
+                          {client.purchasedProducts.length > 2 && (
+                            <span className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 text-gray-600 font-semibold rounded text-[10px]">
+                              +{client.purchasedProducts.length - 2}
                             </span>
                           )}
                         </div>
                       ) : (
-                        <span className="text-xs text-gray-400 italic">No products recorded</span>
+                        <span className="text-gray-400 text-xs">-</span>
                       )}
                     </td>
 
                     {/* Primary Payment Mode */}
-                    <td className="px-4 py-4 text-center border-r border-gray-100 bg-indigo-50/30">
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
                       {client.primaryPaymentMode && client.primaryPaymentMode !== "N/A" ? (
-                        <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold ${
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${
                           client.primaryPaymentMode === "GPay"
-                            ? "bg-blue-100 text-blue-800 border border-blue-200"
+                            ? "bg-blue-50 text-blue-700 border-blue-200"
                             : client.primaryPaymentMode === "Cash"
-                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                            : "bg-indigo-100 text-indigo-800 border border-indigo-200"
+                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                            : "bg-indigo-50 text-indigo-700 border-indigo-200"
                         }`}>
-                          <CreditCard className="w-3 h-3" />
                           {client.primaryPaymentMode}
                         </span>
                       ) : (
-                        <span className="text-xs text-gray-400">-</span>
+                        <span className="text-gray-400 text-xs">-</span>
                       )}
                     </td>
 
                     {/* Last Order Date */}
-                    <td className="px-4 py-4 text-center text-xs text-gray-600 border-r border-gray-100">
+                    <td className="px-3 py-3 whitespace-nowrap text-center text-xs text-gray-600 font-medium">
                       {client.lastOrderDate ? (
                         <div>
-                          <div className="font-bold text-gray-800">{client.lastOrderDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                          <div>{client.lastOrderDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
                           <div className="text-[10px] text-gray-400">{client.lastOrderDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
                         </div>
                       ) : (
@@ -1318,16 +1330,16 @@ const Reports: React.FC = () => {
                     </td>
 
                     {/* Action Button */}
-                    <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                    <td className="px-3 py-3 whitespace-nowrap text-center w-16" onClick={(e) => e.stopPropagation()}>
                       <button
                         onClick={() => {
                           setSelectedClient(client);
                           setActiveModalTab("products");
                         }}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold shadow-2xs transition-colors cursor-pointer"
+                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition inline-flex items-center justify-center"
+                        title="View Details"
                       >
-                        <Eye className="w-3.5 h-3.5" />
-                        Details
+                        <Eye className="w-4 h-4" />
                       </button>
                     </td>
                   </tr>
