@@ -48,6 +48,7 @@ import {
   Layers,
   Lock,
   ShoppingBag,
+  Package,
 } from "lucide-react";
 
 interface MaterialItem {
@@ -2886,136 +2887,205 @@ const BillTransactions: React.FC = () => {
     </div>
   </div>
 
-      {/* Bill Details Modal */}
+      {/* Modern Bill Details Modal */}
       {selectedBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 overflow-y-auto">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl max-h-[90vh] overflow-y-auto my-8">
-            <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
-              <h3 className="text-xl font-bold">Bill Details</h3>
-              <button onClick={() => setSelectedBill(null)} className="text-gray-500 hover:text-gray-700">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500">Invoice Number</p>
-                  <p className="font-semibold">{selectedBill.invoiceNumber}</p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden my-6 animate-fade-in flex flex-col border border-gray-100">
+            {/* Modal Header */}
+            <div className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur-xs border-b border-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                  <FileText className="w-5 h-5" />
                 </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500">Enquiry ID</p>
-                  <p className="font-semibold text-blue-600">{selectedBill.enquiryEnqId || "N/A"}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500">Bill Type</p>
-                  <p className="font-semibold">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-gray-900">Bill Details</h3>
+                    <span className="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2.5 py-0.5 rounded-full border border-gray-200">
+                      {selectedBill.invoiceNumber}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
                       selectedBill.billType === "B2B"
                         ? "bg-purple-100 text-purple-800 border border-purple-200"
                         : "bg-blue-100 text-blue-800 border border-blue-200"
                     }`}>
                       {selectedBill.billType || "B2C"}
                     </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Customer: <span className="font-semibold text-gray-800">{selectedBill.customerName}</span>
+                    {selectedBill.enquiryEnqId && (
+                      <> &nbsp;|&nbsp; Enquiry ID: <span className="font-mono text-blue-600 font-semibold">{selectedBill.enquiryEnqId}</span></>
+                    )}
                   </p>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500">Date</p>
-                  <p className="font-semibold">{getBillDate(selectedBill)?.toLocaleDateString('en-IN') || "N/A"}</p>
+              </div>
+              <button
+                onClick={() => setSelectedBill(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200/50 transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body (Scrollable) */}
+            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              {/* Info Cards Grid */}
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Invoice Number</p>
+                  <p className="text-xs font-bold text-gray-900 font-mono truncate">{selectedBill.invoiceNumber}</p>
                 </div>
-                <div className="bg-gray-50 p-3 rounded-lg">
-                  <p className="text-xs text-gray-500">Total Amount</p>
-                  <p className="font-semibold text-green-600">₹{selectedBill.totalAmount?.toFixed(2)}</p>
+                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Enquiry ID</p>
+                  <p className="text-xs font-bold font-mono text-blue-600 truncate">{selectedBill.enquiryEnqId || "N/A"}</p>
+                </div>
+                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Bill Type</p>
+                  <div className="mt-0.5">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                      selectedBill.billType === "B2B"
+                        ? "bg-purple-100 text-purple-800 border border-purple-200"
+                        : "bg-blue-100 text-blue-800 border border-blue-200"
+                    }`}>
+                      {selectedBill.billType || "B2C"}
+                    </span>
+                  </div>
+                </div>
+                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Date</p>
+                  <p className="text-xs font-semibold text-gray-800">{getBillDate(selectedBill)?.toLocaleDateString('en-IN') || "N/A"}</p>
+                </div>
+                <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Amount</p>
+                  <p className="text-sm font-bold text-emerald-700">₹{selectedBill.totalAmount?.toFixed(2)}</p>
                 </div>
               </div>
 
-              <div className={`mb-6 p-4 rounded-lg ${
-                selectedBill.paymentStatus === "completed" ? "bg-green-50 border border-green-200" : 
-                "bg-yellow-50 border border-yellow-200"
+              {/* Payment Status Card */}
+              <div className={`p-4 rounded-2xl border ${
+                selectedBill.paymentStatus === "completed"
+                  ? "bg-emerald-50/80 border-emerald-200/80"
+                  : "bg-amber-50/80 border-amber-200/80"
               }`}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {selectedBill.paymentStatus === "completed" ? (
-                      <CheckCircle className="w-5 h-5 text-green-600" />
+                      <CheckCircle className="w-4 h-4 text-emerald-600" />
                     ) : (
-                      <AlertCircle className="w-5 h-5 text-yellow-600" />
+                      <AlertCircle className="w-4 h-4 text-amber-600" />
                     )}
-                    <span className={`font-semibold ${
-                      selectedBill.paymentStatus === "completed" ? "text-green-800" : 
-                      "text-yellow-800"
+                    <span className={`text-xs font-bold uppercase tracking-wider ${
+                      selectedBill.paymentStatus === "completed" ? "text-emerald-800" : "text-amber-800"
                     }`}>
-                      Payment Status:
+                      Payment Status
                     </span>
                   </div>
-                  <span className={`px-3 py-1 rounded-full font-semibold ${
-                    selectedBill.paymentStatus === "completed" ? "bg-green-100 text-green-800" : 
-                    "bg-yellow-100 text-yellow-800"
+                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                    selectedBill.paymentStatus === "completed"
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                      : "bg-amber-100 text-amber-800 border border-amber-200"
                   }`}>
                     {selectedBill.paymentStatus === "completed" ? "PAID" : "NOT PAID"}
                   </span>
                 </div>
-                <div className="mt-2 text-sm">
-                  <span className="text-gray-600">Payment Type: </span>
-                  <span className="font-medium">{selectedBill.paymentType || "N/A"}</span>
-                </div>
-                {selectedBill.paymentSubStatus && (
-                  <div className="mt-1 text-sm">
-                    <span className="text-gray-600">Payment Sub Status: </span>
-                    <span className="font-medium">{selectedBill.paymentSubStatus}</span>
+                <div className="mt-2.5 flex flex-wrap items-center gap-4 text-xs">
+                  <div>
+                    <span className="text-gray-500 font-medium">Payment Type: </span>
+                    <span className="font-semibold text-gray-800">{selectedBill.paymentType || "N/A"}</span>
                   </div>
-                )}
+                  {selectedBill.paymentSubStatus && (
+                    <div>
+                      <span className="text-gray-500 font-medium">Payment Sub Status: </span>
+                      <span className="font-semibold text-gray-800">{selectedBill.paymentSubStatus}</span>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <h4 className="font-semibold mb-3">Items</h4>
-              <div className="overflow-x-auto mb-6">
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-100">
-                      <th className="border p-3 text-left">Product</th>
-                      <th className="border p-3 text-center">Quantity</th>
-                      <th className="border p-3 text-right">Price</th>
-                      <th className="border p-3 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selectedBill.items?.map((item, idx) => (
-                      <tr key={idx}>
-                        <td className="border p-3">{item.productName}</td>
-                        <td className="border p-3 text-center">{item.quantity}</td>
-                        <td className="border p-3 text-right">₹{item.price.toFixed(2)}</td>
-                        <td className="border p-3 text-right">₹{item.total.toFixed(2)}</td>
+              {/* Items Table Section */}
+              <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
+                <div className="bg-slate-50/90 px-4 py-3 border-b border-gray-200/80 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-blue-600" />
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Items & Products</h4>
+                  </div>
+                  <span className="text-[11px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                    {selectedBill.items?.length || 0} {selectedBill.items?.length === 1 ? "item" : "items"}
+                  </span>
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-gray-50/50 text-[11px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                      <tr>
+                        <th className="px-4 py-2.5 text-left w-12">#</th>
+                        <th className="px-4 py-2.5 text-left">Product Name</th>
+                        <th className="px-4 py-2.5 text-center w-24">Quantity</th>
+                        <th className="px-4 py-2.5 text-right w-28">Price</th>
+                        <th className="px-4 py-2.5 text-right w-28">Total</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {selectedBill.items && selectedBill.items.length > 0 ? (
+                        selectedBill.items.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
+                            <td className="px-4 py-2.5 text-gray-400 font-mono text-[11px] font-medium">
+                              {idx + 1}
+                            </td>
+                            <td className="px-4 py-2.5 font-semibold text-gray-900">
+                              {item.productName}
+                            </td>
+                            <td className="px-4 py-2.5 text-center">
+                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 font-mono">
+                                {item.quantity}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-gray-700 font-mono">
+                              ₹{item.price?.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right font-bold text-gray-900 font-mono">
+                              ₹{item.total?.toFixed(2)}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td colSpan={5} className="py-6 text-center text-gray-400">
+                            No items found in this bill
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
 
               {/* Editable Bank Details */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold">Bank Details</h4>
+              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                <div className="flex items-center justify-between mb-2.5">
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Bank Details</h4>
                   <div className="flex gap-2">
                     {!editingBankDetails ? (
                       <button
                         onClick={() => setEditingBankDetails(true)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs"
+                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
                       >
-                        <Edit3 className="w-3 h-3" />
+                        <Edit3 className="w-3.5 h-3.5" />
                         Edit
                       </button>
                     ) : (
                       <>
                         <button
                           onClick={() => setEditingBankDetails(false)}
-                          className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
+                          className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
                         >
-                          <Check className="w-3 h-3" />
+                          <Check className="w-3.5 h-3.5" />
                           Done
                         </button>
                         <button
                           onClick={resetBankDetails}
-                          className="text-gray-600 hover:text-gray-800 flex items-center gap-1 text-xs"
+                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-3.5 h-3.5" />
                           Reset
                         </button>
                       </>
@@ -3023,91 +3093,91 @@ const BillTransactions: React.FC = () => {
                   </div>
                 </div>
                 {editingBankDetails ? (
-                  <div className="space-y-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
                     <div>
-                      <label className="block text-xs text-gray-600 mb-0.5">Beneficiary Name</label>
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Beneficiary Name</label>
                       <input
                         type="text"
                         value={editBankDetails.beneficiaryName}
                         onChange={(e) => handleBankDetailChange('beneficiaryName', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-xs"
+                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-0.5">Bank Name</label>
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Bank Name</label>
                       <input
                         type="text"
                         value={editBankDetails.bankName}
                         onChange={(e) => handleBankDetailChange('bankName', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-xs"
+                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-0.5">Account No</label>
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Account No</label>
                       <input
                         type="text"
                         value={editBankDetails.accountNo}
                         onChange={(e) => handleBankDetailChange('accountNo', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-xs"
+                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-gray-600 mb-0.5">IFSC Code</label>
+                      <label className="block text-[11px] text-gray-500 mb-0.5">IFSC Code</label>
                       <input
                         type="text"
                         value={editBankDetails.ifscCode}
                         onChange={(e) => handleBankDetailChange('ifscCode', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-xs"
+                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
                       />
                     </div>
-                    <div>
-                      <label className="block text-xs text-gray-600 mb-0.5">Branch</label>
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] text-gray-500 mb-0.5">Branch</label>
                       <input
                         type="text"
                         value={editBankDetails.branch}
                         onChange={(e) => handleBankDetailChange('branch', e.target.value)}
-                        className="w-full px-2 py-1 border rounded text-xs"
+                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
                       />
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-1 text-sm">
-                    <p><strong>Beneficiary Name:</strong> {editBankDetails.beneficiaryName}</p>
-                    <p><strong>Bank Name:</strong> {editBankDetails.bankName}</p>
-                    <p><strong>Account No:</strong> {editBankDetails.accountNo}</p>
-                    <p><strong>IFSC Code:</strong> {editBankDetails.ifscCode}</p>
-                    <p><strong>Branch:</strong> {editBankDetails.branch}</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-700">
+                    <p><strong className="text-gray-500 font-medium">Beneficiary:</strong> <span className="font-semibold text-gray-900">{editBankDetails.beneficiaryName}</span></p>
+                    <p><strong className="text-gray-500 font-medium">Bank:</strong> <span className="font-semibold text-gray-900">{editBankDetails.bankName}</span></p>
+                    <p><strong className="text-gray-500 font-medium">Account:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.accountNo}</span></p>
+                    <p><strong className="text-gray-500 font-medium">IFSC:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.ifscCode}</span></p>
+                    <p className="sm:col-span-2"><strong className="text-gray-500 font-medium">Branch:</strong> <span className="font-semibold text-gray-900">{editBankDetails.branch}</span></p>
                   </div>
                 )}
               </div>
 
-              {/* Editable Terms & Conditions - Now shown for Proforma as well */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="font-semibold">Terms & Conditions</h4>
+              {/* Editable Terms & Conditions */}
+              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                <div className="flex items-center justify-between mb-2.5">
+                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Terms & Conditions</h4>
                   <div className="flex gap-2">
                     {!editingTerms ? (
                       <button
                         onClick={() => setEditingTerms(true)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs"
+                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
                       >
-                        <Edit3 className="w-3 h-3" />
+                        <Edit3 className="w-3.5 h-3.5" />
                         Edit
                       </button>
                     ) : (
                       <>
                         <button
                           onClick={() => setEditingTerms(false)}
-                          className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
+                          className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
                         >
-                          <Check className="w-3 h-3" />
+                          <Check className="w-3.5 h-3.5" />
                           Done
                         </button>
                         <button
                           onClick={resetTerms}
-                          className="text-gray-600 hover:text-gray-800 flex items-center gap-1 text-xs"
+                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
                         >
-                          <RotateCcw className="w-3 h-3" />
+                          <RotateCcw className="w-3.5 h-3.5" />
                           Reset
                         </button>
                       </>
@@ -3118,30 +3188,30 @@ const BillTransactions: React.FC = () => {
                   <div className="space-y-2">
                     {editTerms.map((term, index) => (
                       <div key={term.id} className="flex items-center gap-2">
-                        <span className="text-gray-600">{index + 1}.</span>
+                        <span className="text-gray-400 font-mono text-xs">{index + 1}.</span>
                         <input
                           type="text"
                           value={term.text}
                           onChange={(e) => handleTermChange(term.id, e.target.value)}
-                          className="flex-1 px-2 py-1 border rounded text-xs"
+                          className="flex-1 px-2.5 py-1.5 border rounded-xl text-xs bg-white"
                         />
                         <button
                           onClick={() => handleRemoveTerm(term.id)}
-                          className="text-red-500 hover:text-red-700 text-xs"
+                          className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
                           title="Remove term"
                         >
-                          <X className="w-3 h-3" />
+                          <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ))}
-                    <div className="flex items-center gap-2">
-                      <span className="text-gray-600">{editTerms.length + 1}.</span>
+                    <div className="flex items-center gap-2 pt-1">
+                      <span className="text-gray-400 font-mono text-xs">{editTerms.length + 1}.</span>
                       <input
                         type="text"
                         value={newTerm}
                         onChange={(e) => setNewTerm(e.target.value)}
                         placeholder="Add new term..."
-                        className="flex-1 px-2 py-1 border rounded text-xs"
+                        className="flex-1 px-2.5 py-1.5 border rounded-xl text-xs bg-white"
                         onKeyPress={(e) => {
                           if (e.key === 'Enter') {
                             handleAddTerm();
@@ -3150,28 +3220,31 @@ const BillTransactions: React.FC = () => {
                       />
                       <button
                         onClick={handleAddTerm}
-                        className="text-green-600 hover:text-green-800 text-xs font-semibold whitespace-nowrap"
+                        className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition"
                       >
                         + Add
                       </button>
                     </div>
                   </div>
                 ) : (
-                  <ul className="list-none space-y-1 text-sm">
+                  <ul className="list-none space-y-1 text-xs text-gray-700">
                     {editTerms.map((term, index) => (
-                      <li key={term.id}>{index + 1}. {term.text}</li>
+                      <li key={term.id} className="flex items-start gap-1.5">
+                        <span className="text-gray-400 font-mono">{index + 1}.</span>
+                        <span>{term.text}</span>
+                      </li>
                     ))}
                   </ul>
                 )}
               </div>
 
-              {/* Sign & Seal Edit Option */}
-              <div className="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+              {/* Sign & Seal Option Card */}
+              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-semibold text-gray-800">Sign & Seal</h4>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Choose whether to include the authorized signature & seal on the printed Invoice/Quotation.
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Sign & Seal</h4>
+                    <p className="text-[11px] text-gray-500 mt-0.5">
+                      Include authorized signature & seal on the printed document.
                     </p>
                   </div>
                   <label className="relative inline-flex items-center cursor-pointer">
@@ -3181,84 +3254,86 @@ const BillTransactions: React.FC = () => {
                       onChange={(e) => handleToggleSignature(e.target.checked)}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                    <span className="ml-3 text-sm font-semibold text-gray-700">
+                    <div className="w-10 h-5.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4.5 after:w-4.5 after:transition-all peer-checked:bg-purple-600"></div>
+                    <span className="ml-2.5 text-xs font-bold text-gray-700">
                       {editIncludeSignature ? "Included" : "Excluded"}
                     </span>
                   </label>
                 </div>
                 {editIncludeSignature && (
-                  <div className="mt-3 pt-3 border-t border-gray-200 flex items-center gap-3">
-                    <img src={SIGNATURE_URL} alt="Sign & Seal" className="h-10 w-auto object-contain bg-white p-1 border rounded" />
-                    <span className="text-xs text-gray-500">Sign & seal will be printed on the final document.</span>
+                  <div className="mt-2.5 pt-2.5 border-t border-gray-200/70 flex items-center gap-3">
+                    <img src={SIGNATURE_URL} alt="Sign & Seal" className="h-9 w-auto object-contain bg-white p-1 border rounded-lg" />
+                    <span className="text-[11px] text-gray-500">Sign & seal will be included on the printed document.</span>
                   </div>
                 )}
               </div>
 
-              <div className="bg-gray-50 p-4 rounded-lg mb-6">
-                <h4 className="font-semibold mb-3">Tax Summary</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal:</span>
-                    <span className="font-medium">₹{selectedBill.subtotal?.toFixed(2) || "0.00"}</span>
+              {/* Tax Summary Card */}
+              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
+                <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5">Tax Summary</h4>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-medium">Subtotal:</span>
+                    <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.subtotal?.toFixed(2) || "0.00"}</span>
                   </div>
                   {selectedBill.discountAmount && selectedBill.discountAmount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Discount ({selectedBill.discountPercentage || 0}%):</span>
-                      <span className="text-green-600 font-medium">-₹{selectedBill.discountAmount.toFixed(2)}</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 font-medium">Discount ({selectedBill.discountPercentage || 0}%):</span>
+                      <span className="text-emerald-600 font-semibold font-mono">-₹{selectedBill.discountAmount.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Taxable Amount:</span>
-                    <span className="font-medium">₹{((selectedBill.subtotal || 0) - (selectedBill.discountAmount || 0)).toFixed(2)}</span>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-medium">Taxable Amount:</span>
+                    <span className="font-semibold text-gray-900 font-mono">₹{((selectedBill.subtotal || 0) - (selectedBill.discountAmount || 0)).toFixed(2)}</span>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Tax Type:</span>
-                    <span className="font-medium capitalize">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500 font-medium">Tax Type:</span>
+                    <span className="font-semibold text-gray-900 capitalize">
                       {selectedBill.taxType === "cgst_sgst" ? "CGST + SGST" : "IGST"} ({selectedBill.taxRate || 0}%)
                     </span>
                   </div>
                   {selectedBill.taxType === "cgst_sgst" ? (
                     <>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">CGST ({(selectedBill.taxRate || 0) / 2}%):</span>
-                        <span className="font-medium">₹{selectedBill.cgst?.toFixed(2) || "0.00"}</span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 font-medium">CGST ({(selectedBill.taxRate || 0) / 2}%):</span>
+                        <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.cgst?.toFixed(2) || "0.00"}</span>
                       </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-gray-600">SGST ({(selectedBill.taxRate || 0) / 2}%):</span>
-                        <span className="font-medium">₹{selectedBill.sgst?.toFixed(2) || "0.00"}</span>
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 font-medium">SGST ({(selectedBill.taxRate || 0) / 2}%):</span>
+                        <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.sgst?.toFixed(2) || "0.00"}</span>
                       </div>
                     </>
                   ) : (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">IGST ({selectedBill.taxRate || 0}%):</span>
-                      <span className="font-medium">₹{selectedBill.igst?.toFixed(2) || "0.00"}</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 font-medium">IGST ({selectedBill.taxRate || 0}%):</span>
+                      <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.igst?.toFixed(2) || "0.00"}</span>
                     </div>
                   )}
                   {selectedBill.cessAmount && selectedBill.cessAmount > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Cess Amount:</span>
-                      <span className="font-medium">₹{selectedBill.cessAmount.toFixed(2)}</span>
+                    <div className="flex justify-between">
+                      <span className="text-gray-500 font-medium">Cess Amount:</span>
+                      <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.cessAmount.toFixed(2)}</span>
                     </div>
                   )}
-                  <div className="flex justify-between text-sm font-bold pt-2 border-t">
-                    <span>Total Amount:</span>
-                    <span className="text-green-600">₹{selectedBill.totalAmount?.toFixed(2) || "0.00"}</span>
+                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-200">
+                    <span className="text-gray-900">Total Amount:</span>
+                    <span className="text-emerald-700 font-mono">₹{selectedBill.totalAmount?.toFixed(2) || "0.00"}</span>
                   </div>
                 </div>
               </div>
 
               {selectedBill.notes && (
-                <div className="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-200">
-                  <h4 className="font-semibold mb-2">Notes</h4>
-                  <p className="text-sm text-gray-700 whitespace-pre-line">{selectedBill.notes}</p>
+                <div className="bg-blue-50/80 p-4 rounded-2xl border border-blue-100">
+                  <h4 className="text-xs font-bold text-blue-900 uppercase tracking-wider mb-1">Notes</h4>
+                  <p className="text-xs text-blue-800 whitespace-pre-line">{selectedBill.notes}</p>
                 </div>
               )}
             </div>
             
-            <div className="sticky bottom-0 bg-gray-50 border-t px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-md">
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 z-10 bg-slate-50/95 backdrop-blur-xs border-t border-gray-100 px-6 py-3.5 flex flex-wrap items-center justify-between gap-3 shadow-md flex-shrink-0">
               {/* Quick Sign & Seal Toggle */}
-              <div className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+              <div className="flex items-center gap-2.5 bg-white px-3 py-1.5 rounded-xl border border-gray-200/90 shadow-2xs">
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
@@ -3266,24 +3341,24 @@ const BillTransactions: React.FC = () => {
                     onChange={(e) => handleToggleSignature(e.target.checked)}
                     className="sr-only peer"
                   />
-                  <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
-                  <span className="ml-2.5 text-xs font-semibold text-gray-700 select-none">
+                  <div className="w-8 h-4.5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3.5 after:w-3.5 after:transition-all peer-checked:bg-purple-600"></div>
+                  <span className="ml-2 text-xs font-semibold text-gray-700 select-none">
                     Sign & Seal: <span className={editIncludeSignature ? "text-purple-600 font-bold" : "text-gray-400 font-normal"}>{editIncludeSignature ? "Included" : "Excluded"}</span>
                   </span>
                 </label>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
                 <button
                   onClick={handlePrintBill}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2 text-sm font-medium"
+                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs font-semibold flex items-center gap-2 text-xs transition cursor-pointer"
                 >
-                  <Printer className="w-4 h-4" />
+                  <Printer className="w-3.5 h-3.5" />
                   Print Bill
                 </button>
                 <button
                   onClick={() => setSelectedBill(null)}
-                  className="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm font-medium"
+                  className="px-4 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-xl text-xs font-semibold transition cursor-pointer"
                 >
                   Close
                 </button>

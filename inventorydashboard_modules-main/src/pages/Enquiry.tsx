@@ -42,7 +42,61 @@ import {
   Check,
   ShoppingCart,
   GraduationCap,
+  Package,
+  FileText,
+  Edit3,
 } from "lucide-react";
+
+interface ParsedMaterialItem {
+  productName: string;
+  quantity: number;
+}
+
+const parseMaterialsList = (raw: any): ParsedMaterialItem[] => {
+  if (!raw) return [];
+  let list: any[] = [];
+  if (Array.isArray(raw)) {
+    list = raw;
+  } else if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    if (!trimmed || trimmed === "-" || trimmed.toLowerCase() === "n/a") return [];
+    if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        list = Array.isArray(parsed) ? parsed : [parsed];
+      } catch {
+        return trimmed.split(",").map((s) => ({
+          productName: s.trim(),
+          quantity: 1,
+        })).filter((p) => p.productName);
+      }
+    } else {
+      return trimmed.split(",").map((s) => ({
+        productName: s.trim(),
+        quantity: 1,
+      })).filter((p) => p.productName);
+    }
+  } else if (typeof raw === "object") {
+    list = [raw];
+  }
+
+  return list.map((item) => {
+    if (typeof item === "string") {
+      return { productName: item.trim(), quantity: 1 };
+    }
+    const name = String(
+      item.productName ||
+      item.name ||
+      item.product ||
+      item.title ||
+      item.description ||
+      item.productId ||
+      "Item"
+    ).trim();
+    const qty = Number(item.quantity ?? item.qty ?? item.count ?? 1) || 1;
+    return { productName: name, quantity: qty };
+  }).filter((m) => m.productName && m.productName !== "undefined" && m.productName !== "null");
+};
 
 const getEnquiryDate = (ts: any): Date | null => {
   if (!ts) return null;
@@ -864,7 +918,30 @@ export default function EnquiryPage() {
       {
         id: "materials",
         header: "Materials",
-        accessorFn: (r: any) => r.materials ?? "-"
+        accessorFn: (r: any) => r.materials ?? "-",
+        cell: ({ row }) => {
+          const items = parseMaterialsList(row.original.materials);
+          if (items.length === 0) return <span className="text-gray-400 text-xs">-</span>;
+          return (
+            <div className="flex flex-col gap-1 py-1 max-w-[220px]">
+              {items.slice(0, 2).map((item, idx) => (
+                <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                  <span className="font-semibold text-gray-800 truncate" title={item.productName}>
+                    {item.productName}
+                  </span>
+                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono flex-shrink-0">
+                    × {item.quantity}
+                  </span>
+                </div>
+              ))}
+              {items.length > 2 && (
+                <span className="text-[10px] font-semibold text-gray-400">
+                  +{items.length - 2} more items
+                </span>
+              )}
+            </div>
+          );
+        },
       },
       {
         id: "remarks",
@@ -1277,6 +1354,10 @@ export default function EnquiryPage() {
               } as Enquiry);
               setModalOpen(true);
             }}
+            onView={(item) => {
+              setSelectedEnquiry(item);
+              setViewModalOpen(true);
+            }}
             onEdit={(item) => {
               setSelectedEnquiry(item);
               setModalOpen(true);
@@ -1394,140 +1475,211 @@ export default function EnquiryPage() {
         />
       )}
 
-      {/* Customer Details Modern Modal */}
-      {viewModalOpen && selectedEnquiry && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4">
-          <div className="bg-white w-full max-w-lg rounded-3xl shadow-2xl border border-gray-100 overflow-hidden animate-fade-in">
-            {/* Modal Header */}
-            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50/70">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs">
-                  <User className="w-4 h-4" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-gray-900">
-                    Customer Details
-                  </h2>
-                  <p className="text-xs text-gray-500 font-mono">
-                    Enquiry ID: {selectedEnquiry.enqId || "-"}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setViewModalOpen(false)}
-                className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200/50 transition cursor-pointer"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
+      {/* Modern Enquiry Details Modal */}
+      {viewModalOpen && selectedEnquiry && (() => {
+        const parsedMaterials = parseMaterialsList(selectedEnquiry.materials);
+        const enqDate = getEnquiryDate(selectedEnquiry.createdAt);
+        const dateStr = enqDate ? enqDate.toLocaleDateString("en-IN") : "-";
+        const assignedUid = (selectedEnquiry as any).assignedTo;
+        const assignedName = assignedUid ? (employeesByUid[assignedUid]?.employeeName || employeesByUid[assignedUid]?.name || "Unassigned") : "Unassigned";
 
-            {/* Modal Body */}
-            <div className="p-6 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Customer Name
-                  </span>
-                  <p className="text-sm font-semibold text-gray-900">
-                    {getEnquiryCustomerName(selectedEnquiry) || "-"}
-                  </p>
-                </div>
-
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Contact Number
-                  </span>
-                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                    <Phone className="w-3.5 h-3.5 text-blue-600" />
-                    {getEnquiryMobile(selectedEnquiry) || "-"}
-                  </p>
-                </div>
-
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Organization / Type
-                  </span>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <Building className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
-                    {selectedEnquiry.type ? (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
-                        String(selectedEnquiry.type).toUpperCase().includes("B2B")
-                          ? "bg-purple-100 text-purple-800 border border-purple-200"
-                          : String(selectedEnquiry.type).toUpperCase().includes("B2C")
-                          ? "bg-blue-100 text-blue-800 border border-blue-200"
-                          : "bg-gray-100 text-gray-800 border border-gray-200"
-                      }`}>
-                        {selectedEnquiry.type}
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
+            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-6 animate-fade-in flex flex-col max-h-[90vh]">
+              {/* Modal Header */}
+              <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50/70 flex-shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-base font-bold text-gray-900">Enquiry Details</h2>
+                      <span className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                        {selectedEnquiry.enqId || "-"}
                       </span>
-                    ) : (
-                      <span className="text-sm font-semibold text-gray-900">-</span>
-                    )}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      Date: <span className="font-medium text-gray-700">{dateStr}</span> &nbsp;|&nbsp; Assigned: <span className="font-medium text-gray-700">{assignedName}</span>
+                    </p>
                   </div>
                 </div>
+                <button
+                  onClick={() => setViewModalOpen(false)}
+                  className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200/50 transition cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    City / Location
-                  </span>
-                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                    <MapPin className="w-3.5 h-3.5 text-emerald-600" />
-                    {selectedEnquiry.city ? `${selectedEnquiry.city}${selectedEnquiry.state ? `, ${selectedEnquiry.state}` : ""}` : "-"}
-                  </p>
+              {/* Modal Body (Scrollable) */}
+              <div className="p-6 overflow-y-auto space-y-5 flex-1">
+                {/* Details Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Customer Name
+                    </span>
+                    <p className="text-xs font-bold text-gray-900 truncate">
+                      {getEnquiryCustomerName(selectedEnquiry) || "-"}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Contact Number
+                    </span>
+                    <p className="text-xs font-semibold text-gray-800 flex items-center gap-1.5 font-mono">
+                      <Phone className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                      {getEnquiryMobile(selectedEnquiry) || "-"}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Enquiry Type
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      <Building className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                      {selectedEnquiry.type ? (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                          String(selectedEnquiry.type).toUpperCase().includes("B2B")
+                            ? "bg-purple-100 text-purple-800 border border-purple-200"
+                            : String(selectedEnquiry.type).toUpperCase().includes("B2C")
+                            ? "bg-blue-100 text-blue-800 border border-blue-200"
+                            : "bg-gray-100 text-gray-800 border border-gray-200"
+                        }`}>
+                          {selectedEnquiry.type}
+                        </span>
+                      ) : (
+                        <span className="text-xs text-gray-600">-</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      City / Location
+                    </span>
+                    <p className="text-xs font-semibold text-gray-800 flex items-center gap-1 truncate">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                      {selectedEnquiry.city ? `${selectedEnquiry.city}${selectedEnquiry.state ? `, ${selectedEnquiry.state}` : ""}` : "-"}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Status
+                    </span>
+                    <p className="text-xs font-bold text-gray-800 capitalize">
+                      {selectedEnquiry.status || "-"}
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                      Total Value
+                    </span>
+                    <p className="text-sm font-bold text-emerald-700">
+                      {selectedEnquiry.value
+                        ? `₹${Number(selectedEnquiry.value).toLocaleString("en-IN")}`
+                        : "-"}
+                    </p>
+                  </div>
+
+                  {selectedEnquiry.email && (
+                    <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 sm:col-span-2 md:col-span-3">
+                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                        Email Address
+                      </span>
+                      <p className="text-xs font-semibold text-gray-900 flex items-center gap-1.5 break-all">
+                        <Mail className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                        {selectedEnquiry.email}
+                      </p>
+                    </div>
+                  )}
                 </div>
 
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100 sm:col-span-2">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Email Address
-                  </span>
-                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5 break-all">
-                    <Mail className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                    {selectedEnquiry.email || "-"}
-                  </p>
-                </div>
+                {/* Materials & Products Section */}
+                <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
+                  <div className="bg-slate-50/90 px-4 py-3 border-b border-gray-200/80 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Package className="w-4 h-4 text-blue-600" />
+                      <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                        Products & Materials
+                      </h3>
+                    </div>
+                    <span className="text-[11px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                      {parsedMaterials.length} {parsedMaterials.length === 1 ? "item" : "items"}
+                    </span>
+                  </div>
 
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Enquiry Value
-                  </span>
-                  <p className="text-base font-bold text-emerald-700">
-                    {selectedEnquiry.value
-                      ? `₹${Number(selectedEnquiry.value).toLocaleString("en-IN")}`
-                      : "-"}
-                  </p>
+                  {parsedMaterials.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-xs">
+                        <thead className="bg-gray-50/50 text-[11px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                          <tr>
+                            <th className="px-4 py-2.5 text-left w-12">#</th>
+                            <th className="px-4 py-2.5 text-left">Product Name</th>
+                            <th className="px-4 py-2.5 text-right w-28">Quantity</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {parsedMaterials.map((mat, idx) => (
+                            <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
+                              <td className="px-4 py-2.5 text-gray-400 font-mono text-[11px] font-medium">
+                                {idx + 1}
+                              </td>
+                              <td className="px-4 py-2.5 font-semibold text-gray-900">
+                                {mat.productName}
+                              </td>
+                              <td className="px-4 py-2.5 text-right">
+                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 font-mono">
+                                  {mat.quantity}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="py-8 text-center text-gray-400 text-xs">
+                      <Package className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
+                      No materials or products listed for this enquiry
+                    </div>
+                  )}
                 </div>
+              </div>
 
-                <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                  <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                    Status
-                  </span>
-                  <p className="text-sm font-semibold text-gray-800 capitalize">
-                    {selectedEnquiry.status || "-"}
-                  </p>
+              {/* Modal Footer */}
+              <div className="px-6 py-3.5 border-t border-gray-100 bg-slate-50/70 flex items-center justify-between flex-shrink-0">
+                <span className="text-[11px] text-gray-400">
+                  Enquiry Record View
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      setViewModalOpen(false);
+                      setModalOpen(true);
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Edit3 className="w-3.5 h-3.5" />
+                    Edit Enquiry
+                  </button>
+                  <button
+                    onClick={() => setViewModalOpen(false)}
+                    className="px-4 py-1.5 rounded-xl text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 transition cursor-pointer"
+                  >
+                    Close
+                  </button>
                 </div>
               </div>
             </div>
-
-            {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-gray-100 bg-slate-50/70 flex items-center justify-end gap-2.5">
-              <button
-                onClick={() => setViewModalOpen(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 transition cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => {
-                  setViewModalOpen(false);
-                  setModalOpen(true);
-                }}
-                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 shadow-xs transition cursor-pointer"
-              >
-                Edit Enquiry
-              </button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

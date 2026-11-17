@@ -39,6 +39,7 @@ interface DataTableProps<T extends { id?: string }> {
   onAdd?: () => void;
   onEdit?: (record: T) => void;
   onDelete?: (item: T) => void;
+  onView?: (item: T) => void;
   hideImportExport?: boolean;
   hideAdd?: boolean;
   extraToolbar?: React.ReactNode;
@@ -83,6 +84,7 @@ export default function DataTable<T extends { id?: string }>(
     onAdd,
     onEdit,
     onDelete,
+    onView,
     hideImportExport = false,
     hideAdd = false,
     extraToolbar,
@@ -412,7 +414,7 @@ export default function DataTable<T extends { id?: string }>(
       cell: ({ row }) => (
         <TableRowActions
           row={row.original}
-          onView={() => setViewData(row.original)}
+          onView={() => (onView ? onView(row.original) : setViewData(row.original))}
           onEdit={() => onEdit?.(row.original)}
           onDelete={() => setConfirmDelete(row.original)}
         />
@@ -421,7 +423,7 @@ export default function DataTable<T extends { id?: string }>(
 
     columnsToUse.push(actionsColumn);
     return columnsToUse;
-  }, [baseTableColumns, onEdit, showIndexColumn, indexStart]);
+  }, [baseTableColumns, onEdit, onView, showIndexColumn, indexStart]);
 
   const table = useReactTable<T>({
     data: filteredData,
@@ -1773,26 +1775,63 @@ export default function DataTable<T extends { id?: string }>(
       )}
 
       {viewData && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[80vh] overflow-auto relative border border-gray-200">
-            <button
-              className="absolute top-3 right-3 text-gray-500 hover:text-red-500 cursor-pointer"
-              onClick={() => setViewData(null)}
-            >
-              <X size={20} />
-            </button>
-            <h2 className="text-lg font-semibold px-6 pt-6 pb-4 border-b bg-gray-50 rounded-t-lg">
-              Record Details
-            </h2>
-            <div className="divide-y">
-              {(viewColumns || columns).map((col, idx) => {
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] overflow-hidden border border-gray-100 flex flex-col animate-fade-in my-6">
+            <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50/70 flex-shrink-0">
+              <h2 className="text-base font-bold text-gray-900">
+                Record Details
+              </h2>
+              <button
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200/50 transition cursor-pointer"
+                onClick={() => setViewData(null)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="overflow-y-auto p-4 space-y-2 flex-1">
+              {(viewColumns || columns).map((col) => {
                 const key = col.id ?? (col as any).accessorKey;
 
                 if (key === "actions" || key === "sr") return null;
 
                 let displayValue: React.ReactNode;
 
-                if (typeof col.cell === "function") {
+                const rawVal = viewData[key];
+
+                // If this is materials or contains JSON list of products with productName and quantity
+                const isMaterials =
+                  key === "materials" ||
+                  (typeof rawVal === "string" &&
+                    (rawVal.includes("productName") || rawVal.includes('"productId"')) &&
+                    rawVal.includes("quantity")) ||
+                  (Array.isArray(rawVal) && rawVal.length > 0 && (rawVal[0]?.productName || rawVal[0]?.productId));
+
+                if (isMaterials) {
+                  try {
+                    let mats = rawVal;
+                    if (typeof mats === "string") mats = JSON.parse(mats);
+                    if (Array.isArray(mats) && mats.length > 0) {
+                      displayValue = (
+                        <div className="flex flex-col gap-1.5 items-end">
+                          {mats.map((m: any, mIdx: number) => (
+                            <div key={mIdx} className="flex items-center gap-2 bg-slate-50 px-2.5 py-1 rounded-lg border border-slate-200/80">
+                              <span className="font-semibold text-gray-800 text-xs">
+                                {m.productName || m.name || m.productId || "Item"}
+                              </span>
+                              <span className="bg-blue-50 text-blue-700 px-2 py-0.5 rounded text-[11px] font-bold border border-blue-200 font-mono">
+                                Qty: {m.quantity ?? m.qty ?? 1}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    } else {
+                      displayValue = <span className="text-gray-400 text-xs">-</span>;
+                    }
+                  } catch {
+                    displayValue = String(rawVal);
+                  }
+                } else if (typeof col.cell === "function") {
                   displayValue = flexRender(col.cell, {
                     row: { original: viewData },
                     // @ts-ignore
@@ -1805,19 +1844,25 @@ export default function DataTable<T extends { id?: string }>(
                 return (
                   <div
                     key={key}
-                    className={`flex justify-between items-start px-6 py-3 ${
-                      idx % 2 === 0 ? "bg-gray-50" : "bg-white"
-                    }`}
+                    className="flex justify-between items-start px-4 py-3 rounded-2xl bg-slate-50/70 border border-slate-100"
                   >
-                    <span className="font-medium text-gray-800">
+                    <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">
                       {col.header as string}
                     </span>
-                    <span className="text-gray-700 max-w-[60%] text-right break-words">
+                    <span className="text-xs font-semibold text-gray-800 max-w-[65%] text-right break-words">
                       {displayValue}
                     </span>
                   </div>
                 );
               })}
+            </div>
+            <div className="px-6 py-3 border-t border-gray-100 bg-slate-50/70 flex justify-end flex-shrink-0">
+              <button
+                onClick={() => setViewData(null)}
+                className="px-4 py-1.5 rounded-xl text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 transition cursor-pointer"
+              >
+                Close
+              </button>
             </div>
           </div>
         </div>
