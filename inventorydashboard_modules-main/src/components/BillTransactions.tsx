@@ -565,15 +565,22 @@ const BillTransactions: React.FC = () => {
 
       // Batch load enquiries map to avoid slow N+1 individual queries
       const enquiriesMap = new Map<string, any>();
+      const allEnquiriesList: any[] = [];
       try {
         const enquiriesSnap = await getDocs(collection(db, "enquiries"));
         enquiriesSnap.forEach((docSnap) => {
           const d = { id: docSnap.id, ...docSnap.data() };
+          allEnquiriesList.push(d);
           if (d.enqId) {
             const rawId = String(d.enqId).trim();
             enquiriesMap.set(rawId, d);
             enquiriesMap.set(rawId.toLowerCase(), d);
             enquiriesMap.set(rawId.toUpperCase(), d);
+            const compactId = rawId.replace(/[\s-_]/g, "");
+            if (compactId) {
+              enquiriesMap.set(compactId.toLowerCase(), d);
+              enquiriesMap.set(compactId.toUpperCase(), d);
+            }
           }
           enquiriesMap.set(docSnap.id, d);
           enquiriesMap.set(docSnap.id.toLowerCase(), d);
@@ -584,12 +591,14 @@ const BillTransactions: React.FC = () => {
 
       // Process each bill with enquiry data
       const processedTransactions = deduplicatedBills.map((bill) => {
-        // Find matching enquiry across all possible bill identifiers
+        // Step 1: Find matching enquiry across all possible bill identifiers
         const enqKeys = [
           bill.enquiryEnqId,
           bill.enquiryId,
           bill.billedTo?.enqId,
           (bill as any).enqId,
+          (bill as any).quotationId,
+          (bill as any).quoteNo,
         ].filter(Boolean);
 
         let enquiryData: any = null;
@@ -607,19 +616,35 @@ const BillTransactions: React.FC = () => {
             enquiryData = enquiriesMap.get(strK.toUpperCase());
             break;
           }
+          const compactK = strK.replace(/[\s-_]/g, "");
+          if (compactK && enquiriesMap.has(compactK.toLowerCase())) {
+            enquiryData = enquiriesMap.get(compactK.toLowerCase());
+            break;
+          }
         }
 
-        // Secondary fallback by customer phone number if not found by ID
-        if (!enquiryData && bill.customerContact) {
-          const bPhoneDigits = String(bill.customerContact).replace(/\D/g, "");
+        // Step 2: Fallback by customer phone number if not found by ID
+        if (!enquiryData) {
+          const rawBillPhone = String(
+            bill.customerContact ||
+            bill.billedTo?.contactNumber ||
+            (bill as any).phone ||
+            (bill as any).mobile ||
+            (bill as any).contact ||
+            ""
+          );
+          const bPhoneDigits = rawBillPhone.replace(/\D/g, "");
           if (bPhoneDigits.length >= 7) {
-            for (const [, enq] of enquiriesMap.entries()) {
+            for (const enq of allEnquiriesList) {
               const ePhone = String(
                 enq.contactNumber ||
                 enq.customerContact ||
                 enq.customer?.contactNumber ||
                 enq.customer?.phone ||
+                enq.customer?.mobile ||
                 enq.phone ||
+                enq.mobile ||
+                enq.companyDetails?.companyMobile ||
                 ""
               ).replace(/\D/g, "");
               if (ePhone && (ePhone.includes(bPhoneDigits) || bPhoneDigits.includes(ePhone))) {
@@ -630,21 +655,77 @@ const BillTransactions: React.FC = () => {
           }
         }
 
+        // Step 3: Fallback by customer name if not found by ID or phone
+        if (!enquiryData) {
+          const rawCustName = String(
+            bill.customerName ||
+            bill.billedTo?.name ||
+            (bill as any).clientName ||
+            (bill as any).customer ||
+            ""
+          ).trim().toLowerCase();
+
+          const cleanCustName = rawCustName
+            .replace(/^(mr\.|mrs\.|ms\.|dr\.|m\/s\.?)\s+/i, "")
+            .trim();
+
+          if (cleanCustName.length >= 3) {
+            for (const enq of allEnquiriesList) {
+              const rawEnqName = String(
+                enq.customerName ||
+                enq.customer?.name ||
+                enq.contactPerson ||
+                enq.name ||
+                enq.clientName ||
+                ""
+              ).trim().toLowerCase();
+
+              const cleanEnqName = rawEnqName
+                .replace(/^(mr\.|mrs\.|ms\.|dr\.|m\/s\.?)\s+/i, "")
+                .trim();
+
+              if (cleanEnqName.length >= 3) {
+                if (
+                  cleanEnqName === cleanCustName ||
+                  cleanEnqName.includes(cleanCustName) ||
+                  cleanCustName.includes(cleanEnqName)
+                ) {
+                  enquiryData = enq;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
         const paymentSubStatus = enquiryData?.paymentSubStatus || (bill as any).paymentSubStatus || "N/A";
 
-        const gstin = (
+        // Extract customer (buyer) GSTIN strictly.
+        // Never treat the seller's/store's GSTIN (33AAKCP9459K1ZO) as the customer's GSTIN.
+        const rawCustomerGstin = (
           bill.billedTo?.gstin ||
           enquiryData?.companyDetails?.companyGST ||
           enquiryData?.gstin ||
-          (bill as any).gstin ||
           ""
-        ).trim();
+        ).trim().toUpperCase();
+
+        const isCompanyGstin =
+          rawCustomerGstin === "33AAKCP9459K1ZO" ||
+          rawCustomerGstin.includes("33AAKCP9459K1ZO") ||
+          rawCustomerGstin.includes("AAMCP9459K");
+
+        const dummyGstins = [
+          "URP", "N/A", "NA", "NONE", "NIL", "NULL", "UNDEFINED",
+          "UNREGISTERED", "NOT APPLICABLE", "CONSUMER", "NOT PROVIDED", "-"
+        ];
 
         const hasValidGstin =
-          gstin.length >= 5 &&
-          gstin.toLowerCase() !== "urp" &&
-          gstin.toLowerCase() !== "n/a" &&
-          gstin.toLowerCase() !== "none";
+          !isCompanyGstin &&
+          rawCustomerGstin.length >= 10 &&
+          !dummyGstins.includes(rawCustomerGstin) &&
+          /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z|z][0-9A-Z]{1}$/.test(rawCustomerGstin.replace(/\s/g, ""));
+
+        const customerGstinForDisplay = !isCompanyGstin && !dummyGstins.includes(rawCustomerGstin) ? rawCustomerGstin : "";
 
         const hasTax =
           (bill.cgst && bill.cgst > 0) ||
@@ -653,17 +734,26 @@ const BillTransactions: React.FC = () => {
           bill.taxType === "cgst_sgst" ||
           bill.taxType === "igst";
 
-        const isGST = !!gstin || hasTax;
-        const companyName = bill.billedTo?.name || enquiryData?.companyDetails?.companyName || "";
+        const isGST = !!customerGstinForDisplay || hasTax;
+        const companyName = enquiryData?.companyDetails?.companyName || (bill as any).companyName || "";
         const placeOfSupply = bill.placeOfSupply || bill.billedTo?.state || enquiryData?.state || "Tamil Nadu";
 
         // Determine B2B vs B2C:
         // Priority 1: The enquiry's explicit type is the master source of truth (as shown in the Enquiry eye button)
-        const enqType = String(enquiryData?.type || "").toUpperCase().trim();
+        const enqType = String(
+          enquiryData?.type ||
+          enquiryData?.customerType ||
+          enquiryData?.clientType ||
+          enquiryData?.enquiryType ||
+          enquiryData?.customer?.type ||
+          ""
+        ).toUpperCase().trim();
+
         const clientType = String(
           (bill as any).clientType ||
           (bill as any).customerType ||
           (bill as any).enquiryType ||
+          (bill as any).billType ||
           ""
         ).toUpperCase().trim();
 
@@ -676,7 +766,7 @@ const BillTransactions: React.FC = () => {
           // Explicitly B2B in enquiry or bill client record
           billType = "B2B";
         } else if (hasValidGstin) {
-          // Has valid customer GSTIN registration number -> B2B
+          // Has valid buyer GSTIN registration number -> B2B
           billType = "B2B";
         } else if (
           companyName &&
@@ -685,7 +775,9 @@ const BillTransactions: React.FC = () => {
             companyName.toLowerCase().includes("inc") ||
             companyName.toLowerCase().includes("technologies") ||
             companyName.toLowerCase().includes("solutions") ||
-            companyName.toLowerCase().includes("enterprises"))
+            companyName.toLowerCase().includes("enterprises") ||
+            companyName.toLowerCase().includes("corporation") ||
+            companyName.toLowerCase().includes("llp"))
         ) {
           // Corporate company name with registered business structure -> B2B
           billType = "B2B";
@@ -767,8 +859,8 @@ const BillTransactions: React.FC = () => {
           paymentStatus: transactionPaymentStatus,
           paymentType: paymentSubStatus,
           paymentSubStatus,
-          enquiryEnqId: bill.enquiryEnqId,
-          gstin,
+          enquiryEnqId: bill.enquiryEnqId || enquiryData?.enqId || "",
+          gstin: customerGstinForDisplay,
           isGST,
           billType,
           companyName,
@@ -2120,7 +2212,7 @@ const BillTransactions: React.FC = () => {
       const igst = Number(bill.igst || 0).toFixed(2);
       const shipping = Number(bill.shippingCharges || 0).toFixed(2);
       const total = Number(bill.totalAmount || 0).toFixed(2);
-      const billTypeStr = bill.billType || (bill.isGST ? "B2B" : "B2C");
+      const billTypeStr = bill.billType || "B2C";
       const taxTypeStr =
         bill.taxType === "cgst_sgst"
           ? "CGST + SGST"

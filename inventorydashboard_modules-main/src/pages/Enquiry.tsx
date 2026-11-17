@@ -1447,10 +1447,22 @@ export default function EnquiryPage() {
                   <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
                     Organization / Type
                   </span>
-                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1.5">
-                    <Building className="w-3.5 h-3.5 text-indigo-600" />
-                    {selectedEnquiry.type || "-"}
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Building className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                    {selectedEnquiry.type ? (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-bold ${
+                        String(selectedEnquiry.type).toUpperCase().includes("B2B")
+                          ? "bg-purple-100 text-purple-800 border border-purple-200"
+                          : String(selectedEnquiry.type).toUpperCase().includes("B2C")
+                          ? "bg-blue-100 text-blue-800 border border-blue-200"
+                          : "bg-gray-100 text-gray-800 border border-gray-200"
+                      }`}>
+                        {selectedEnquiry.type}
+                      </span>
+                    ) : (
+                      <span className="text-sm font-semibold text-gray-900">-</span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
