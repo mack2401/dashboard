@@ -591,15 +591,6 @@ export default function EnquiryPage() {
     return Array.from(modes).sort();
   }, [enquiries]);
 
-  // Total value of all enquiries that match current filters (across all pages)
-  const filteredTotalValue = useMemo(() => {
-    return filteredEnquiries.reduce((sum, enquiry) => {
-      const val = enquiry.value;
-      const num = typeof val === 'number' ? val : Number(val);
-      return sum + (isNaN(num) ? 0 : num);
-    }, 0);
-  }, [filteredEnquiries]);
-
   // Compute unique values for each column (for the autocomplete dropdown)
   const columnUniqueValues = useMemo(() => {
     const uniqueMap: Record<string, Set<string>> = {};
@@ -1338,9 +1329,6 @@ export default function EnquiryPage() {
                   )}
                 </span>
               </div>
-              <span className="text-gray-500 font-medium">
-                Filtered Total Value: <strong className="text-gray-900 font-semibold">₹{filteredTotalValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}</strong>
-              </span>
             </div>
           )}
         </div>
@@ -1385,8 +1373,6 @@ export default function EnquiryPage() {
               'shipmentStatus',
               'assignedToName'
             ]}
-            sumColumn="value"
-            sumLabel="Total Value"
             showIndexColumn={false}
             disableInternalFiltering={true}
             columnSearchValues={columnSearch}
@@ -1394,8 +1380,6 @@ export default function EnquiryPage() {
             onColumnSearchChange={(key, value) => setColumnSearch((prev) => ({ ...prev, [key]: value }))}
             onDateRangeChange={(key, range) => setDateRangeFilters((prev) => ({ ...prev, [key]: range }))}
             columnUniqueValues={columnUniqueValues}
-            filteredTotal={filteredTotalValue}
-            filteredTotalLabel="Total (Filtered)"
             totalRecords={enquiries.length}
             onExportAllPages={fetchAllEnquiries}
           />
