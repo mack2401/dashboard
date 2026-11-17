@@ -361,6 +361,13 @@ const InventoryManagement: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'all' | 'fast-moving'>('all');
 
+  // Fast Moving Components States
+  const [bills, setBills] = useState<any[]>([]);
+  const [enquiries, setEnquiries] = useState<any[]>([]);
+  const [fastMovingPeriod, setFastMovingPeriod] = useState<'today' | 'yesterday' | 'past7' | 'past30' | 'all'>('today');
+  const [fastMovingCustomDate, setFastMovingCustomDate] = useState<string>('');
+  const [fastMovingSearch, setFastMovingSearch] = useState<string>('');
+
   const [employees, setEmployees] = useState<any[]>([]);
 
   // Pagination states
@@ -469,10 +476,50 @@ const InventoryManagement: React.FC = () => {
       }
     );
 
+    // Subscribe to bills collection for fast moving components
+    const billsQuery = query(
+      collection(db, 'bills'),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribeBills = onSnapshot(
+      billsQuery,
+      (snapshot) => {
+        const billsData: any[] = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setBills(billsData);
+      },
+      (error) => {
+        console.error('Error fetching bills for inventory:', error);
+      }
+    );
+
+    // Subscribe to enquiries collection for fast moving components
+    const enquiriesQuery = query(
+      collection(db, 'enquiries'),
+      orderBy('createdAt', 'desc')
+    );
+    const unsubscribeEnquiries = onSnapshot(
+      enquiriesQuery,
+      (snapshot) => {
+        const enquiriesData: any[] = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        setEnquiries(enquiriesData);
+      },
+      (error) => {
+        console.error('Error fetching enquiries for inventory:', error);
+      }
+    );
+
     return () => {
       unsubscribeProducts();
       unsubscribeTransactions();
       unsubscribeEmployees();
+      unsubscribeBills();
+      unsubscribeEnquiries();
     };
   }, [user]);
 
@@ -528,6 +575,244 @@ const InventoryManagement: React.FC = () => {
 
     return nameOrEmail || userId || '-';
   };
+
+  // ============ FAST MOVING COMPONENTS LOGIC ============
+  interface FastMovingComponentItem {
+    name: string;
+    sku: string;
+    category: string;
+    quantity: number;
+    totalValue: number;
+    count: number;
+    currentSOH: number | null;
+    lowStockThreshold: number;
+    isLowStock: boolean;
+  }
+
+  const parseFastMovingDate = (val: any): Date | null => {
+    if (!val) return null;
+    if (typeof val.toDate === 'function') return val.toDate();
+    if (val.seconds) return new Date(val.seconds * 1000);
+    if (val instanceof Date) return val;
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
+  };
+
+  const matchesFastMovingPeriod = (
+    dateVal: any,
+    period: 'today' | 'yesterday' | 'past7' | 'past30' | 'all',
+    customDate?: string
+  ): boolean => {
+    const d = parseFastMovingDate(dateVal);
+    if (!d) return period === 'all';
+    const now = new Date();
+
+    if (customDate) {
+      const target = new Date(customDate);
+      return (
+        d.getDate() === target.getDate() &&
+        d.getMonth() === target.getMonth() &&
+        d.getFullYear() === target.getFullYear()
+      );
+    }
+
+    if (period === 'today') {
+      return (
+        d.getDate() === now.getDate() &&
+        d.getMonth() === now.getMonth() &&
+        d.getFullYear() === now.getFullYear()
+      );
+    }
+
+    if (period === 'yesterday') {
+      const y = new Date();
+      y.setDate(y.getDate() - 1);
+      return (
+        d.getDate() === y.getDate() &&
+        d.getMonth() === y.getMonth() &&
+        d.getFullYear() === y.getFullYear()
+      );
+    }
+
+    if (period === 'past7') {
+      const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+      return d >= cutoff && d <= now;
+    }
+
+    if (period === 'past30') {
+      const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
+      return d >= cutoff && d <= now;
+    }
+
+    return true; // 'all'
+  };
+
+  const extractFastMovingBillItems = (bill: any) => {
+    let raw = bill.items || bill.materials;
+    if (typeof raw === 'string') {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        raw = [];
+      }
+    }
+    if (!Array.isArray(raw)) return [];
+    return raw.map((item: any) => {
+      const name = (item.productName || item.name || item.componentName || 'Component').trim();
+      let qty = 1;
+      if (typeof item.quantity === 'number') qty = item.quantity;
+      else if (item.quantity) {
+        const match = String(item.quantity).match(/\d+/);
+        qty = match ? parseInt(match[0], 10) : 1;
+      } else if (typeof item.qty === 'number') qty = item.qty;
+      const price = Number(item.price) || 0;
+      const total = Number(item.total || item.totalAmount) || (price * qty);
+      return { name, quantity: qty > 0 ? qty : 1, total: total > 0 ? total : 0, sku: item.sku || '' };
+    });
+  };
+
+  const extractFastMovingEnquiryMaterials = (enquiry: any) => {
+    let raw = enquiry.materials || enquiry.items || enquiry.products;
+    if (typeof raw === 'string') {
+      try {
+        raw = JSON.parse(raw);
+      } catch {
+        raw = [];
+      }
+    }
+    if (!Array.isArray(raw)) return [];
+    return raw.map((item: any) => {
+      const name = (item.productName || item.name || item.materialName || 'Component').trim();
+      let qty = 1;
+      if (typeof item.quantity === 'number') qty = item.quantity;
+      else if (item.quantity) {
+        const match = String(item.quantity).match(/\d+/);
+        qty = match ? parseInt(match[0], 10) : 1;
+      } else if (typeof item.qty === 'number') qty = item.qty;
+      const price = Number(item.price || item.unitPrice) || 0;
+      const total = Number(item.totalAmount || item.total) || (price * qty);
+      return { name, quantity: qty > 0 ? qty : 1, total: total > 0 ? total : 0, sku: item.sku || '' };
+    });
+  };
+
+  const productLookup = useMemo(() => {
+    const map = new Map<string, Product>();
+    products.forEach((p) => {
+      if (p.name) map.set(p.name.trim().toLowerCase(), p);
+      if (p.sku) map.set(p.sku.trim().toLowerCase(), p);
+    });
+    return map;
+  }, [products]);
+
+  const approvedFastMovingItems = useMemo(() => {
+    const map: Record<string, FastMovingComponentItem> = {};
+
+    bills.forEach((bill) => {
+      const dateVal = bill.billDate || bill.createdAt;
+      if (!matchesFastMovingPeriod(dateVal, fastMovingPeriod, fastMovingCustomDate)) return;
+
+      const items = extractFastMovingBillItems(bill);
+      items.forEach((item) => {
+        const key = item.name.toLowerCase();
+        if (!map[key]) {
+          const matched = productLookup.get(key) || (item.sku ? productLookup.get(item.sku.toLowerCase()) : undefined);
+          map[key] = {
+            name: matched ? matched.name : item.name,
+            sku: matched?.sku || item.sku || '-',
+            category: matched?.category || 'General',
+            quantity: 0,
+            totalValue: 0,
+            count: 0,
+            currentSOH: matched ? matched.totalQuantity : null,
+            lowStockThreshold: matched?.lowStockThreshold || 10,
+            isLowStock: matched ? matched.totalQuantity <= (matched.lowStockThreshold || 10) : false,
+          };
+        }
+        map[key].quantity += item.quantity;
+        map[key].totalValue += item.total;
+        map[key].count += 1;
+      });
+    });
+
+    transactions.forEach((tx) => {
+      if (tx.type !== 'deliver') return;
+      if (!matchesFastMovingPeriod(tx.createdAt, fastMovingPeriod, fastMovingCustomDate)) return;
+
+      const key = (tx.productName || '').trim().toLowerCase();
+      if (!key) return;
+
+      if (!map[key]) {
+        const matched = productLookup.get(key) || (tx.productId ? products.find(p => p.id === tx.productId) : undefined);
+        map[key] = {
+          name: matched ? matched.name : tx.productName,
+          sku: matched?.sku || '-',
+          category: matched?.category || 'General',
+          quantity: 0,
+          totalValue: 0,
+          count: 0,
+          currentSOH: matched ? matched.totalQuantity : null,
+          lowStockThreshold: matched?.lowStockThreshold || 10,
+          isLowStock: matched ? matched.totalQuantity <= (matched.lowStockThreshold || 10) : false,
+        };
+      }
+      if (map[key].count === 0) {
+        map[key].quantity += Number(tx.quantity) || 0;
+        map[key].totalValue += Number(tx.totalAmount) || 0;
+        map[key].count += 1;
+      }
+    });
+
+    return Object.values(map).sort((a, b) => b.quantity - a.quantity);
+  }, [bills, transactions, fastMovingPeriod, fastMovingCustomDate, productLookup, products]);
+
+  const enquiryFastMovingItems = useMemo(() => {
+    const map: Record<string, FastMovingComponentItem> = {};
+
+    enquiries.forEach((enq) => {
+      const dateVal = enq.createdAt || enq.date;
+      if (!matchesFastMovingPeriod(dateVal, fastMovingPeriod, fastMovingCustomDate)) return;
+
+      const items = extractFastMovingEnquiryMaterials(enq);
+      items.forEach((item) => {
+        const key = item.name.toLowerCase();
+        if (!map[key]) {
+          const matched = productLookup.get(key) || (item.sku ? productLookup.get(item.sku.toLowerCase()) : undefined);
+          map[key] = {
+            name: matched ? matched.name : item.name,
+            sku: matched?.sku || item.sku || '-',
+            category: matched?.category || 'General',
+            quantity: 0,
+            totalValue: 0,
+            count: 0,
+            currentSOH: matched ? matched.totalQuantity : null,
+            lowStockThreshold: matched?.lowStockThreshold || 10,
+            isLowStock: matched ? matched.totalQuantity <= (matched.lowStockThreshold || 10) : false,
+          };
+        }
+        map[key].quantity += item.quantity;
+        map[key].totalValue += item.total;
+        map[key].count += 1;
+      });
+    });
+
+    return Object.values(map).sort((a, b) => b.quantity - a.quantity);
+  }, [enquiries, fastMovingPeriod, fastMovingCustomDate, productLookup]);
+
+  const filteredApprovedFastMoving = useMemo(() => {
+    if (!fastMovingSearch.trim()) return approvedFastMovingItems;
+    const q = fastMovingSearch.toLowerCase();
+    return approvedFastMovingItems.filter(
+      (item) => item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
+    );
+  }, [approvedFastMovingItems, fastMovingSearch]);
+
+  const filteredEnquiryFastMoving = useMemo(() => {
+    if (!fastMovingSearch.trim()) return enquiryFastMovingItems;
+    const q = fastMovingSearch.toLowerCase();
+    return enquiryFastMovingItems.filter(
+      (item) => item.name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q)
+    );
+  }, [enquiryFastMovingItems, fastMovingSearch]);
 
   // ============ FILTERED TRANSACTIONS ============
   const filteredTransactions = useMemo(() => {
@@ -3617,73 +3902,401 @@ const InventoryManagement: React.FC = () => {
         </div>
 
         {activeTab === 'fast-moving' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-          <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-5">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Enquiry Fast Moving Items</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-700 uppercase">
-                  <tr>
-                    <th className="px-4 py-3 rounded-tl-lg">Product</th>
-                    <th className="px-4 py-3 rounded-tr-lg">Requested Qty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...products]
-                    .filter(p => (p.enquiryCount || 0) > 0)
-                    .sort((a, b) => (b.enquiryCount || 0) - (a.enquiryCount || 0))
-                    .slice(0, 10)
-                    .map((p, i) => (
-                      <tr key={p.id} className="border-b last:border-0">
-                        <td className="px-4 py-3 font-medium text-gray-900 flex items-center">
-                          <span className="w-6 text-gray-500 mr-2">{i + 1}.</span>
-                          {p.name}
-                        </td>
-                        <td className="px-4 py-3 font-bold text-blue-600">{p.enquiryCount}</td>
-                      </tr>
-                    ))}
-                  {[...products].filter(p => (p.enquiryCount || 0) > 0).length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="px-4 py-4 text-center text-gray-500">No data available</td>
-                    </tr>
+          <div className="space-y-6 mb-6">
+            {/* Header controls: Periods (Today, Yesterday, Past Dates), Custom Date Picker, and Search */}
+            <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-5">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-100">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                    <span className="w-2.5 h-6 bg-blue-600 rounded-full inline-block"></span>
+                    Fast Moving Components
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                    Showing high-velocity items for:{" "}
+                    <strong className="text-gray-900 font-semibold">
+                      {fastMovingCustomDate
+                        ? `Date: ${new Date(fastMovingCustomDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                        : fastMovingPeriod === 'today'
+                        ? "Today"
+                        : fastMovingPeriod === 'yesterday'
+                        ? "Yesterday"
+                        : fastMovingPeriod === 'past7'
+                        ? "Past 7 Days"
+                        : fastMovingPeriod === 'past30'
+                        ? "Past 30 Days"
+                        : "All Previous Dates (All Time)"}
+                    </strong>
+                  </p>
+                </div>
+
+                {/* Period Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 bg-gray-50 p-1.5 rounded-xl border border-gray-200/80">
+                  <button
+                    onClick={() => {
+                      setFastMovingPeriod('today');
+                      setFastMovingCustomDate('');
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      fastMovingPeriod === 'today' && !fastMovingCustomDate
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Today
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFastMovingPeriod('yesterday');
+                      setFastMovingCustomDate('');
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      fastMovingPeriod === 'yesterday' && !fastMovingCustomDate
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Yesterday
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFastMovingPeriod('past7');
+                      setFastMovingCustomDate('');
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      fastMovingPeriod === 'past7' && !fastMovingCustomDate
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Past 7 Days
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFastMovingPeriod('past30');
+                      setFastMovingCustomDate('');
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      fastMovingPeriod === 'past30' && !fastMovingCustomDate
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    Past 30 Days
+                  </button>
+                  <button
+                    onClick={() => {
+                      setFastMovingPeriod('all');
+                      setFastMovingCustomDate('');
+                    }}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                      fastMovingPeriod === 'all' && !fastMovingCustomDate
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    }`}
+                  >
+                    All Previous Dates
+                  </button>
+                </div>
+              </div>
+
+              {/* Secondary bar: Date picker & Search */}
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-4">
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                  <span className="text-xs text-gray-500 font-medium flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
+                    Specific Date:
+                  </span>
+                  <input
+                    type="date"
+                    value={fastMovingCustomDate}
+                    onChange={(e) => setFastMovingCustomDate(e.target.value)}
+                    className={`px-2.5 py-1.5 text-xs rounded-lg border transition-all ${
+                      fastMovingCustomDate
+                        ? 'border-blue-500 ring-2 ring-blue-500/20 bg-white font-semibold text-blue-900'
+                        : 'border-gray-300 bg-white text-gray-700'
+                    }`}
+                  />
+                  {fastMovingCustomDate && (
+                    <button
+                      onClick={() => setFastMovingCustomDate('')}
+                      className="text-xs text-gray-400 hover:text-gray-600 underline"
+                    >
+                      Clear
+                    </button>
                   )}
-                </tbody>
-              </table>
+                </div>
+
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    value={fastMovingSearch}
+                    onChange={(e) => setFastMovingSearch(e.target.value)}
+                    placeholder="Search fast-moving item..."
+                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-lg focus:bg-white focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                  />
+                </div>
+              </div>
             </div>
-          </div>
-          
-          <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-5">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Approved Fast Moving Items</h2>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm text-left">
-                <thead className="bg-gray-50 text-gray-700 uppercase">
-                  <tr>
-                    <th className="px-4 py-3 rounded-tl-lg">Product</th>
-                    <th className="px-4 py-3 rounded-tr-lg">Approved Qty</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...products]
-                    .filter(p => (p.approvedBillCount || 0) > 0)
-                    .sort((a, b) => (b.approvedBillCount || 0) - (a.approvedBillCount || 0))
-                    .slice(0, 10)
-                    .map((p, i) => (
-                      <tr key={p.id} className="border-b last:border-0">
-                        <td className="px-4 py-3 font-medium text-gray-900 flex items-center">
-                          <span className="w-6 text-gray-500 mr-2">{i + 1}.</span>
-                          {p.name}
-                        </td>
-                        <td className="px-4 py-3 font-bold text-green-600">{p.approvedBillCount}</td>
+
+            {/* KPI Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Units Sold</span>
+                  <span className="p-2 rounded-xl bg-green-50 text-green-600">
+                    <ShoppingCart className="w-4 h-4" />
+                  </span>
+                </div>
+                <div className="text-2xl font-extrabold text-gray-900 mt-2">
+                  {approvedFastMovingItems.reduce((sum, i) => sum + i.quantity, 0)}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5">Across approved bills & orders</p>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Sales Value</span>
+                  <span className="p-2 rounded-xl bg-blue-50 text-blue-600">
+                    <IndianRupee className="w-4 h-4" />
+                  </span>
+                </div>
+                <div className="text-xl sm:text-2xl font-extrabold text-gray-900 mt-2">
+                  {formatCurrency(approvedFastMovingItems.reduce((sum, i) => sum + i.totalValue, 0))}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5">Revenue from fast-movers</p>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Enquiry Demand</span>
+                  <span className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                    <TrendingUp className="w-4 h-4" />
+                  </span>
+                </div>
+                <div className="text-2xl font-extrabold text-gray-900 mt-2">
+                  {enquiryFastMovingItems.reduce((sum, i) => sum + i.quantity, 0)}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5">Units requested in enquiries</p>
+              </div>
+
+              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-gray-500 uppercase">Low Stock Alerts</span>
+                  <span className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                    <AlertCircle className="w-4 h-4" />
+                  </span>
+                </div>
+                <div className="text-2xl font-extrabold text-amber-600 mt-2">
+                  {approvedFastMovingItems.filter(i => i.isLowStock).length}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-0.5">Fast-movers running low</p>
+              </div>
+            </div>
+
+            {/* Side-by-Side Tables: Approved Fast Moving vs Enquiry Fast Moving */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Approved Fast Moving Items Table */}
+              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-green-600" />
+                    <h3 className="font-bold text-gray-900 text-sm sm:text-base">
+                      Approved / Sold Fast Moving Components
+                    </h3>
+                  </div>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                    {filteredApprovedFastMoving.length} items
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto flex-1 max-h-[420px] overflow-y-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50/80 text-gray-600 uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-gray-150">
+                      <tr>
+                        <th className="px-3 py-2.5 text-center w-12">#</th>
+                        <th className="px-3 py-2.5">Component</th>
+                        <th className="px-3 py-2.5 text-center">Stock (SOH)</th>
+                        <th className="px-3 py-2.5 text-center">Qty Sold</th>
+                        <th className="px-3 py-2.5 text-right">Total (₹)</th>
                       </tr>
-                    ))}
-                  {[...products].filter(p => (p.approvedBillCount || 0) > 0).length === 0 && (
-                    <tr>
-                      <td colSpan={2} className="px-4 py-4 text-center text-gray-500">No data available</td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs">
+                      {filteredApprovedFastMoving.map((p, i) => (
+                        <tr key={`${p.name}-${i}`} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="px-3 py-2.5 text-center font-bold text-gray-400">
+                            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="font-semibold text-gray-900">{p.name}</div>
+                            <div className="text-[11px] text-gray-400">
+                              {p.category} {p.sku && p.sku !== '-' ? `• SKU: ${p.sku}` : ''}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            {p.currentSOH !== null ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                  p.isLowStock
+                                    ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                    : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                }`}
+                              >
+                                {p.currentSOH}
+                                {p.isLowStock && " (Low)"}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-[11px]">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold bg-green-50 text-green-700 border border-green-200/60">
+                              {p.quantity}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-bold text-gray-800">
+                            {formatCurrency(p.totalValue)}
+                          </td>
+                        </tr>
+                      ))}
+
+                      {filteredApprovedFastMoving.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-12 px-4 text-center">
+                            <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-700">
+                              No fast moving sales found for{" "}
+                              {fastMovingCustomDate
+                                ? `date ${fastMovingCustomDate}`
+                                : fastMovingPeriod === 'today'
+                                ? "today"
+                                : fastMovingPeriod === 'yesterday'
+                                ? "yesterday"
+                                : "this period"}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+                              Sold items in bills will automatically rank here.
+                            </p>
+                            {fastMovingPeriod === 'today' && (
+                              <button
+                                onClick={() => {
+                                  setFastMovingPeriod('all');
+                                  setFastMovingCustomDate('');
+                                }}
+                                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                              >
+                                <span>View all previous dates</span>
+                                <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Enquiry Fast Moving Items Table */}
+              <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-blue-600" />
+                    <h3 className="font-bold text-gray-900 text-sm sm:text-base">
+                      Enquiry Fast Moving Components
+                    </h3>
+                  </div>
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                    {filteredEnquiryFastMoving.length} items
+                  </span>
+                </div>
+
+                <div className="overflow-x-auto flex-1 max-h-[420px] overflow-y-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="bg-gray-50/80 text-gray-600 uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-gray-150">
+                      <tr>
+                        <th className="px-3 py-2.5 text-center w-12">#</th>
+                        <th className="px-3 py-2.5">Component</th>
+                        <th className="px-3 py-2.5 text-center">Stock (SOH)</th>
+                        <th className="px-3 py-2.5 text-center">Requested Qty</th>
+                        <th className="px-3 py-2.5 text-right">Total (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 text-xs">
+                      {filteredEnquiryFastMoving.map((p, i) => (
+                        <tr key={`${p.name}-${i}`} className="hover:bg-blue-50/30 transition-colors">
+                          <td className="px-3 py-2.5 text-center font-bold text-gray-400">
+                            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="font-semibold text-gray-900">{p.name}</div>
+                            <div className="text-[11px] text-gray-400">
+                              {p.category} {p.sku && p.sku !== '-' ? `• SKU: ${p.sku}` : ''}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            {p.currentSOH !== null ? (
+                              <span
+                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                  p.isLowStock
+                                    ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                                    : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                }`}
+                              >
+                                {p.currentSOH}
+                                {p.isLowStock && " (Low)"}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 text-[11px]">-</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-center">
+                            <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold bg-blue-50 text-blue-700 border border-blue-200/60">
+                              {p.quantity}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-right font-bold text-gray-800">
+                            {formatCurrency(p.totalValue)}
+                          </td>
+                        </tr>
+                      ))}
+
+                      {filteredEnquiryFastMoving.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="py-12 px-4 text-center">
+                            <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                            <p className="text-sm font-medium text-gray-700">
+                              No enquiry demands found for{" "}
+                              {fastMovingCustomDate
+                                ? `date ${fastMovingCustomDate}`
+                                : fastMovingPeriod === 'today'
+                                ? "today"
+                                : fastMovingPeriod === 'yesterday'
+                                ? "yesterday"
+                                : "this period"}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
+                              Enquiry materials will automatically rank here.
+                            </p>
+                            {fastMovingPeriod === 'today' && (
+                              <button
+                                onClick={() => {
+                                  setFastMovingPeriod('all');
+                                  setFastMovingCustomDate('');
+                                }}
+                                className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                              >
+                                <span>View all previous dates</span>
+                                <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
         )}
