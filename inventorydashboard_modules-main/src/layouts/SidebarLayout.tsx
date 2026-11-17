@@ -24,10 +24,10 @@ const SidebarLayout = () => {
   };
 
   return (
-    <div className="flex min-h-screen w-full overflow-x-hidden bg-gray-50">
+    <div className="flex min-h-screen w-full overflow-x-hidden bg-[#F4F8FB]">
       <Sidebar isCollapsed={isCollapsed} onToggleCollapse={toggleSidebar} />
       <main
-        className={`flex-1 min-w-0 p-3 md:p-6 bg-gray-50 min-h-screen overflow-x-hidden transition-[margin,padding] duration-300 ease-in-out ${
+        className={`flex-1 min-w-0 p-3 md:p-6 bg-[#F4F8FB] min-h-screen overflow-x-hidden transition-[margin,padding] duration-300 ease-in-out ${
           isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]"
         }`}
       >

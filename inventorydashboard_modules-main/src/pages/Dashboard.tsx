@@ -33,18 +33,18 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
 
-// Vibrant Sky Blue accented palette for the Pie Chart
+// Professional Corporate Palette matching Primary (#087EBC), Secondary (#119ED0), Accent (#42B8E8)
 const PIE_COLORS = [
-  "#0284c7", // Sky-600
-  "#0ea5e9", // Sky-500
-  "#38bdf8", // Sky-400
-  "#10b981", // Emerald-500
-  "#f59e0b", // Amber-500
-  "#8b5cf6", // Violet-500
-  "#06b6d4", // Cyan-500
-  "#ec4899", // Pink-500
-  "#f97316", // Orange-500
-  "#64748b", // Slate-500
+  "#087EBC", // Primary
+  "#119ED0", // Secondary
+  "#42B8E8", // Accent
+  "#05537B", // Deep Slate Blue
+  "#2C7A7B", // Slate Teal
+  "#5B8FB9", // Steel Blue
+  "#205E86", // Corporate Navy
+  "#71C4EF", // Ice Blue
+  "#4A5568", // Cool Slate
+  "#172B3A", // Dark Slate Text
 ];
 
 type TimeFilterMode = "yesterday" | "today" | "past";
@@ -570,8 +570,8 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* PART 1 (LEFT, 7 COLS): Total Sales & Components + Qty sold */}
           <div className="lg:col-span-7 flex flex-col space-y-4">
-            {/* Period Total Sales Highlight Card - Sky Blue Theme */}
-            <div className="bg-gradient-to-r from-[#0ea5e9] via-[#0284c7] to-[#0369a1] rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
+            {/* Period Total Sales Highlight Card - Professional Blue Theme */}
+            <div className="bg-gradient-to-r from-[#119ED0] via-[#087EBC] to-[#066597] rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
               <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
@@ -863,17 +863,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/bills")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-emerald-50/50 hover:to-white border border-gray-200/90 hover:border-emerald-500 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#087EBC] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#087EBC] group-hover:bg-[#087EBC] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Receipt className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-emerald-600 transition-colors">
+              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#087EBC] transition-colors">
                 Billing
               </h3>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-emerald-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#087EBC] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -884,17 +884,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/enquiries")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-violet-50/50 hover:to-white border border-gray-200/90 hover:border-violet-500 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#087EBC] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#087EBC] group-hover:bg-[#087EBC] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Calculator className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-violet-600 transition-colors">
+              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#087EBC] transition-colors">
                 Enquiry
               </h3>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-violet-600 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#087EBC] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
