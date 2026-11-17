@@ -6,3 +6,7 @@ dist
 .env.local
 .env.*
 !.env.example
+scratch/
+inventorydashboard_modules-main/scratch/
+
+

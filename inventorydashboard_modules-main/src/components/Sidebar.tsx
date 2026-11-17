@@ -21,22 +21,26 @@ import {
 } from "lucide-react";
 import { useAuth } from "../App"; 
 
-const Sidebar = () => {
+interface SidebarProps {
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse }) => {
   const { user, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isManagementOpen, setIsManagementOpen] = useState(false);
 
   const baseNavItems = [
-    { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={18} /> },
-    { name: "Enquiries", path: "/enquiries", icon: <Calculator size={18} /> },
-    { name: "Bills", path:"/bills", icon:<Receipt size={18}/>},
-    { name: "PNL", path: "/pnl", icon: <TrendingUp size={18} /> },
-    { name: "Tasks", path:"/task", icon:<ListTodo size={18}/>},
-    { name: "Dropped", path: "/dropped", icon: <Calculator size={18} /> },
-    { name: "Inventory", path:"/inventory", icon:<Package size={18}/>},
-    { name: "Training", path:"/training", icon:<GraduationCap size={18}/>},
-    { name: "Reports", path:"/reports", icon:<BarChart3 size={18}/>},
-    { name: "Logout", action: logout, icon: <LogOut size={18} /> },
+    { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
+    { name: "Enquiries", path: "/enquiries", icon: <Calculator size={20} /> },
+    { name: "Bills", path:"/bills", icon:<Receipt size={20}/>},
+    { name: "PNL", path: "/pnl", icon: <TrendingUp size={20} /> },
+    { name: "Tasks", path:"/task", icon:<ListTodo size={20}/>},
+    { name: "Dropped", path: "/dropped", icon: <Calculator size={20} /> },
+    { name: "Inventory", path:"/inventory", icon:<Package size={20}/>},
+    { name: "Training", path:"/training", icon:<GraduationCap size={20}/>},
+    { name: "Reports", path:"/reports", icon:<BarChart3 size={20}/>},
   ];
   
   const managementItems = [
@@ -46,7 +50,7 @@ const Sidebar = () => {
 
   const handleNavClick = (isAction: boolean) => {
     if (!isAction) {
-        setIsOpen(false);
+      setIsOpen(false);
     }
   };
 
@@ -55,172 +59,252 @@ const Sidebar = () => {
     setIsManagementOpen(!isManagementOpen);
   };
 
-  const navItems = [...baseNavItems.slice(0,2), ...baseNavItems.slice(2)];
-
   return (
     <>
-      {/* Mobile Menu Button - Visible on small screens, hidden on md and up */}
+      {/* Mobile 3-Line Menu Button - Visible on small screens, hidden on md and up */}
       <button 
         onClick={() => setIsOpen(true)} 
-        className="md:hidden fixed top-4 left-4 z-40 p-2 text-gray-700 bg-white rounded-lg shadow-md hover:bg-gray-100"
+        className="md:hidden fixed top-4 left-4 z-40 p-2 text-slate-700 bg-white/95 rounded-xl shadow-md border border-slate-200/90 backdrop-blur-xs hover:bg-slate-50 cursor-pointer"
         aria-label="Open menu"
       >
-        <Menu size={24} />
+        <Menu size={22} />
       </button>
 
-      {/* Sidebar - Positioned for fixed, full height. Hidden by default on mobile, shown with 'isOpen' */}
+      {/* Modern Curved Sidebar matching reference image */}
       <aside 
         className={`
-          w-64 h-screen bg-slate-900 border-r border-slate-800 shadow-2xl p-4 fixed top-0 overflow-y-auto z-50 transition-transform duration-300 ease-in-out
-          md:translate-x-0 md:block
-          ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+          fixed top-3 bottom-3 left-3 z-40
+          bg-gradient-to-b from-[#0ea5e9] via-[#0284c7] to-[#0369a1]
+          rounded-[28px] shadow-xl shadow-blue-600/20
+          transition-all duration-300 ease-in-out select-none
+          flex flex-col justify-between py-4
+          no-scrollbar overflow-y-auto
+          ${isCollapsed ? "w-[72px]" : "w-[256px]"}
+          ${isOpen ? "translate-x-0" : "-translate-x-[120%] md:translate-x-0"}
         `}
       >
-        <div className="flex justify-between items-center mb-6 pt-1">
-          <div className="flex items-center bg-white px-3 py-1.5 rounded-xl shadow-xs">
-            <img 
-              src="/ibots-logo.png" 
-              alt="iBots" 
-              className="h-7 w-auto max-w-[130px] object-contain"
-            />
-          </div>
-          {/* Close Button - Visible only on mobile inside the sidebar */}
-          <button 
-            onClick={() => setIsOpen(false)} 
-            className="md:hidden p-1.5 text-slate-400 hover:text-white rounded-lg transition-colors cursor-pointer"
-            aria-label="Close menu"
-          >
-            <X size={20} />
-          </button>
-        </div>
+        <div>
+          {/* Header area */}
+          {!isCollapsed ? (
+            <div className="flex items-center justify-between px-3.5 mb-4">
+              <div className="flex items-center bg-white px-3 py-1.5 rounded-2xl shadow-xs">
+                <img 
+                  src="/ibots-logo.png" 
+                  alt="iBots" 
+                  className="h-7 w-auto max-w-[125px] object-contain"
+                />
+              </div>
 
-        {/* User Role Card */}
-        <div className="mb-6 px-3 py-2.5 bg-slate-800/70 border border-slate-700/60 rounded-xl flex items-center justify-between">
-          <div className="truncate">
-            <p className="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Welcome</p>
-            <p className="text-sm font-bold text-white capitalize truncate">{user?.name || user?.role || 'User'}</p>
-          </div>
-          <span className="px-2 py-0.5 text-[10px] font-bold bg-sky-500/20 text-sky-300 border border-sky-500/40 rounded-full uppercase tracking-wider shrink-0">
-            {user?.role || 'Staff'}
-          </span>
-        </div>
+              <div className="flex items-center gap-1">
+                {/* Desktop Collapse Button */}
+                {onToggleCollapse && (
+                  <button 
+                    onClick={onToggleCollapse}
+                    className="hidden md:flex p-2 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                    title="Collapse sidebar"
+                    aria-label="Collapse sidebar"
+                  >
+                    <Menu size={20} />
+                  </button>
+                )}
 
-        <nav className="flex flex-col gap-1.5">
-          {/* First part of nav items (Dashboard, Enquiries) */}
-          {navItems.slice(0, 2).map((item) => {
-            const isAction = !!item.action;
-            
-            return item.action ? (
-              <button
-                key={item.name}
-                onClick={() => {
-                  item.action();
-                  handleNavClick(isAction);
-                }}
-                className="flex items-center w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 font-medium text-sm cursor-pointer"
-              >
-                {item.icon}
-                {item.name}
-              </button>
-            ) : (
-              <NavLink
-                key={item.name}
-                to={item.path}
-                onClick={() => handleNavClick(isAction)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${
-                    isActive 
-                      ? "bg-sky-500 text-white font-semibold shadow-md shadow-sky-900/30" 
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`
-                }
-              >
-                {item.icon}
-                {item.name}
-              </NavLink>
-            )
-          })}
-
-          {/* Management Dropdown - Only for admin users */}
-          {user?.role === "admin" && (
-            <div className="flex flex-col">
-              <button
-                onClick={handleManagementClick}
-                className="flex items-center justify-between w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium text-slate-300 hover:bg-slate-800 hover:text-white cursor-pointer"
-              >
-                <div className="flex items-center gap-3">
-                  <Settings size={18} />
-                  <span>Management</span>
-                </div>
-                {isManagementOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-              </button>
-              
-              {/* Dropdown items */}
-              {isManagementOpen && (
-                <div className="ml-4 pl-3 border-l border-slate-700/80 my-1 flex flex-col gap-1">
-                  {managementItems.map((item) => (
-                    <NavLink
-                      key={item.name}
-                      to={item.path}
-                      onClick={() => handleNavClick(false)}
-                      className={({ isActive }) =>
-                        `flex items-center gap-2.5 px-3 py-2 rounded-lg transition-all duration-200 text-xs font-medium ${
-                          isActive 
-                            ? "bg-sky-500 text-white font-semibold shadow-xs" 
-                            : "text-slate-400 hover:bg-slate-800 hover:text-slate-200"
-                        }`
-                      }
-                    >
-                      {item.icon}
-                      {item.name}
-                    </NavLink>
-                  ))}
-                </div>
+                {/* Mobile Close Button */}
+                <button 
+                  onClick={() => setIsOpen(false)} 
+                  className="md:hidden p-1.5 text-white/80 hover:text-white hover:bg-white/10 rounded-xl transition-colors cursor-pointer"
+                  aria-label="Close menu"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center mb-3">
+              {onToggleCollapse && (
+                <button 
+                  onClick={onToggleCollapse}
+                  className="hidden md:flex p-2.5 text-white hover:bg-white/15 rounded-2xl transition-colors cursor-pointer justify-center mb-2"
+                  title="Expand sidebar"
+                  aria-label="Expand sidebar"
+                >
+                  <Menu size={22} />
+                </button>
               )}
             </div>
           )}
 
-          {/* Remaining nav items (Bills, Tasks, Dropped, Inventory, Training, Reports, Logout) */}
-          {navItems.slice(2).map((item) => {
-            const isAction = !!item.action;
-            
-            return item.action ? (
-              <button
-                key={item.name}
-                onClick={() => {
-                  item.action();
-                  handleNavClick(isAction);
-                }}
-                className="flex items-center w-full gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 font-medium text-sm cursor-pointer mt-3 pt-3 border-t border-slate-800"
-              >
-                {item.icon}
-                {item.name}
-              </button>
-            ) : (
+          {/* User Welcome Card */}
+          {!isCollapsed ? (
+            <div className="mx-3.5 mb-4 px-3.5 py-2.5 bg-white/10 backdrop-blur-xs border border-white/15 rounded-2xl flex items-center justify-between shadow-2xs">
+              <div className="truncate">
+                <p className="text-[10px] font-bold text-white/70 uppercase tracking-wider">Welcome</p>
+                <p className="text-xs font-bold text-white capitalize truncate">{user?.name || user?.role || "User"}</p>
+              </div>
+              <span className="px-2.5 py-0.5 text-[10px] font-bold bg-white text-[#0284c7] rounded-full uppercase tracking-wider shrink-0 shadow-2xs">
+                {user?.role || "Staff"}
+              </span>
+            </div>
+          ) : (
+            <div 
+              className="mx-auto mb-3 w-9 h-9 rounded-full bg-white/20 border border-white/25 flex items-center justify-center text-white font-bold text-xs shadow-2xs"
+              title={`Signed in as ${user?.name || user?.role || "User"}`}
+            >
+              {(user?.name || user?.role || "U").charAt(0).toUpperCase()}
+            </div>
+          )}
+
+          {/* Navigation Items with Inverted Curved Active Indicator */}
+          <nav className="flex flex-col gap-1">
+            {baseNavItems.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.path}
-                onClick={() => handleNavClick(isAction)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-all duration-200 text-sm font-medium ${
-                    isActive 
-                      ? "bg-sky-500 text-white font-semibold shadow-md shadow-sky-900/30" 
-                      : "text-slate-300 hover:bg-slate-800 hover:text-white"
-                  }`
-                }
+                onClick={() => handleNavClick(false)}
+                title={isCollapsed ? item.name : undefined}
+                className={({ isActive }) => `
+                  relative flex items-center transition-colors duration-150 group
+                  ${isCollapsed ? "justify-center mx-2 px-0 py-3" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3"}
+                  ${
+                    isActive
+                      ? "bg-gray-50 text-slate-800 font-bold rounded-l-[26px] z-10"
+                      : "text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-2xl"
+                  }
+                `}
               >
-                {item.icon}
-                {item.name}
+                {({ isActive }) => (
+                  <>
+                    {/* Seamless Inverted Fillet Curves connecting into page background */}
+                    {isActive && (
+                      <>
+                        {/* Top Inverted Curve */}
+                        <svg 
+                          className="absolute -top-5 right-0 w-5 h-5 pointer-events-none fill-gray-50" 
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M 20 0 V 20 H 0 C 11.0457 20 20 11.0457 20 0 Z" />
+                        </svg>
+
+                        {/* Bottom Inverted Curve */}
+                        <svg 
+                          className="absolute -bottom-5 right-0 w-5 h-5 pointer-events-none fill-gray-50" 
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M 20 20 V 0 H 0 C 11.0457 0 20 8.9543 20 20 Z" />
+                        </svg>
+                      </>
+                    )}
+
+                    {/* Icon */}
+                    <span 
+                      className={`shrink-0 transition-transform duration-200 ${
+                        isActive ? "text-[#0284c7]" : "text-white group-hover:scale-110"
+                      }`}
+                    >
+                      {item.icon}
+                    </span>
+
+                    {/* Label (Expanded Mode) */}
+                    {!isCollapsed && (
+                      <span className="text-sm font-semibold tracking-wide truncate">
+                        {item.name}
+                      </span>
+                    )}
+
+                    {/* Floating Tooltip (Collapsed Mode) */}
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                        {item.name}
+                      </div>
+                    )}
+                  </>
+                )}
               </NavLink>
-            )
-          })}
-        </nav>
+            ))}
+
+            {/* Management Section (Admin Only) */}
+            {user?.role === "admin" && (
+              <div className="flex flex-col mt-1">
+                <button
+                  onClick={handleManagementClick}
+                  title={isCollapsed ? "Management" : undefined}
+                  className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-2xl cursor-pointer group ${
+                    isCollapsed ? "justify-center mx-2 px-0 py-3" : "justify-between ml-3.5 pl-3.5 pr-3 py-3"
+                  }`}
+                >
+                  <div className="flex items-center gap-3.5">
+                    <span className="text-white group-hover:scale-110 transition-transform">
+                      <Settings size={20} />
+                    </span>
+                    {!isCollapsed && <span className="text-sm font-semibold">Management</span>}
+                  </div>
+                  {!isCollapsed && (isManagementOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+
+                  {isCollapsed && (
+                    <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                      Management
+                    </div>
+                  )}
+                </button>
+
+                {/* Sub-items */}
+                {isManagementOpen && (
+                  <div className={`my-1 flex flex-col gap-1 ${isCollapsed ? "items-center" : "ml-6 pl-2 border-l border-white/20"}`}>
+                    {managementItems.map((item) => (
+                      <NavLink
+                        key={item.name}
+                        to={item.path}
+                        onClick={() => handleNavClick(false)}
+                        title={isCollapsed ? item.name : undefined}
+                        className={({ isActive }) => `
+                          relative flex items-center transition-all duration-200 group
+                          ${isCollapsed ? "justify-center p-2 rounded-xl" : "gap-2.5 px-3 py-2 rounded-l-xl text-xs font-medium"}
+                          ${
+                            isActive
+                              ? "bg-gray-50 text-[#0284c7] font-bold shadow-xs"
+                              : "text-white/80 hover:text-white hover:bg-white/10"
+                          }
+                        `}
+                      >
+                        <span className="shrink-0">{item.icon}</span>
+                        {!isCollapsed && <span>{item.name}</span>}
+                      </NavLink>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </nav>
+        </div>
+
+        {/* Bottom Actions: Logout */}
+        <div className="px-1 mt-4">
+          <button
+            onClick={() => {
+              logout();
+              handleNavClick(true);
+            }}
+            title={isCollapsed ? "Logout" : undefined}
+            className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-rose-500/25 font-semibold rounded-l-2xl cursor-pointer group pt-2.5 border-t border-white/15 ${
+              isCollapsed ? "justify-center mx-2 px-0 py-3" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3"
+            }`}
+          >
+            <span className="shrink-0 group-hover:scale-110 transition-transform text-rose-200 group-hover:text-white">
+              <LogOut size={20} />
+            </span>
+            {!isCollapsed && <span className="text-sm">Logout</span>}
+            {isCollapsed && (
+              <div className="absolute left-full ml-3 px-2.5 py-1 bg-rose-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
+                Logout
+              </div>
+            )}
+          </button>
+        </div>
       </aside>
-      
+
       {/* Mobile Backdrop Overlay */}
       {isOpen && (
         <div 
-          className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden" 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-30 md:hidden" 
           onClick={() => setIsOpen(false)}
         ></div>
       )}
