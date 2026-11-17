@@ -8,7 +8,9 @@ type Props = {
 };
 
 export default function ProtectedRoute({ children, allowedRoles }: Props) {
-  const { user, loading } = useAuth();
+  const auth = useAuth();
+  const user = auth?.user ?? null;
+  const loading = auth?.loading ?? true;
   const location = useLocation();
 
   if (loading) {
