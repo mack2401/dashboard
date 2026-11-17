@@ -32,6 +32,7 @@ import {
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
+import ProfileDropdown from "../components/ProfileDropdown";
 
 // Professional Corporate Palette matching Primary (#087EBC), Secondary (#119ED0), Accent (#42B8E8)
 const PIE_COLORS = [
@@ -462,43 +463,49 @@ const Dashboard: React.FC = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
               <span className="w-2 sm:w-2.5 h-7 sm:h-9 bg-sky-500 rounded-full inline-block shrink-0"></span>
-              DashBoard
+              Dashboard
             </h1>
           </div>
 
-          {/* Timeframe pill selector: Yesterday, Today, Past Dates */}
-          <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200/80 self-start sm:self-auto shrink-0">
-            <button
-              onClick={() => setTimeFilter("yesterday")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                timeFilter === "yesterday"
-                  ? "bg-sky-500 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
-              }`}
-            >
-              Yesterday
-            </button>
-            <button
-              onClick={() => setTimeFilter("today")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                timeFilter === "today"
-                  ? "bg-sky-500 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setTimeFilter("past")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
-                timeFilter === "past"
-                  ? "bg-sky-500 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
-              }`}
-            >
-              <History className="w-3.5 h-3.5" />
-              <span>Past Dates</span>
-            </button>
+          {/* Top Right Header Controls: Timeframe pill selector & User Profile */}
+          <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto shrink-0">
+            {/* Timeframe pill selector: Yesterday, Today, Past Dates */}
+            <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200/80 shrink-0">
+              <button
+                onClick={() => setTimeFilter("yesterday")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  timeFilter === "yesterday"
+                    ? "bg-sky-500 text-white shadow-xs"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                }`}
+              >
+                Yesterday
+              </button>
+              <button
+                onClick={() => setTimeFilter("today")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  timeFilter === "today"
+                    ? "bg-sky-500 text-white shadow-xs"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                }`}
+              >
+                Today
+              </button>
+              <button
+                onClick={() => setTimeFilter("past")}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
+                  timeFilter === "past"
+                    ? "bg-sky-500 text-white shadow-xs"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Past Dates</span>
+              </button>
+            </div>
+
+            {/* Profile Dropdown */}
+            <ProfileDropdown />
           </div>
         </div>
 
