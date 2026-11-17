@@ -240,7 +240,6 @@ const ManageTeams: React.FC = () => {
             <Grid container justifyContent="space-between" alignItems="center" sx={{ mb: 3, ml: { xs: 5, sm: 0 }, width: { xs: 'calc(100% - 40px)', sm: '100%' } }}>
                 <Grid item>
                     <Typography variant="h4" component="h1">Team Management</Typography>
-                    <Typography variant="subtitle1" color="text.secondary">View, create, and manage your teams</Typography>
                 </Grid>
                 <Grid item>
                     <Button variant="contained" startIcon={<AddIcon />} onClick={() => handleOpenModal(null)}>

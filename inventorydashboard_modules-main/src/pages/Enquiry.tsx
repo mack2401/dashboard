@@ -1062,9 +1062,6 @@ export default function EnquiryPage() {
                     {currentUserProfile?.role || "Staff"}
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                  Manage pipeline, customer enquiries, quotation progress, and orders.
-                </p>
               </div>
             </div>
           </div>

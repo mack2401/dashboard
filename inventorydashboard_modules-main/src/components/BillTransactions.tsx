@@ -2349,9 +2349,6 @@ const BillTransactions: React.FC = () => {
                     {userRole}
                   </span>
                 </div>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                  Real-time ledger of invoices, quotations, GST filings, and revenue analytics.
-                </p>
               </div>
             </div>
           </div>

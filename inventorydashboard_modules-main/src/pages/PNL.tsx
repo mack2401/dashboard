@@ -1671,9 +1671,6 @@ export default function PNL() {
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
                   Profit & Loss (P&L) Statement
                 </h1>
-                <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-                  Real-time analytics for Sales, Buying Cost, Wastage, and Net Margin across all business channels.
-                </p>
               </div>
             </div>
           </div>

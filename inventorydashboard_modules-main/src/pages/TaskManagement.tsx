@@ -1890,9 +1890,6 @@ const TaskManagement: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 md:mb-8">
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900">Task Management</h1>
-            <p className="text-sm md:text-base text-gray-600 mt-1 md:mt-2">
-              {user.role === 'admin' ? 'Manage and assign tasks to your team' : user.role === 'manager' ? 'Manage tasks for your team' : 'Create and manage your tasks'}
-            </p>
           </div>
           
           <div className="flex gap-3 mt-4 md:mt-0">

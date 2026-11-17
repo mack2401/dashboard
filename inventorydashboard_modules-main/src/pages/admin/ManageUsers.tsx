@@ -322,9 +322,6 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
                 <Users className="w-7 h-7 text-blue-600" />
                 User Management
               </h1>
-              <p className="text-sm text-gray-500 mt-1">
-                Add and manage Admins, Managers, and Staff accounts in a single place.
-              </p>
             </div>
             <button
               onClick={fetchEmployees}
