@@ -1,52 +1,3 @@
-// import React from "react";
-// import { Eye, Pencil, Trash2 } from "lucide-react";
-
-// interface Props<T> {
-//   row: T & { id: string };
-//   onView: (row: any) => void;
-//   onEdit: (row: any) => void;
-//   onDelete: (row: any) => void;
-// }
-
-// export default function TableRowActions<T>({
-//   row,
-//   onView,
-//   onEdit,
-//   onDelete,
-// }: Props<T>) {
-//   return (
-//     <div className="flex gap-3 items-center p-2">
-//       {/* View Button */}
-//       <button
-//         onClick={() => onView(row)}
-//         className="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-blue-600 hover:scale-110 transition-transform duration-150"
-//         title="View"
-//       >
-//         <Eye size={16} />
-//       </button>
-
-//       {/* Edit Button */}
-//       <button
-//         onClick={() => onEdit(row)}
-//         className="w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-amber-600 hover:scale-110 transition-transform duration-150"
-//         title="Edit"
-//       >
-//         <Pencil size={16} />
-//       </button>
-
-//       {/* Delete Button */}
-//       <button
-//         onClick={() => onDelete(row)}
-//         className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-red-600 hover:scale-110 transition-transform duration-150"
-//         title="Delete"
-//       >
-//         <Trash2 size={16} />
-//       </button>
-//     </div>
-//   );
-// }
-
-
 import React from "react";
 import { Eye, Pencil, Trash2 } from "lucide-react";
 
@@ -54,7 +5,7 @@ interface Props<T> {
   row: T & { id?: string };
   onView: (row: any) => void;
   onEdit: (row: any) => void;
-  onDelete: (id: string) => void; // Changed from any to id: string
+  onDelete: (id: string) => void;
 }
 
 export default function TableRowActions<T>({
@@ -64,32 +15,32 @@ export default function TableRowActions<T>({
   onDelete,
 }: Props<T>) {
   return (
-    <div className="flex gap-3 items-center p-2">
+    <div className="flex items-center justify-center gap-1 py-1">
       {/* View Button */}
       <button
         onClick={() => onView(row)}
-        className="w-9 h-9 rounded-full bg-blue-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-blue-600 hover:scale-110 transition-transform duration-150"
-        title="View"
+        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition"
+        title="View Details"
       >
-        <Eye size={16} />
+        <Eye className="w-4 h-4" />
       </button>
 
       {/* Edit Button */}
       <button
         onClick={() => onEdit(row)}
-        className="w-9 h-9 rounded-full bg-amber-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-amber-600 hover:scale-110 transition-transform duration-150"
+        className="p-1.5 text-amber-600 hover:text-amber-800 hover:bg-amber-50 rounded-lg cursor-pointer transition"
         title="Edit"
       >
-        <Pencil size={16} />
+        <Pencil className="w-4 h-4" />
       </button>
 
       {/* Delete Button */}
       <button
-        onClick={() => onDelete(row.id!)} // Pass only the ID
-        className="w-9 h-9 rounded-full bg-red-500 text-white flex items-center justify-center shadow cursor-pointer hover:bg-red-600 hover:scale-110 transition-transform duration-150"
+        onClick={() => onDelete(row.id!)}
+        className="p-1.5 text-rose-600 hover:text-rose-800 hover:bg-rose-50 rounded-lg cursor-pointer transition"
         title="Delete"
       >
-        <Trash2 size={16} />
+        <Trash2 className="w-4 h-4" />
       </button>
     </div>
   );

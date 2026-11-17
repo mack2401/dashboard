@@ -1,5 +1,4 @@
 // components/BillTransactions.tsx - Updated with Proforma Invoice print view
-
 import React, { useState, useEffect, useRef } from "react";
 import {
   collection,
@@ -21,7 +20,6 @@ import type { User } from "firebase/auth";
 import { db } from "../firebase";
 import { billService } from "../services/billService";
 import type { Bill } from "../services/billService";
-
 import {
   FileText,
   Eye,
@@ -50,7 +48,6 @@ import {
   ShoppingBag,
   Package,
 } from "lucide-react";
-
 interface MaterialItem {
   productId?: string;
   productName: string;
@@ -68,12 +65,10 @@ interface BankDetails {
   ifscCode: string;
   branch: string;
 }
-
 interface TermsCondition {
   id: number;
   text: string;
 }
-
 interface BillTransaction extends Bill {
   id: string;
   originalBillId?: string;
@@ -87,7 +82,6 @@ interface BillTransaction extends Bill {
   enquiryStatus?: string;
   placeOfSupply?: string;
 }
-
 const defaultBankDetails: BankDetails = {
   beneficiaryName: "Protowiz Private Limited",
   bankName: "ICICI Bank",
@@ -101,7 +95,6 @@ const defaultTerms: TermsCondition[] = [
   { id: 2, text: "Delivery: 10-12 days maximum from advance initiation" },
   { id: 3, text: "Quote Validity: 2 days" },
 ];
-
 const formatContactNumber = (contact?: string | number): string => {
   if (!contact) return "-";
   const str = String(contact).trim();
@@ -110,7 +103,6 @@ const formatContactNumber = (contact?: string | number): string => {
   const cleaned = str.replace(/[\s\-\.]+/g, "");
   return cleaned || "-";
 };
-
 // Safe date resolver matching PNL.tsx
 const getBillDate = (b: any): Date => {
   const raw = b?.billDate || b?.createdAt || b?.updatedAt;
@@ -122,14 +114,11 @@ const getBillDate = (b: any): Date => {
   }
   return new Date(0);
 };
-
 // Unified date range filter matching PNL.tsx
 const isDateInFilterRange = (d: Date, preset: string, customStart?: string, customEnd?: string): boolean => {
   if (!d || isNaN(d.getTime())) return preset === "all";
-
   const now = new Date();
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
   switch (preset) {
     case "all":
       return true;
@@ -178,7 +167,6 @@ const isDateInFilterRange = (d: Date, preset: string, customStart?: string, cust
     }
   }
 };
-
 const BillTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<BillTransaction[]>([]);
   const [filteredTransactions, setFilteredTransactions] = useState<BillTransaction[]>([]);
@@ -195,6 +183,17 @@ const BillTransactions: React.FC = () => {
   const [showDeleteAdminPassword, setShowDeleteAdminPassword] = useState(false);
   const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
   const savedSearchTermRef = useRef<string>("");
+
+  // Prevent background page from scrolling when view modal or delete confirmation is open
+  useEffect(() => {
+    if (selectedBill || showDeleteConfirm) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [selectedBill, showDeleteConfirm]);
 
   // Dynamic filter state variables
   const [billTypeFilter, setBillTypeFilter] = useState<"all" | "b2b" | "b2c">("all");
@@ -213,7 +212,6 @@ const BillTransactions: React.FC = () => {
     activeBillsCount: 0,
     paidSellValue: 0,
     purchaseItemsCount: 0,
-
     totalBills: 0,
     paidBillsCount: 0,
     quoteBillsCount: 0,
@@ -2889,8 +2887,15 @@ const BillTransactions: React.FC = () => {
 
       {/* Modern Bill Details Modal */}
       {selectedBill && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden my-6 animate-fade-in flex flex-col border border-gray-100">
+        <div 
+          onClick={() => setSelectedBill(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden my-6 animate-fade-in flex flex-col border border-gray-100 overscroll-contain"
+          >
             {/* Modal Header */}
             <div className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur-xs border-b border-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
               <div className="flex items-center gap-3">
@@ -2928,7 +2933,10 @@ const BillTransactions: React.FC = () => {
             </div>
 
             {/* Modal Body (Scrollable) */}
-            <div className="p-6 overflow-y-auto space-y-5 flex-1">
+            <div 
+              onWheel={(e) => e.stopPropagation()}
+              className="p-6 overflow-y-auto space-y-5 flex-1 overscroll-contain"
+            >
               {/* Info Cards Grid */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">

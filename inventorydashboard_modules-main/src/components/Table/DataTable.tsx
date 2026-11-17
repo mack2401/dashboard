@@ -310,6 +310,17 @@ export default function DataTable<T extends { id?: string }>(
     }
   }, [exportModal]);
 
+  // Prevent background page from scrolling when modal is open
+  useEffect(() => {
+    if (viewData || confirmDelete || showColumnsModal || exportModal) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [viewData, confirmDelete, showColumnsModal, exportModal]);
+
   const [visibleCols, setVisibleCols] = useState<Record<string, boolean>>(
     () => {
       if (defaultVisibleColumnIds && defaultVisibleColumnIds.length > 0) {
@@ -1775,8 +1786,15 @@ export default function DataTable<T extends { id?: string }>(
       )}
 
       {viewData && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] overflow-hidden border border-gray-100 flex flex-col animate-fade-in my-6">
+        <div 
+          onClick={() => setViewData(null)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
+        >
+          <div 
+            onClick={(e) => e.stopPropagation()}
+            onWheel={(e) => e.stopPropagation()}
+            className="bg-white rounded-3xl shadow-2xl max-w-xl w-full max-h-[85vh] overflow-hidden border border-gray-100 flex flex-col animate-fade-in my-6 overscroll-contain"
+          >
             <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50/70 flex-shrink-0">
               <h2 className="text-base font-bold text-gray-900">
                 Record Details
@@ -1788,7 +1806,10 @@ export default function DataTable<T extends { id?: string }>(
                 <X size={18} />
               </button>
             </div>
-            <div className="overflow-y-auto p-4 space-y-2 flex-1">
+            <div 
+              onWheel={(e) => e.stopPropagation()}
+              className="overflow-y-auto p-4 space-y-2 flex-1 overscroll-contain"
+            >
               {(viewColumns || columns).map((col) => {
                 const key = col.id ?? (col as any).accessorKey;
 

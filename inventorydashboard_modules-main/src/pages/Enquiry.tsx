@@ -205,6 +205,17 @@ export default function EnquiryPage() {
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
+
+  // Prevent background page from scrolling when view modal or add/edit modal is open
+  useEffect(() => {
+    if (viewModalOpen || modalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [viewModalOpen, modalOpen]);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -1039,7 +1050,7 @@ export default function EnquiryPage() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0284c7] to-[#0ea5e9] text-white flex items-center justify-center shadow-md shadow-[#0284c7]/20">
                 <MessageSquare className="w-5 h-5" />
               </div>
               <div>
@@ -1077,7 +1088,7 @@ export default function EnquiryPage() {
                 } as Enquiry);
                 setModalOpen(true);
               }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white rounded-xl shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] hover:from-[#0284c7] hover:to-[#0369a1] text-white rounded-xl shadow-xs shadow-[#0284c7]/25 transition cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               + New Enquiry
@@ -1091,7 +1102,7 @@ export default function EnquiryPage() {
           <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
             <div className="flex items-center justify-between">
               <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Total Enquiries</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+              <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#0284c7] flex items-center justify-center">
                 <MessageSquare className="w-4 h-4" />
               </div>
             </div>
@@ -1191,7 +1202,7 @@ export default function EnquiryPage() {
             <button
               onClick={() => setCategoryFilter("ecommerce")}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "ecommerce"
-                ? "bg-blue-600 text-white shadow-xs"
+                ? "bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] text-white shadow-xs shadow-[#0284c7]/25"
                 : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
                 }`}
             >
@@ -1229,7 +1240,7 @@ export default function EnquiryPage() {
                 className={`
                   flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap
                   ${isActive
-                    ? "bg-slate-900 text-white shadow-xs"
+                    ? "bg-gradient-to-r from-[#0ea5e9] via-[#0284c7] to-[#0369a1] text-white shadow-xs shadow-[#0284c7]/25"
                     : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
                   }
                 `}
@@ -1262,7 +1273,7 @@ export default function EnquiryPage() {
                 value={globalSearch}
                 onChange={(e) => setGlobalSearch(e.target.value)}
                 placeholder="Search by Customer, Mobile, Enq ID, City, Remarks..."
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
+                className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:bg-white transition-all"
               />
               {globalSearch && (
                 <button
@@ -1281,7 +1292,7 @@ export default function EnquiryPage() {
                 <select
                   value={modeFilter}
                   onChange={(e) => setModeFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all cursor-pointer font-medium"
+                  className="w-full px-3 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:bg-white transition-all cursor-pointer font-medium"
                 >
                   <option value="all">All Sources / Modes</option>
                   {availableModes.map((mode) => (
@@ -1313,7 +1324,7 @@ export default function EnquiryPage() {
           {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
             <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-pulse"></span>
                 <span>
                   Showing <strong>{filteredEnquiries.length}</strong> of <strong>{enquiries.length}</strong> enquiries
                   {categoryFilter !== "all" && (
@@ -1344,7 +1355,7 @@ export default function EnquiryPage() {
             columns={columns}
             data={currentData}
             loading={isLoading}
-            headerBgColor="bg-slate-900"
+            headerBgColor="bg-gradient-to-r from-[#0ea5e9] via-[#0284c7] to-[#0369a1]"
             onAdd={async () => {
               const nextId = await generateNextEnqId();
               setSelectedEnquiry({
@@ -1430,7 +1441,7 @@ export default function EnquiryPage() {
                   className={`
                     min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer
                     ${currentPage === pageNum
-                      ? "bg-slate-900 text-white shadow-xs"
+                      ? "bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] text-white shadow-xs shadow-[#0284c7]/25"
                       : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
                     }
                   `}
@@ -1484,18 +1495,25 @@ export default function EnquiryPage() {
         const assignedName = assignedUid ? (employeesByUid[assignedUid]?.employeeName || employeesByUid[assignedUid]?.name || "Unassigned") : "Unassigned";
 
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-            <div className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-6 animate-fade-in flex flex-col max-h-[90vh]">
+          <div 
+            onClick={() => setViewModalOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
+          >
+            <div 
+              onClick={(e) => e.stopPropagation()}
+              onWheel={(e) => e.stopPropagation()}
+              className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-6 animate-fade-in flex flex-col max-h-[90vh] overscroll-contain"
+            >
               {/* Modal Header */}
               <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50/70 flex-shrink-0">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0284c7] to-[#0ea5e9] text-white flex items-center justify-center shadow-xs">
                     <FileText className="w-5 h-5" />
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <h2 className="text-base font-bold text-gray-900">Enquiry Details</h2>
-                      <span className="font-mono text-xs font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                      <span className="font-mono text-xs font-semibold text-[#0284c7] bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
                         {selectedEnquiry.enqId || "-"}
                       </span>
                     </div>
@@ -1513,7 +1531,10 @@ export default function EnquiryPage() {
               </div>
 
               {/* Modal Body (Scrollable) */}
-              <div className="p-6 overflow-y-auto space-y-5 flex-1">
+              <div 
+                onWheel={(e) => e.stopPropagation()}
+                className="p-6 overflow-y-auto space-y-5 flex-1 overscroll-contain"
+              >
                 {/* Details Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                   <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
@@ -1604,7 +1625,7 @@ export default function EnquiryPage() {
                 <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
                   <div className="bg-slate-50/90 px-4 py-3 border-b border-gray-200/80 flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-blue-600" />
+                      <Package className="w-4 h-4 text-[#0284c7]" />
                       <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
                         Products & Materials
                       </h3>
@@ -1634,7 +1655,7 @@ export default function EnquiryPage() {
                                 {mat.productName}
                               </td>
                               <td className="px-4 py-2.5 text-right">
-                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 font-mono">
+                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200/80 font-mono">
                                   {mat.quantity}
                                 </span>
                               </td>
@@ -1663,7 +1684,7 @@ export default function EnquiryPage() {
                       setViewModalOpen(false);
                       setModalOpen(true);
                     }}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition cursor-pointer flex items-center gap-1.5"
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#0284c7] bg-sky-50 hover:bg-sky-100 border border-sky-200 transition cursor-pointer flex items-center gap-1.5"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
                     Edit Enquiry
