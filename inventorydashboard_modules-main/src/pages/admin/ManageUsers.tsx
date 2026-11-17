@@ -26,6 +26,11 @@ import {
   EyeOff,
   Check,
   AlertTriangle,
+  ChevronLeft,
+  ChevronRight,
+  Calendar,
+  Phone,
+  Mail,
 } from "lucide-react";
 import AdminGuard from "../../components/AdminGuard";
 
@@ -62,16 +67,22 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
   const [role, setRole] = useState<Role>(initialRole);
   const [showPassword, setShowPassword] = useState(false);
 
+  // Modal dialog state
+  const [isFormModalOpen, setIsFormModalOpen] = useState(false);
+
   // UI & Loading States
   const [loading, setLoading] = useState(false);
   const [listLoading, setListLoading] = useState(true);
   const [editing, setEditing] = useState<EmployeeRecord | null>(null);
   const [employees, setEmployees] = useState<EmployeeRecord[]>([]);
-  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
   // Filter & Search
   const [activeTab, setActiveTab] = useState<"all" | Role>(defaultRole || "all");
   const [searchTerm, setSearchTerm] = useState("");
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Delete modal state
   const [userToDelete, setUserToDelete] = useState<EmployeeRecord | null>(null);
@@ -127,6 +138,12 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
     setPassword("");
     setRole(defaultRole || "staff");
     setEditing(null);
+    setShowPassword(false);
+  };
+
+  const openAddUserModal = () => {
+    resetForm();
+    setIsFormModalOpen(true);
   };
 
   const handleEditClick = (emp: EmployeeRecord) => {
@@ -136,7 +153,13 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
     setPhone(emp.phone || emp.mobile || "");
     setRole(emp.role || "staff");
     setPassword("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setShowPassword(false);
+    setIsFormModalOpen(true);
+  };
+
+  const closeFormModal = () => {
+    setIsFormModalOpen(false);
+    resetForm();
   };
 
   const handleCreateOrUpdate = async (e: React.FormEvent) => {
@@ -208,7 +231,7 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
       }
 
       await fetchEmployees();
-      resetForm();
+      closeFormModal();
     } catch (err: any) {
       console.error("create/update error", err);
       toast.error(err?.message || "Operation failed. Please try again.");
@@ -282,30 +305,58 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
     });
   }, [employees, activeTab, searchTerm]);
 
+  // Reset pagination when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [activeTab, searchTerm, itemsPerPage]);
+
+  // Pagination calculations
+  const totalPages = Math.max(1, Math.ceil(filteredEmployees.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, filteredEmployees.length);
+  const currentEmployees = useMemo(() => {
+    return filteredEmployees.slice(startIndex, endIndex);
+  }, [filteredEmployees, startIndex, endIndex]);
+
   const getRoleBadge = (r?: Role) => {
     switch (r) {
       case "admin":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
-            <ShieldCheck className="w-3 h-3 text-purple-700" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-purple-100 text-purple-800 border border-purple-200">
+            <ShieldCheck className="w-3.5 h-3.5 text-purple-700" />
             Admin
           </span>
         );
       case "manager":
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
-            <Users className="w-3 h-3 text-blue-700" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+            <Users className="w-3.5 h-3.5 text-blue-700" />
             Manager
           </span>
         );
       case "staff":
       default:
         return (
-          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
-            <User className="w-3 h-3 text-emerald-700" />
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+            <User className="w-3.5 h-3.5 text-emerald-700" />
             Staff
           </span>
         );
+    }
+  };
+
+  const formatDate = (dateObj: any) => {
+    if (!dateObj) return "-";
+    try {
+      const d = dateObj.toDate ? dateObj.toDate() : new Date(dateObj);
+      if (isNaN(d.getTime())) return "-";
+      return d.toLocaleDateString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+      });
+    } catch {
+      return "-";
     }
   };
 
@@ -316,411 +367,562 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
 
         {/* Page Header */}
         <div className="max-w-7xl mx-auto mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight flex items-center gap-2.5">
-                <Users className="w-7 h-7 text-blue-600" />
-                User Management
+                <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center shadow-xs">
+                  <Users className="w-6 h-6" />
+                </div>
+                <span>User Management</span>
               </h1>
+              <p className="text-xs sm:text-sm text-gray-500 mt-1">
+                Manage accounts, define role permissions, and track active users across the platform.
+              </p>
             </div>
-            <button
-              onClick={fetchEmployees}
-              disabled={listLoading}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition shadow-xs cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${listLoading ? "animate-spin text-blue-600" : ""}`} />
-              Refresh
-            </button>
+
+            <div className="flex items-center gap-2.5 self-start sm:self-auto">
+              <button
+                onClick={fetchEmployees}
+                disabled={listLoading}
+                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 text-xs font-semibold text-gray-700 bg-white border border-gray-300 rounded-xl hover:bg-gray-50 transition shadow-xs cursor-pointer disabled:opacity-60"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${listLoading ? "animate-spin text-blue-600" : ""}`} />
+                <span>Refresh</span>
+              </button>
+
+              <button
+                onClick={openAddUserModal}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-xs hover:shadow-md transition cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Add New User</span>
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Main Content Grid: Form (Left) & Directory (Right) */}
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* ============ USER FORM (5 COLS) ============ */}
-          <div className="lg:col-span-5 bg-white rounded-2xl shadow-xs border border-gray-200/90 p-5 sm:p-6 sticky top-6">
-            <div className="flex items-center justify-between pb-4 border-b border-gray-100 mb-5">
-              <div className="flex items-center gap-2.5">
-                <div
-                  className={`w-9 h-9 rounded-xl flex items-center justify-center ${
-                    editing ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+        {/* Main Content Area */}
+        <div className="max-w-7xl mx-auto space-y-4">
+          {/* Top Controls Card: Filters & Search */}
+          <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+              {/* Role Tabs */}
+              <div className="flex items-center gap-1.5 p-1 bg-gray-100/90 rounded-xl overflow-x-auto">
+                <button
+                  onClick={() => setActiveTab("all")}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    activeTab === "all"
+                      ? "bg-white text-gray-900 shadow-2xs font-bold"
+                      : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
-                  {editing ? <Edit2 className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
-                </div>
-                <div>
-                  <h2 className="text-lg font-bold text-gray-900">
-                    {editing ? "Edit User Details" : "Add New User"}
-                  </h2>
-                  <p className="text-xs text-gray-500">
-                    {editing ? "Update role or user info" : "Choose role and enter details"}
-                  </p>
-                </div>
-              </div>
-
-              {editing && (
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="text-xs text-gray-500 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 px-2.5 py-1 rounded-lg transition"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-
-            <form onSubmit={handleCreateOrUpdate} className="space-y-4">
-              {/* Full Name */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={employeeName}
-                  onChange={(e) => setEmployeeName(e.target.value)}
-                  placeholder="e.g., Rajesh Kumar"
-                  required
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
-                />
-              </div>
-
-              {/* Email Address */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Email Address <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="e.g., rajesh@company.com"
-                  required
-                  disabled={!!editing}
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition disabled:bg-gray-100 disabled:text-gray-500"
-                />
-                {editing && (
-                  <p className="text-[11px] text-gray-400 mt-1">Email cannot be changed after creation.</p>
-                )}
-              </div>
-
-              {/* Phone Number */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="e.g., 9876543210"
-                  className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
-                />
-              </div>
-
-              {/* Role Selection (Staff / Manager / Admin) */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
-                  Select Role <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {/* Staff */}
-                  <button
-                    type="button"
-                    onClick={() => setRole("staff")}
-                    className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
-                      role === "staff"
-                        ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-900 font-bold"
-                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
-                    }`}
-                  >
-                    <User className={`w-4 h-4 ${role === "staff" ? "text-emerald-600" : "text-gray-400"}`} />
-                    <span className="text-xs">Staff</span>
-                  </button>
-
-                  {/* Manager */}
-                  <button
-                    type="button"
-                    onClick={() => setRole("manager")}
-                    className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
-                      role === "manager"
-                        ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20 text-blue-900 font-bold"
-                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
-                    }`}
-                  >
-                    <Users className={`w-4 h-4 ${role === "manager" ? "text-blue-600" : "text-gray-400"}`} />
-                    <span className="text-xs">Manager</span>
-                  </button>
-
-                  {/* Admin */}
-                  <button
-                    type="button"
-                    onClick={() => setRole("admin")}
-                    className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1 ${
-                      role === "admin"
-                        ? "bg-purple-50 border-purple-500 ring-2 ring-purple-500/20 text-purple-900 font-bold"
-                        : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
-                    }`}
-                  >
-                    <ShieldCheck className={`w-4 h-4 ${role === "admin" ? "text-purple-600" : "text-gray-400"}`} />
-                    <span className="text-xs">Admin</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Password (for new user) */}
-              {!editing && (
-                <div>
-                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-                    Password <span className="text-red-500">*</span>
-                  </label>
-                  <div className="relative">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="Minimum 6 characters"
-                      required
-                      minLength={6}
-                      className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition pr-10"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
-                      title={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                    </button>
-                  </div>
-                  <p className="text-[11px] text-gray-400 mt-1">Credentials for first-time sign-in.</p>
-                </div>
-              )}
-
-              {/* Password Reset Action in Edit Mode */}
-              {editing && (
-                <div className="pt-2">
-                  <button
-                    type="button"
-                    onClick={() => handleResetPassword(editing.email || "")}
-                    className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2 text-xs font-semibold text-gray-700 bg-gray-50 hover:bg-gray-100 border border-gray-300 rounded-xl transition cursor-pointer"
-                  >
-                    <Key className="w-3.5 h-3.5 text-gray-500" />
-                    Send Password Reset Email
-                  </button>
-                </div>
-              )}
-
-              {/* Form Buttons */}
-              <div className="pt-3 flex items-center gap-2.5">
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="flex-1 inline-flex items-center justify-center gap-2 px-5 py-2.5 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-xs transition disabled:opacity-60 cursor-pointer"
-                >
-                  {loading ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>{editing ? "Updating..." : "Creating..."}</span>
-                    </>
-                  ) : (
-                    <>
-                      {editing ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                      <span>{editing ? "Save Changes" : `Create ${role.toUpperCase()}`}</span>
-                    </>
-                  )}
+                  All ({counts.total})
                 </button>
 
-                {editing && (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="px-4 py-2.5 text-sm font-semibold text-gray-600 hover:bg-gray-100 rounded-xl transition"
-                  >
-                    Reset
-                  </button>
-                )}
+                <button
+                  onClick={() => setActiveTab("admin")}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    activeTab === "admin"
+                      ? "bg-purple-600 text-white shadow-2xs font-bold"
+                      : "text-purple-700 hover:bg-purple-50"
+                  }`}
+                >
+                  Admins ({counts.admin})
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("manager")}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    activeTab === "manager"
+                      ? "bg-blue-600 text-white shadow-2xs font-bold"
+                      : "text-blue-700 hover:bg-blue-50"
+                  }`}
+                >
+                  Managers ({counts.manager})
+                </button>
+
+                <button
+                  onClick={() => setActiveTab("staff")}
+                  className={`px-3.5 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
+                    activeTab === "staff"
+                      ? "bg-emerald-600 text-white shadow-2xs font-bold"
+                      : "text-emerald-700 hover:bg-emerald-50"
+                  }`}
+                >
+                  Staff ({counts.staff})
+                </button>
               </div>
-            </form>
-          </div>
 
-          {/* ============ USER DIRECTORY (7 COLS) ============ */}
-          <div className="lg:col-span-7 space-y-4">
-            {/* Filter Tabs & Search Bar */}
-            <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                {/* Role Tabs */}
-                <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl overflow-x-auto">
-                  <button
-                    onClick={() => setActiveTab("all")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
-                      activeTab === "all"
-                        ? "bg-white text-gray-900 shadow-2xs font-bold"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    All ({counts.total})
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("admin")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
-                      activeTab === "admin"
-                        ? "bg-purple-600 text-white shadow-2xs font-bold"
-                        : "text-purple-700 hover:bg-purple-50"
-                    }`}
-                  >
-                    Admins ({counts.admin})
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("manager")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
-                      activeTab === "manager"
-                        ? "bg-blue-600 text-white shadow-2xs font-bold"
-                        : "text-blue-700 hover:bg-blue-50"
-                    }`}
-                  >
-                    Managers ({counts.manager})
-                  </button>
-
-                  <button
-                    onClick={() => setActiveTab("staff")}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition whitespace-nowrap cursor-pointer ${
-                      activeTab === "staff"
-                        ? "bg-emerald-600 text-white shadow-2xs font-bold"
-                        : "text-emerald-700 hover:bg-emerald-50"
-                    }`}
-                  >
-                    Staff ({counts.staff})
-                  </button>
-                </div>
-
-                {/* Search Input */}
-                <div className="relative min-w-[200px]">
+              {/* Search & Page Size */}
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 md:w-64">
                   <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Search name, email, phone..."
-                    className="w-full pl-9 pr-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="w-full pl-9 pr-8 py-2 text-xs bg-gray-50 border border-gray-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
                   />
                   {searchTerm && (
                     <button
                       onClick={() => setSearchTerm("")}
-                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                      className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
                   )}
                 </div>
+
+                <div className="flex items-center gap-1.5 text-xs text-gray-500 shrink-0">
+                  <span>Show</span>
+                  <select
+                    value={itemsPerPage}
+                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                    className="px-2 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-xs font-semibold focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer"
+                  >
+                    <option value={10}>10</option>
+                    <option value={25}>25</option>
+                    <option value={50}>50</option>
+                  </select>
+                </div>
               </div>
             </div>
+          </div>
 
-            {/* User Cards List */}
+          {/* User Table Card */}
+          <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 overflow-hidden">
             {listLoading ? (
-              <div className="space-y-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="bg-white p-4 rounded-2xl border border-gray-200 animate-pulse">
-                    <div className="flex items-center justify-between">
-                      <div className="space-y-2">
+              <div className="p-8 space-y-4">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={i} className="flex items-center justify-between animate-pulse py-3 border-b border-gray-100 last:border-0">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 bg-gray-200 rounded-xl" />
+                      <div className="space-y-1.5">
                         <div className="h-4 bg-gray-200 rounded-md w-36" />
                         <div className="h-3 bg-gray-200 rounded-md w-48" />
-                        <div className="h-3 bg-gray-200 rounded-md w-28" />
                       </div>
-                      <div className="h-8 bg-gray-200 rounded-lg w-16" />
                     </div>
+                    <div className="h-6 bg-gray-200 rounded-full w-20" />
+                    <div className="h-8 bg-gray-200 rounded-lg w-24" />
                   </div>
                 ))}
               </div>
             ) : filteredEmployees.length === 0 ? (
-              <div className="bg-white rounded-2xl border border-dashed border-gray-300 p-12 text-center">
-                <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+              <div className="p-16 text-center">
+                <div className="w-16 h-16 rounded-2xl bg-gray-50 border border-gray-200 flex items-center justify-center mx-auto mb-3 text-gray-400">
+                  <Users className="w-8 h-8" />
+                </div>
                 <h3 className="text-base font-bold text-gray-800">No users found</h3>
                 <p className="text-xs text-gray-500 mt-1 max-w-sm mx-auto">
                   {searchTerm
                     ? `No matching users found for "${searchTerm}".`
-                    : `No ${activeTab === "all" ? "" : activeTab} users registered yet.`}
+                    : `No ${activeTab === "all" ? "" : activeTab} users registered in the system yet.`}
                 </p>
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm("")}
+                    className="mt-3 text-xs font-semibold text-blue-600 hover:underline cursor-pointer"
+                  >
+                    Clear search filter
+                  </button>
+                )}
               </div>
             ) : (
-              <div className="space-y-3">
-                {filteredEmployees.map((emp) => {
-                  const isSelectedForEdit = editing?.id === emp.id;
-                  return (
-                    <div
-                      key={emp.id}
-                      className={`bg-white p-4 rounded-2xl border transition-all duration-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
-                        isSelectedForEdit
-                          ? "border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/20 shadow-xs"
-                          : "border-gray-200/90 hover:border-gray-300 hover:shadow-xs"
-                      }`}
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse text-xs sm:text-sm">
+                    <thead>
+                      <tr className="bg-gray-50/90 border-b border-gray-200/90 text-gray-600 uppercase text-[11px] font-bold tracking-wider">
+                        <th className="py-3.5 px-4 text-center w-14">#</th>
+                        <th className="py-3.5 px-4">User</th>
+                        <th className="py-3.5 px-4">Email Address</th>
+                        <th className="py-3.5 px-4">Phone Number</th>
+                        <th className="py-3.5 px-4 text-center">Role</th>
+                        <th className="py-3.5 px-4 text-center">Created</th>
+                        <th className="py-3.5 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {currentEmployees.map((emp, idx) => {
+                        const serialNum = startIndex + idx + 1;
+                        const initial = (emp.employeeName || emp.name || "U")[0]?.toUpperCase();
+                        return (
+                          <tr
+                            key={emp.id}
+                            className="hover:bg-blue-50/30 transition-colors duration-150"
+                          >
+                            {/* Serial Number */}
+                            <td className="py-3.5 px-4 text-center font-mono text-gray-400 font-medium">
+                              {serialNum}
+                            </td>
+
+                            {/* User Avatar + Name */}
+                            <td className="py-3.5 px-4">
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs shrink-0 shadow-2xs border ${
+                                    emp.role === "admin"
+                                      ? "bg-purple-100 text-purple-700 border-purple-200"
+                                      : emp.role === "manager"
+                                      ? "bg-blue-100 text-blue-700 border-blue-200"
+                                      : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                                  }`}
+                                >
+                                  {initial}
+                                </div>
+                                <div>
+                                  <div className="font-bold text-gray-900 flex items-center gap-1.5">
+                                    <span>{emp.employeeName || emp.name}</span>
+                                  </div>
+                                  <div className="text-[11px] text-gray-400 font-mono">
+                                    ID: {emp.employeeId || emp.id.substring(0, 8)}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Email Address */}
+                            <td className="py-3.5 px-4 text-gray-700">
+                              <div className="flex items-center gap-1.5">
+                                <Mail className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <span className="font-medium truncate max-w-[220px]" title={emp.email}>
+                                  {emp.email || "-"}
+                                </span>
+                              </div>
+                            </td>
+
+                            {/* Phone Number */}
+                            <td className="py-3.5 px-4 text-gray-600">
+                              <div className="flex items-center gap-1.5 font-mono text-xs">
+                                <Phone className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                                <span>{emp.phone || emp.mobile || "-"}</span>
+                              </div>
+                            </td>
+
+                            {/* Role Badge */}
+                            <td className="py-3.5 px-4 text-center">
+                              {getRoleBadge(emp.role)}
+                            </td>
+
+                            {/* Created Date */}
+                            <td className="py-3.5 px-4 text-center text-xs text-gray-500 whitespace-nowrap">
+                              <div className="inline-flex items-center gap-1">
+                                <Calendar className="w-3 h-3 text-gray-400" />
+                                <span>{formatDate(emp.createdAt)}</span>
+                              </div>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-3.5 px-4 text-right">
+                              <div className="inline-flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleEditClick(emp)}
+                                  className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                                  title="Edit user"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetPassword(emp.email || "")}
+                                  className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition cursor-pointer"
+                                  title="Send password reset email"
+                                >
+                                  <Key className="w-4 h-4" />
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setUserToDelete(emp)}
+                                  className="p-1.5 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                  title="Delete user"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Table Pagination Controls */}
+                <div className="p-4 border-t border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+                  <div className="text-gray-500 font-medium">
+                    Showing <span className="font-semibold text-gray-900">{filteredEmployees.length === 0 ? 0 : startIndex + 1}</span> to{" "}
+                    <span className="font-semibold text-gray-900">{endIndex}</span> of{" "}
+                    <span className="font-semibold text-gray-900">{filteredEmployees.length}</span> users
+                  </div>
+
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                      disabled={currentPage === 1}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
                     >
-                      <div className="flex items-start gap-3">
-                        <div
-                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm shrink-0 uppercase ${
-                            emp.role === "admin"
-                              ? "bg-purple-100 text-purple-700 border border-purple-200"
-                              : emp.role === "manager"
-                              ? "bg-blue-100 text-blue-700 border border-blue-200"
-                              : "bg-emerald-100 text-emerald-700 border border-emerald-200"
-                          }`}
-                        >
-                          {(emp.employeeName || emp.name || "U")[0]}
-                        </div>
+                      <ChevronLeft className="w-3.5 h-3.5" />
+                      <span>Prev</span>
+                    </button>
 
-                        <div>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h3 className="font-bold text-sm text-gray-900">
-                              {emp.employeeName || emp.name}
-                            </h3>
-                            {getRoleBadge(emp.role)}
-                          </div>
-                          <p className="text-xs text-gray-600 mt-0.5">{emp.email}</p>
-                          {(emp.phone || emp.mobile) && (
-                            <p className="text-xs text-gray-400 mt-0.5 font-mono">
-                              {emp.phone || emp.mobile}
-                            </p>
-                          )}
-                        </div>
-                      </div>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: totalPages }, (_, i) => i + 1)
+                        .filter((page) => {
+                          if (totalPages <= 5) return true;
+                          if (page === 1 || page === totalPages) return true;
+                          return Math.abs(page - currentPage) <= 1;
+                        })
+                        .map((page, idx, arr) => {
+                          const prevPage = arr[idx - 1];
+                          const showEllipsis = prevPage && page - prevPage > 1;
 
-                      {/* Actions */}
-                      <div className="flex items-center justify-end gap-1.5 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                        <button
-                          type="button"
-                          onClick={() => handleEditClick(emp)}
-                          className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition cursor-pointer"
-                          title="Edit user"
-                        >
-                          <Edit2 className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => handleResetPassword(emp.email || "")}
-                          className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition cursor-pointer"
-                          title="Send password reset email"
-                        >
-                          <Key className="w-4 h-4" />
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setUserToDelete(emp)}
-                          className="p-2 text-gray-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer"
-                          title="Delete user"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
+                          return (
+                            <React.Fragment key={page}>
+                              {showEllipsis && (
+                                <span className="px-1 text-gray-400 font-bold">...</span>
+                              )}
+                              <button
+                                onClick={() => setCurrentPage(page)}
+                                className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                                  currentPage === page
+                                    ? "bg-blue-600 text-white shadow-xs"
+                                    : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
+                                }`}
+                              >
+                                {page}
+                              </button>
+                            </React.Fragment>
+                          );
+                        })}
                     </div>
-                  );
-                })}
-              </div>
+
+                    <button
+                      onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                      disabled={currentPage === totalPages}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                    >
+                      <span>Next</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
           </div>
         </div>
+
+        {/* ============ USER FORM MODAL (DIALOG BOX METHOD) ============ */}
+        {isFormModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overscroll-contain animate-in fade-in duration-150">
+            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
+              {/* Modal Header */}
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
+                <div className="flex items-center gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                      editing ? "bg-amber-100 text-amber-700" : "bg-blue-100 text-blue-700"
+                    }`}
+                  >
+                    {editing ? <Edit2 className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-gray-900">
+                      {editing ? "Edit User Details" : "Add New User"}
+                    </h2>
+                    <p className="text-xs text-gray-500">
+                      {editing ? "Update user details or role permissions" : "Create new account credentials"}
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={closeFormModal}
+                  className="p-1.5 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-xl transition cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Form */}
+              <form onSubmit={handleCreateOrUpdate} className="p-6 space-y-4 overflow-y-auto">
+                {/* Full Name */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                    Full Name <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={employeeName}
+                    onChange={(e) => setEmployeeName(e.target.value)}
+                    placeholder="e.g., Rajesh Kumar"
+                    required
+                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                  />
+                </div>
+
+                {/* Email Address */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                    Email Address <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="e.g., rajesh@company.com"
+                    required
+                    disabled={!!editing}
+                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition disabled:bg-gray-100 disabled:text-gray-500"
+                  />
+                  {editing && (
+                    <p className="text-[11px] text-gray-400 mt-1">Email cannot be modified once created.</p>
+                  )}
+                </div>
+
+                {/* Phone Number */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                    Phone Number
+                  </label>
+                  <input
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="e.g., 9876543210"
+                    className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                  />
+                </div>
+
+                {/* Role Selection (Staff / Manager / Admin) */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-2">
+                    Assign Role <span className="text-red-500">*</span>
+                  </label>
+                  <div className="grid grid-cols-3 gap-2.5">
+                    {/* Staff */}
+                    <button
+                      type="button"
+                      onClick={() => setRole("staff")}
+                      className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1.5 ${
+                        role === "staff"
+                          ? "bg-emerald-50 border-emerald-500 ring-2 ring-emerald-500/20 text-emerald-900 font-bold"
+                          : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
+                      }`}
+                    >
+                      <User className={`w-4 h-4 ${role === "staff" ? "text-emerald-600" : "text-gray-400"}`} />
+                      <span className="text-xs">Staff</span>
+                    </button>
+
+                    {/* Manager */}
+                    <button
+                      type="button"
+                      onClick={() => setRole("manager")}
+                      className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1.5 ${
+                        role === "manager"
+                          ? "bg-blue-50 border-blue-500 ring-2 ring-blue-500/20 text-blue-900 font-bold"
+                          : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
+                      }`}
+                    >
+                      <Users className={`w-4 h-4 ${role === "manager" ? "text-blue-600" : "text-gray-400"}`} />
+                      <span className="text-xs">Manager</span>
+                    </button>
+
+                    {/* Admin */}
+                    <button
+                      type="button"
+                      onClick={() => setRole("admin")}
+                      className={`py-2.5 px-3 rounded-xl border text-center transition cursor-pointer flex flex-col items-center gap-1.5 ${
+                        role === "admin"
+                          ? "bg-purple-50 border-purple-500 ring-2 ring-purple-500/20 text-purple-900 font-bold"
+                          : "bg-white border-gray-200 text-gray-600 hover:border-gray-300 hover:bg-gray-50 font-medium"
+                      }`}
+                    >
+                      <ShieldCheck className={`w-4 h-4 ${role === "admin" ? "text-purple-600" : "text-gray-400"}`} />
+                      <span className="text-xs">Admin</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Password (for new user) */}
+                {!editing && (
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
+                      Initial Password <span className="text-red-500">*</span>
+                    </label>
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Minimum 6 characters"
+                        required
+                        minLength={6}
+                        className="w-full px-3.5 py-2.5 text-sm bg-white border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition pr-10"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                        title={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mt-1">Credentials for first-time sign-in.</p>
+                  </div>
+                )}
+
+                {/* Password Reset Action in Edit Mode */}
+                {editing && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={() => handleResetPassword(editing.email || "")}
+                      className="w-full inline-flex items-center justify-center gap-2 px-3.5 py-2.5 text-xs font-semibold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition cursor-pointer"
+                    >
+                      <Key className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Send Password Reset Email</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Modal Footer Buttons */}
+                <div className="pt-4 flex items-center justify-end gap-2.5 border-t border-gray-150">
+                  <button
+                    type="button"
+                    onClick={closeFormModal}
+                    className="px-4 py-2.5 text-xs sm:text-sm font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl transition cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="inline-flex items-center justify-center gap-2 px-5 py-2.5 text-xs sm:text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 active:bg-blue-800 rounded-xl shadow-xs transition disabled:opacity-60 cursor-pointer"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>{editing ? "Saving..." : "Creating..."}</span>
+                      </>
+                    ) : (
+                      <>
+                        {editing ? <Check className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
+                        <span>{editing ? "Save Changes" : `Create ${role.toUpperCase()}`}</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Delete Confirmation Modal */}
         {userToDelete && (

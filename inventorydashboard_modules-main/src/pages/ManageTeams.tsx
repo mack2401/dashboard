@@ -38,6 +38,7 @@ import {
     Chip,
     CircularProgress,
     Alert,
+    TablePagination,
     useTheme,
     useMediaQuery
 } from '@mui/material';
@@ -87,6 +88,8 @@ const ManageTeams: React.FC = () => {
     const [teamName, setTeamName] = useState<string>('');
     const [selectedManager, setSelectedManager] = useState<string>('');
     const [selectedStaff, setSelectedStaff] = useState<TeamMember[]>([]);
+    const [page, setPage] = useState<number>(0);
+    const [rowsPerPage, setRowsPerPage] = useState<number>(10);
 
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Detects small screens
@@ -213,7 +216,7 @@ const ManageTeams: React.FC = () => {
                 <Table>
                     <TableHead><TableRow><TableCell>Team Name</TableCell><TableCell>Manager</TableCell><TableCell>Members</TableCell><TableCell align="right">Actions</TableCell></TableRow></TableHead>
                     <TableBody>
-                        {teams.map((team) => (
+                        {teams.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((team) => (
                             <TableRow key={team.id}>
                                 <TableCell>{team.teamName}</TableCell>
                                 <TableCell>{team.managerName}</TableCell>
@@ -230,6 +233,18 @@ const ManageTeams: React.FC = () => {
                         ))}
                     </TableBody>
                 </Table>
+                <TablePagination
+                    rowsPerPageOptions={[5, 10, 25]}
+                    component="div"
+                    count={teams.length}
+                    rowsPerPage={rowsPerPage}
+                    page={page}
+                    onPageChange={(_, newPage) => setPage(newPage)}
+                    onRowsPerPageChange={(e) => {
+                        setRowsPerPage(parseInt(e.target.value, 10));
+                        setPage(0);
+                    }}
+                />
             </TableContainer>
         );
     };

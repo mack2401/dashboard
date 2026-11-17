@@ -14,6 +14,8 @@ import {
   Trash2,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   User,
   Users,
   Star,
@@ -333,6 +335,14 @@ const TaskManagement: React.FC = () => {
   const [sortField, setSortField] = useState<SortField>('createdAt');
   const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
   const [viewMode, setViewMode] = useState<'all' | 'my-responsibilities'>('all');
+  
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterStatus, filterPriority, viewMode, itemsPerPage]);
 
   const [newTask, setNewTask] = useState({
     staffId: '',
@@ -1146,6 +1156,13 @@ const TaskManagement: React.FC = () => {
     
     return filtered;
   }, [tasks, searchTerm, filterStatus, filterPriority, sortField, sortDirection, canViewAllTasks, user]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredTasks.length / itemsPerPage));
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = Math.min(startIndex + itemsPerPage, filteredTasks.length);
+  const paginatedTasks = useMemo(() => {
+    return filteredTasks.slice(startIndex, endIndex);
+  }, [filteredTasks, startIndex, endIndex]);
 
   // Component to render status breakdown for a task's sub-tasks
   const renderSubTaskStatusBreakdown = useCallback((subTasks: SubTask[] | undefined) => {
@@ -2046,7 +2063,8 @@ const TaskManagement: React.FC = () => {
         {/* Tasks Table */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
           {filteredTasks.length > 0 ? (
-            <div className="overflow-x-auto">
+            <>
+              <div className="overflow-x-auto">
               <table className="w-full min-w-[1200px]">
                 <thead>
                   <tr className="bg-gradient-to-r from-gray-50 to-gray-100 border-b border-gray-200">
@@ -2098,7 +2116,7 @@ const TaskManagement: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredTasks.map((task) => {
+                  {paginatedTasks.map((task) => {
                     const canEdit = canEditTask(task);
                     const canDelete = canDeleteTask(task);
                     const isResponsible = isUserResponsible(task);
@@ -2318,6 +2336,67 @@ const TaskManagement: React.FC = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Table Pagination Controls */}
+            <div className="p-4 border-t border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+              <div className="text-gray-500 font-medium">
+                Showing <span className="font-semibold text-gray-900">{startIndex + 1}</span> to{" "}
+                <span className="font-semibold text-gray-900">{endIndex}</span> of{" "}
+                <span className="font-semibold text-gray-900">{filteredTasks.length}</span> tasks
+              </div>
+
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                >
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  <span>Prev</span>
+                </button>
+
+                <div className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1)
+                    .filter((page) => {
+                      if (totalPages <= 5) return true;
+                      if (page === 1 || page === totalPages) return true;
+                      return Math.abs(page - currentPage) <= 1;
+                    })
+                    .map((page, idx, arr) => {
+                      const prevPage = arr[idx - 1];
+                      const showEllipsis = prevPage && page - prevPage > 1;
+
+                      return (
+                        <React.Fragment key={page}>
+                          {showEllipsis && (
+                            <span className="px-1 text-gray-400 font-bold">...</span>
+                          )}
+                          <button
+                            onClick={() => setCurrentPage(page)}
+                            className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                              currentPage === page
+                                ? "bg-blue-600 text-white shadow-xs"
+                                : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        </React.Fragment>
+                      );
+                    })}
+                </div>
+
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                >
+                  <span>Next</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </>
           ) : (
             <div className="text-center py-12 md:py-16 px-4">
               <div className="w-16 h-16 md:w-24 md:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">

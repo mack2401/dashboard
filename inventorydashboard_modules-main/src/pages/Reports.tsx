@@ -124,6 +124,12 @@ const Reports: React.FC = () => {
   // Selected client for detail drill-down modal
   const [selectedClient, setSelectedClient] = useState<ClientReport | null>(null);
   const [activeModalTab, setActiveModalTab] = useState<"products" | "orders">("products");
+  const [clientProductPage, setClientProductPage] = useState(1);
+  const clientProductPageSize = 8;
+
+  useEffect(() => {
+    setClientProductPage(1);
+  }, [selectedClient]);
 
   // Prevent background scrolling when client details modal is open
   useEffect(() => {
@@ -1595,46 +1601,86 @@ const Reports: React.FC = () => {
                       No item-level product data recorded for this client.
                     </div>
                   ) : (
-                    <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
-                      <table className="w-full text-left border-collapse text-sm">
-                        <thead>
-                          <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase border-b border-gray-200">
-                            <th className="px-4 py-3">Product Name</th>
-                            <th className="px-4 py-3 text-center">Total Qty Bought</th>
-                            <th className="px-4 py-3 text-right">Avg Unit Price</th>
-                            <th className="px-4 py-3 text-right">Total Spend</th>
-                            <th className="px-4 py-3 text-center">Times Ordered</th>
-                            <th className="px-4 py-3 text-center">Last Purchased</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {selectedClient.purchasedProducts.map((p, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50">
-                              <td className="px-4 py-3 font-semibold text-gray-800">
-                                {p.productName}
-                              </td>
-                              <td className="px-4 py-3 text-center">
-                                <span className="inline-block px-2 py-0.5 bg-purple-100 text-purple-700 font-bold rounded text-xs">
-                                  {p.totalQuantity}
+                    (() => {
+                      const totalClientProdPages = Math.max(1, Math.ceil(selectedClient.purchasedProducts.length / clientProductPageSize));
+                      const clientProdStartIndex = (clientProductPage - 1) * clientProductPageSize;
+                      const clientProdEndIndex = Math.min(clientProdStartIndex + clientProductPageSize, selectedClient.purchasedProducts.length);
+                      const paginatedPurchasedProducts = selectedClient.purchasedProducts.slice(clientProdStartIndex, clientProdEndIndex);
+
+                      return (
+                        <div className="border border-gray-200 rounded-xl overflow-hidden shadow-xs">
+                          <table className="w-full text-left border-collapse text-sm">
+                            <thead>
+                              <tr className="bg-gray-50 text-gray-600 text-xs font-semibold uppercase border-b border-gray-200">
+                                <th className="px-4 py-3">Product Name</th>
+                                <th className="px-4 py-3 text-center">Total Qty Bought</th>
+                                <th className="px-4 py-3 text-right">Avg Unit Price</th>
+                                <th className="px-4 py-3 text-right">Total Spend</th>
+                                <th className="px-4 py-3 text-center">Times Ordered</th>
+                                <th className="px-4 py-3 text-center">Last Purchased</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {paginatedPurchasedProducts.map((p, idx) => (
+                                <tr key={idx} className="hover:bg-gray-50">
+                                  <td className="px-4 py-3 font-semibold text-gray-800">
+                                    {p.productName}
+                                  </td>
+                                  <td className="px-4 py-3 text-center">
+                                    <span className="inline-block px-2 py-0.5 bg-purple-100 text-purple-700 font-bold rounded text-xs">
+                                      {p.totalQuantity}
+                                    </span>
+                                  </td>
+                                  <td className="px-4 py-3 text-right text-gray-600">
+                                    ₹{(p.totalQuantity > 0 ? p.totalAmount / p.totalQuantity : 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="px-4 py-3 text-right font-bold text-gray-900">
+                                    ₹{p.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-xs text-gray-500">
+                                    {p.orderCount} order{p.orderCount === 1 ? "" : "s"}
+                                  </td>
+                                  <td className="px-4 py-3 text-center text-xs text-gray-500">
+                                    {p.lastPurchasedDate ? p.lastPurchasedDate.toLocaleDateString("en-IN") : "-"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+
+                          {selectedClient.purchasedProducts.length > clientProductPageSize && (
+                            <div className="p-3 border-t border-gray-200 bg-gray-50 flex items-center justify-between text-xs text-gray-600">
+                              <div>
+                                Showing <span className="font-semibold text-gray-900">{clientProdStartIndex + 1}</span> to{" "}
+                                <span className="font-semibold text-gray-900">{clientProdEndIndex}</span> of{" "}
+                                <span className="font-semibold text-gray-900">{selectedClient.purchasedProducts.length}</span> products
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  onClick={() => setClientProductPage((p) => Math.max(p - 1, 1))}
+                                  disabled={clientProductPage === 1}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium text-xs shadow-2xs"
+                                >
+                                  <ChevronLeft className="w-3.5 h-3.5" />
+                                  <span>Prev</span>
+                                </button>
+                                <span className="px-2 font-semibold text-gray-700">
+                                  {clientProductPage} / {totalClientProdPages}
                                 </span>
-                              </td>
-                              <td className="px-4 py-3 text-right text-gray-600">
-                                ₹{(p.totalQuantity > 0 ? p.totalAmount / p.totalQuantity : 0).toLocaleString("en-IN", { maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="px-4 py-3 text-right font-bold text-gray-900">
-                                ₹{p.totalAmount.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                              </td>
-                              <td className="px-4 py-3 text-center text-xs text-gray-500">
-                                {p.orderCount} order{p.orderCount === 1 ? "" : "s"}
-                              </td>
-                              <td className="px-4 py-3 text-center text-xs text-gray-500">
-                                {p.lastPurchasedDate ? p.lastPurchasedDate.toLocaleDateString("en-IN") : "-"}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                                <button
+                                  onClick={() => setClientProductPage((p) => Math.min(p + 1, totalClientProdPages))}
+                                  disabled={clientProductPage === totalClientProdPages}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 border border-gray-300 rounded-lg bg-white text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer font-medium text-xs shadow-2xs"
+                                >
+                                  <span>Next</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()
                   )}
                 </div>
               )}

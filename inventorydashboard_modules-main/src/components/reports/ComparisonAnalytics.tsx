@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Calendar,
   TrendingUp,
@@ -13,6 +13,8 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   Percent,
   CheckCircle,
   Clock,
@@ -132,6 +134,14 @@ export default function ComparisonAnalytics({
   // Default Year 2 = Current Year, Year 1 = Previous Year
   const [y1Year, setY1Year] = useState<number>(currentYear - 1);
   const [y2Year, setY2Year] = useState<number>(currentYear);
+
+  // Pagination for MoM table
+  const [momPage, setMomPage] = useState<number>(1);
+  const momPageSize = 10;
+
+  useEffect(() => {
+    setMomPage(1);
+  }, [m1Year, m1Month, m2Year, m2Month]);
 
   // Available Years extracted from data + current/past years
   const availableYears = useMemo(() => {
@@ -409,6 +419,13 @@ export default function ComparisonAnalytics({
       m2Label: formatMonthShortYear(m2Month, m2Year),
     };
   }, [allSales, m1Year, m1Month, m2Year, m2Month]);
+
+  const totalMomPages = Math.max(1, Math.ceil(momData.dailyRows.length / momPageSize));
+  const momStartIndex = (momPage - 1) * momPageSize;
+  const momEndIndex = Math.min(momStartIndex + momPageSize, momData.dailyRows.length);
+  const paginatedMomRows = useMemo(() => {
+    return momData.dailyRows.slice(momStartIndex, momEndIndex);
+  }, [momData.dailyRows, momStartIndex, momEndIndex]);
 
   // ==========================================
   // YOY COMPUTATION (Month-by-Month comparison for 2 years)
@@ -1358,7 +1375,7 @@ export default function ComparisonAnalytics({
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 text-gray-700">
-                {momData.dailyRows.map((row) => (
+                {paginatedMomRows.map((row) => (
                   <tr
                     key={row.day}
                     className="hover:bg-blue-50/30 transition-colors"
@@ -1514,6 +1531,29 @@ export default function ComparisonAnalytics({
             </table>
           )}
         </div>
+
+        {comparisonMode === "mom" && momData.dailyRows.length > momPageSize && (
+          <div className="p-3 px-4 border-t border-gray-200 bg-slate-50 flex items-center justify-between text-xs text-gray-500">
+            <span>Showing {momStartIndex + 1}-{momEndIndex} of {momData.dailyRows.length} days</span>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setMomPage((p) => Math.max(p - 1, 1))}
+                disabled={momPage === 1}
+                className="px-2.5 py-1 bg-white border border-gray-300 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+              >
+                Prev
+              </button>
+              <span className="text-[11px] font-bold px-2">{momPage} of {totalMomPages}</span>
+              <button
+                onClick={() => setMomPage((p) => Math.min(p + 1, totalMomPages))}
+                disabled={momPage === totalMomPages}
+                className="px-2.5 py-1 bg-white border border-gray-300 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Visual Chart Comparison (Brought BELOW the table) */}

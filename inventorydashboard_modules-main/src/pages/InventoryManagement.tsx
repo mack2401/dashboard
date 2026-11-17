@@ -10,6 +10,8 @@ import {
   AlertCircle,
   ChevronDown,
   ChevronUp,
+  ChevronLeft,
+  ChevronRight,
   BarChart3,
   Tag,
   IndianRupee,
@@ -375,6 +377,24 @@ const InventoryManagement: React.FC = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
+
+  // Transactions Pagination State
+  const [transactionPage, setTransactionPage] = useState(1);
+  const transactionItemsPerPage = 10;
+
+  // Fast Moving Pagination States
+  const [approvedFastMovingPage, setApprovedFastMovingPage] = useState(1);
+  const [enquiryFastMovingPage, setEnquiryFastMovingPage] = useState(1);
+  const fastMovingItemsPerPage = 6;
+
+  useEffect(() => {
+    setApprovedFastMovingPage(1);
+    setEnquiryFastMovingPage(1);
+  }, [fastMovingPeriod, fastMovingCustomDate, fastMovingSearch, fastMovingFilterLowStock]);
+
+  useEffect(() => {
+    setTransactionPage(1);
+  }, [transactionFilter]);
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -845,6 +865,29 @@ const InventoryManagement: React.FC = () => {
     
     return filtered;
   }, [transactions, transactionFilter]);
+
+  // Transactions Pagination Calculations
+  const totalTxPages = Math.max(1, Math.ceil(filteredTransactions.length / transactionItemsPerPage));
+  const txStartIndex = (transactionPage - 1) * transactionItemsPerPage;
+  const txEndIndex = Math.min(txStartIndex + transactionItemsPerPage, filteredTransactions.length);
+  const currentTransactions = useMemo(() => {
+    return filteredTransactions.slice(txStartIndex, txEndIndex);
+  }, [filteredTransactions, txStartIndex, txEndIndex]);
+
+  // Fast Moving Pagination Calculations
+  const totalApprovedFmPages = Math.max(1, Math.ceil(filteredApprovedFastMoving.length / fastMovingItemsPerPage));
+  const approvedFmStartIndex = (approvedFastMovingPage - 1) * fastMovingItemsPerPage;
+  const approvedFmEndIndex = Math.min(approvedFmStartIndex + fastMovingItemsPerPage, filteredApprovedFastMoving.length);
+  const currentApprovedFastMoving = useMemo(() => {
+    return filteredApprovedFastMoving.slice(approvedFmStartIndex, approvedFmEndIndex);
+  }, [filteredApprovedFastMoving, approvedFmStartIndex, approvedFmEndIndex]);
+
+  const totalEnquiryFmPages = Math.max(1, Math.ceil(filteredEnquiryFastMoving.length / fastMovingItemsPerPage));
+  const enquiryFmStartIndex = (enquiryFastMovingPage - 1) * fastMovingItemsPerPage;
+  const enquiryFmEndIndex = Math.min(enquiryFmStartIndex + fastMovingItemsPerPage, filteredEnquiryFastMoving.length);
+  const currentEnquiryFastMoving = useMemo(() => {
+    return filteredEnquiryFastMoving.slice(enquiryFmStartIndex, enquiryFmEndIndex);
+  }, [filteredEnquiryFastMoving, enquiryFmStartIndex, enquiryFmEndIndex]);
 
   // ============ IMAGE HANDLERS ============
   const handleAddImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -4150,10 +4193,12 @@ const InventoryManagement: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs">
-                      {filteredApprovedFastMoving.map((p, i) => (
+                      {currentApprovedFastMoving.map((p, i) => {
+                        const rank = approvedFmStartIndex + i;
+                        return (
                         <tr key={`${p.name}-${i}`} className="hover:bg-blue-50/30 transition-colors">
                           <td className="px-3 py-2.5 text-center font-bold text-gray-400">
-                            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                            {rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : rank + 1}
                           </td>
                           <td className="px-3 py-2.5">
                             <div className="font-semibold text-gray-900">{p.name}</div>
@@ -4186,7 +4231,8 @@ const InventoryManagement: React.FC = () => {
                             {formatCurrency(p.totalValue)}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
 
                       {filteredApprovedFastMoving.length === 0 && (
                         <tr>
@@ -4237,6 +4283,29 @@ const InventoryManagement: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+
+                {filteredApprovedFastMoving.length > fastMovingItemsPerPage && (
+                  <div className="p-2.5 px-3 border-t border-gray-150 bg-gray-50/70 flex items-center justify-between text-xs text-gray-500">
+                    <span>Showing {approvedFmStartIndex + 1}-{approvedFmEndIndex} of {filteredApprovedFastMoving.length}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setApprovedFastMovingPage((p) => Math.max(p - 1, 1))}
+                        disabled={approvedFastMovingPage === 1}
+                        className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-[11px] font-bold px-1.5">{approvedFastMovingPage}/{totalApprovedFmPages}</span>
+                      <button
+                        onClick={() => setApprovedFastMovingPage((p) => Math.min(p + 1, totalApprovedFmPages))}
+                        disabled={approvedFastMovingPage === totalApprovedFmPages}
+                        className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Enquiry Fast Moving Items Table */}
@@ -4269,10 +4338,12 @@ const InventoryManagement: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100 text-xs">
-                      {filteredEnquiryFastMoving.map((p, i) => (
+                      {currentEnquiryFastMoving.map((p, i) => {
+                        const rank = enquiryFmStartIndex + i;
+                        return (
                         <tr key={`${p.name}-${i}`} className="hover:bg-blue-50/30 transition-colors">
                           <td className="px-3 py-2.5 text-center font-bold text-gray-400">
-                            {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
+                            {rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : rank + 1}
                           </td>
                           <td className="px-3 py-2.5">
                             <div className="font-semibold text-gray-900">{p.name}</div>
@@ -4305,7 +4376,8 @@ const InventoryManagement: React.FC = () => {
                             {formatCurrency(p.totalValue)}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
 
                       {filteredEnquiryFastMoving.length === 0 && (
                         <tr>
@@ -4356,6 +4428,29 @@ const InventoryManagement: React.FC = () => {
                     </tbody>
                   </table>
                 </div>
+
+                {filteredEnquiryFastMoving.length > fastMovingItemsPerPage && (
+                  <div className="p-2.5 px-3 border-t border-gray-150 bg-gray-50/70 flex items-center justify-between text-xs text-gray-500">
+                    <span>Showing {enquiryFmStartIndex + 1}-{enquiryFmEndIndex} of {filteredEnquiryFastMoving.length}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setEnquiryFastMovingPage((p) => Math.max(p - 1, 1))}
+                        disabled={enquiryFastMovingPage === 1}
+                        className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-[11px] font-bold px-1.5">{enquiryFastMovingPage}/{totalEnquiryFmPages}</span>
+                      <button
+                        onClick={() => setEnquiryFastMovingPage((p) => Math.min(p + 1, totalEnquiryFmPages))}
+                        disabled={enquiryFastMovingPage === totalEnquiryFmPages}
+                        className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -4508,7 +4603,7 @@ const InventoryManagement: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody>
-                      {(showAllTransactions ? filteredTransactions : filteredTransactions.slice(0, 10)).map((transaction) => (
+                      {currentTransactions.map((transaction) => (
                         <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
                           <td className="py-3 px-4">{transaction.productName}</td>
                           <td className="py-3 px-4">
@@ -4551,31 +4646,66 @@ const InventoryManagement: React.FC = () => {
                   </table>
                 </div>
                 
-                {!showAllTransactions && filteredTransactions.length > 10 && (
-                  <div className="mt-4 text-center">
-                    <button
-                      onClick={() => setShowAllTransactions(true)}
-                      className="px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg text-sm"
-                    >
-                      Show All {filteredTransactions.length} Transactions
-                    </button>
+                {filteredTransactions.length > 0 && (
+                  <div className="mt-4 p-4 border border-gray-200 rounded-xl bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
+                    <div className="text-gray-500 font-medium">
+                      Showing <span className="font-semibold text-gray-900">{txStartIndex + 1}</span> to{" "}
+                      <span className="font-semibold text-gray-900">{txEndIndex}</span> of{" "}
+                      <span className="font-semibold text-gray-900">{filteredTransactions.length}</span> transactions
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => setTransactionPage((p) => Math.max(p - 1, 1))}
+                        disabled={transactionPage === 1}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                        <span>Prev</span>
+                      </button>
+
+                      <div className="flex items-center gap-1">
+                        {Array.from({ length: totalTxPages }, (_, i) => i + 1)
+                          .filter((page) => {
+                            if (totalTxPages <= 5) return true;
+                            if (page === 1 || page === totalTxPages) return true;
+                            return Math.abs(page - transactionPage) <= 1;
+                          })
+                          .map((page, idx, arr) => {
+                            const prevPage = arr[idx - 1];
+                            const showEllipsis = prevPage && page - prevPage > 1;
+
+                            return (
+                              <React.Fragment key={page}>
+                                {showEllipsis && (
+                                  <span className="px-1 text-gray-400 font-bold">...</span>
+                                )}
+                                <button
+                                  onClick={() => setTransactionPage(page)}
+                                  className={`w-7 h-7 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                                    transactionPage === page
+                                      ? "bg-blue-600 text-white shadow-xs"
+                                      : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
+                                  }`}
+                                >
+                                  {page}
+                                </button>
+                              </React.Fragment>
+                            );
+                          })}
+                      </div>
+
+                      <button
+                        onClick={() => setTransactionPage((p) => Math.min(p + 1, totalTxPages))}
+                        disabled={transactionPage === totalTxPages}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                      >
+                        <span>Next</span>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 )}
-                
-                {showAllTransactions && filteredTransactions.length > 10 && (
-                  <div className="mt-4 text-center">
-                    <button
-                      onClick={() => setShowAllTransactions(false)}
-                      className="px-4 py-2 text-gray-600 hover:bg-gray-50 rounded-lg text-sm"
-                    >
-                      Show Less
-                    </button>
-                  </div>
-                )}
-                
-                <div className="mt-4 text-center text-sm text-gray-600">
-                  Showing {Math.min(filteredTransactions.length, showAllTransactions ? filteredTransactions.length : 10)} of {filteredTransactions.length} transactions
-                </div>
               </>
             )}
           </div>

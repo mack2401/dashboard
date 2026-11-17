@@ -28,6 +28,7 @@ import {
   RotateCcw,
   Check,
   ChevronRight,
+  ChevronLeft,
   Info,
 } from "lucide-react";
 
@@ -165,6 +166,18 @@ export default function PNL() {
   // Sort State
   const [sortField, setSortField] = useState<string>("salesValue");
   const [sortAsc, setSortAsc] = useState<boolean>(false);
+
+  // Pagination State
+  const [categoryPage, setCategoryPage] = useState(1);
+  const [productPage, setProductPage] = useState(1);
+  const [remainingPage, setRemainingPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+
+  useEffect(() => {
+    setCategoryPage(1);
+    setProductPage(1);
+    setRemainingPage(1);
+  }, [datePreset, customStartDate, customEndDate, searchQuery, pageSize]);
 
   // 1. Live Subscriptions to Firestore Collections
   useEffect(() => {
@@ -997,6 +1010,28 @@ export default function PNL() {
 
     return list;
   }, [remainingInventoryProducts, searchQuery, activeTab, sortField, sortAsc]);
+
+  // Pagination Calculations
+  const totalCategoryPages = Math.max(1, Math.ceil(sortedCategoryData.length / pageSize));
+  const categoryStartIndex = (categoryPage - 1) * pageSize;
+  const categoryEndIndex = Math.min(categoryStartIndex + pageSize, sortedCategoryData.length);
+  const paginatedCategoryData = useMemo(() => {
+    return sortedCategoryData.slice(categoryStartIndex, categoryEndIndex);
+  }, [sortedCategoryData, categoryStartIndex, categoryEndIndex]);
+
+  const totalProductPages = Math.max(1, Math.ceil(sortedProductData.length / pageSize));
+  const productStartIndex = (productPage - 1) * pageSize;
+  const productEndIndex = Math.min(productStartIndex + pageSize, sortedProductData.length);
+  const paginatedProductData = useMemo(() => {
+    return sortedProductData.slice(productStartIndex, productEndIndex);
+  }, [sortedProductData, productStartIndex, productEndIndex]);
+
+  const totalRemainingPages = Math.max(1, Math.ceil(sortedRemainingProducts.length / pageSize));
+  const remainingStartIndex = (remainingPage - 1) * pageSize;
+  const remainingEndIndex = Math.min(remainingStartIndex + pageSize, sortedRemainingProducts.length);
+  const paginatedRemainingProducts = useMemo(() => {
+    return sortedRemainingProducts.slice(remainingStartIndex, remainingEndIndex);
+  }, [sortedRemainingProducts, remainingStartIndex, remainingEndIndex]);
 
   // 10. Dynamic Totals for Footers
   const categoryTotals = useMemo(() => {
@@ -1985,7 +2020,7 @@ export default function PNL() {
                       </td>
                     </tr>
                   ) : (
-                    sortedCategoryData.map((c) => (
+                    paginatedCategoryData.map((c) => (
                       <tr key={c.category} className="hover:bg-gray-50/70 transition">
                         <td className="py-3 px-4 font-bold text-gray-900 flex items-center gap-2">
                           <Layers className="w-3.5 h-3.5 text-blue-500" />
@@ -2052,6 +2087,68 @@ export default function PNL() {
                 )}
               </table>
             </div>
+
+            {/* Category Pagination Controls */}
+            {sortedCategoryData.length > 0 && (
+              <div className="p-4 border-t border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="text-gray-500 font-medium">
+                  Showing <span className="font-semibold text-gray-900">{categoryStartIndex + 1}</span> to{" "}
+                  <span className="font-semibold text-gray-900">{categoryEndIndex}</span> of{" "}
+                  <span className="font-semibold text-gray-900">{sortedCategoryData.length}</span> categories
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setCategoryPage((p) => Math.max(p - 1, 1))}
+                    disabled={categoryPage === 1}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Prev</span>
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalCategoryPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        if (totalCategoryPages <= 5) return true;
+                        if (page === 1 || page === totalCategoryPages) return true;
+                        return Math.abs(page - categoryPage) <= 1;
+                      })
+                      .map((page, idx, arr) => {
+                        const prevPage = arr[idx - 1];
+                        const showEllipsis = prevPage && page - prevPage > 1;
+
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && (
+                              <span className="px-1 text-gray-400 font-bold">...</span>
+                            )}
+                            <button
+                              onClick={() => setCategoryPage(page)}
+                              className={`w-7 h-7 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                                categoryPage === page
+                                  ? "bg-blue-600 text-white shadow-xs"
+                                  : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                  </div>
+
+                  <button
+                    onClick={() => setCategoryPage((p) => Math.min(p + 1, totalCategoryPages))}
+                    disabled={categoryPage === totalCategoryPages}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2106,7 +2203,7 @@ export default function PNL() {
                       </td>
                     </tr>
                   ) : (
-                    sortedProductData.map((p) => (
+                    paginatedProductData.map((p) => (
                       <tr key={p.productId} className="hover:bg-gray-50/70 transition">
                         <td className="py-3 px-4">
                           <p className="font-bold text-gray-900">{p.productName}</p>
@@ -2181,6 +2278,68 @@ export default function PNL() {
                 )}
               </table>
             </div>
+
+            {/* Product Pagination Controls */}
+            {sortedProductData.length > 0 && (
+              <div className="p-4 border-t border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="text-gray-500 font-medium">
+                  Showing <span className="font-semibold text-gray-900">{productStartIndex + 1}</span> to{" "}
+                  <span className="font-semibold text-gray-900">{productEndIndex}</span> of{" "}
+                  <span className="font-semibold text-gray-900">{sortedProductData.length}</span> products
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setProductPage((p) => Math.max(p - 1, 1))}
+                    disabled={productPage === 1}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Prev</span>
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalProductPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        if (totalProductPages <= 5) return true;
+                        if (page === 1 || page === totalProductPages) return true;
+                        return Math.abs(page - productPage) <= 1;
+                      })
+                      .map((page, idx, arr) => {
+                        const prevPage = arr[idx - 1];
+                        const showEllipsis = prevPage && page - prevPage > 1;
+
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && (
+                              <span className="px-1 text-gray-400 font-bold">...</span>
+                            )}
+                            <button
+                              onClick={() => setProductPage(page)}
+                              className={`w-7 h-7 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                                productPage === page
+                                  ? "bg-blue-600 text-white shadow-xs"
+                                  : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                  </div>
+
+                  <button
+                    onClick={() => setProductPage((p) => Math.min(p + 1, totalProductPages))}
+                    disabled={productPage === totalProductPages}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -2228,7 +2387,7 @@ export default function PNL() {
                       </td>
                     </tr>
                   ) : (
-                    sortedRemainingProducts.map((p) => (
+                    paginatedRemainingProducts.map((p) => (
                       <tr key={p.id} className="hover:bg-gray-50/70 transition">
                         <td className="py-3 px-4">
                           <p className="font-bold text-gray-900">{p.name}</p>
@@ -2273,6 +2432,68 @@ export default function PNL() {
                 )}
               </table>
             </div>
+
+            {/* Remaining Products Pagination Controls */}
+            {sortedRemainingProducts.length > 0 && (
+              <div className="p-4 border-t border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs">
+                <div className="text-gray-500 font-medium">
+                  Showing <span className="font-semibold text-gray-900">{remainingStartIndex + 1}</span> to{" "}
+                  <span className="font-semibold text-gray-900">{remainingEndIndex}</span> of{" "}
+                  <span className="font-semibold text-gray-900">{sortedRemainingProducts.length}</span> products
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setRemainingPage((p) => Math.max(p - 1, 1))}
+                    disabled={remainingPage === 1}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                  >
+                    <ChevronLeft className="w-3.5 h-3.5" />
+                    <span>Prev</span>
+                  </button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalRemainingPages }, (_, i) => i + 1)
+                      .filter((page) => {
+                        if (totalRemainingPages <= 5) return true;
+                        if (page === 1 || page === totalRemainingPages) return true;
+                        return Math.abs(page - remainingPage) <= 1;
+                      })
+                      .map((page, idx, arr) => {
+                        const prevPage = arr[idx - 1];
+                        const showEllipsis = prevPage && page - prevPage > 1;
+
+                        return (
+                          <React.Fragment key={page}>
+                            {showEllipsis && (
+                              <span className="px-1 text-gray-400 font-bold">...</span>
+                            )}
+                            <button
+                              onClick={() => setRemainingPage(page)}
+                              className={`w-7 h-7 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
+                                remainingPage === page
+                                  ? "bg-blue-600 text-white shadow-xs"
+                                  : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          </React.Fragment>
+                        );
+                      })}
+                  </div>
+
+                  <button
+                    onClick={() => setRemainingPage((p) => Math.min(p + 1, totalRemainingPages))}
+                    disabled={remainingPage === totalRemainingPages}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
+                  >
+                    <span>Next</span>
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

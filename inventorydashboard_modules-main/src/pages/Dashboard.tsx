@@ -13,6 +13,7 @@ import {
   Calendar,
   PieChart as PieIcon,
   ChevronRight,
+  ChevronLeft,
   CheckCircle2,
   Clock,
   Sparkles,
@@ -415,6 +416,34 @@ const Dashboard: React.FC = () => {
     return Object.values(staffMap).sort((a, b) => b.totalSales - a.totalSales);
   }, [bills, employees]);
 
+  // Table Pagination States
+  const [componentPage, setComponentPage] = useState<number>(1);
+  const componentPageSize = 6;
+  const [staffPage, setStaffPage] = useState<number>(1);
+  const staffPageSize = 6;
+
+  useEffect(() => {
+    setComponentPage(1);
+  }, [timeFilter, pastMode, specificPastDate, componentSearch]);
+
+  useEffect(() => {
+    setStaffPage(1);
+  }, [timeFilter, pastMode, specificPastDate]);
+
+  const totalCompPages = Math.max(1, Math.ceil(displayComponents.length / componentPageSize));
+  const compStartIndex = (componentPage - 1) * componentPageSize;
+  const compEndIndex = Math.min(compStartIndex + componentPageSize, displayComponents.length);
+  const paginatedComponents = useMemo(() => {
+    return displayComponents.slice(compStartIndex, compEndIndex);
+  }, [displayComponents, compStartIndex, compEndIndex]);
+
+  const totalStaffPages = Math.max(1, Math.ceil(staffLeaderboard.length / staffPageSize));
+  const staffStartIndex = (staffPage - 1) * staffPageSize;
+  const staffEndIndex = Math.min(staffStartIndex + staffPageSize, staffLeaderboard.length);
+  const paginatedStaff = useMemo(() => {
+    return staffLeaderboard.slice(staffStartIndex, staffEndIndex);
+  }, [staffLeaderboard, staffStartIndex, staffEndIndex]);
+
   return (
     <div className="w-full bg-white rounded-2xl border border-gray-100 shadow-xs p-4 sm:p-6 md:p-8 space-y-8">
       {/* ========================================================================= */}
@@ -644,7 +673,9 @@ const Dashboard: React.FC = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                      {displayComponents.map((item, idx) => (
+                      {paginatedComponents.map((item, idx) => {
+                        const colorIdx = compStartIndex + idx;
+                        return (
                         <tr
                           key={`${item.name}-${idx}`}
                           className="hover:bg-sky-50/40 transition-colors"
@@ -655,7 +686,7 @@ const Dashboard: React.FC = () => {
                                 className="w-2 h-2 rounded-full flex-shrink-0"
                                 style={{
                                   backgroundColor:
-                                    PIE_COLORS[idx % PIE_COLORS.length],
+                                    PIE_COLORS[colorIdx % PIE_COLORS.length],
                                 }}
                               />
                               <span
@@ -675,9 +706,33 @@ const Dashboard: React.FC = () => {
                             {formatCurrency(item.total)}
                           </td>
                         </tr>
-                      ))}
+                        );
+                      })}
                     </tbody>
                   </table>
+                )}
+
+                {displayComponents.length > componentPageSize && (
+                  <div className="p-2.5 px-3 border-t border-gray-150 bg-gray-50/70 flex items-center justify-between text-xs text-gray-500">
+                    <span>Showing {compStartIndex + 1}-{compEndIndex} of {displayComponents.length}</span>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => setComponentPage((p) => Math.max(p - 1, 1))}
+                        disabled={componentPage === 1}
+                        className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                      >
+                        Prev
+                      </button>
+                      <span className="text-[11px] font-bold px-1.5">{componentPage}/{totalCompPages}</span>
+                      <button
+                        onClick={() => setComponentPage((p) => Math.min(p + 1, totalCompPages))}
+                        disabled={componentPage === totalCompPages}
+                        className="px-2 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                      >
+                        Next
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -962,7 +1017,8 @@ const Dashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                  {staffLeaderboard.map((staff, idx) => {
+                  {paginatedStaff.map((staff, idx) => {
+                    const actualRank = staffStartIndex + idx;
                     const avgBill =
                       staff.billsCount > 0
                         ? staff.totalSales / staff.billsCount
@@ -972,26 +1028,26 @@ const Dashboard: React.FC = () => {
                       <tr
                         key={staff.name}
                         className={`hover:bg-sky-50/40 transition-colors ${
-                          idx === 0 ? "bg-amber-50/20" : ""
+                          actualRank === 0 ? "bg-amber-50/20" : ""
                         }`}
                       >
                         {/* Rank Badge */}
                         <td className="py-3 px-4 text-center font-bold">
-                          {idx === 0 ? (
+                          {actualRank === 0 ? (
                             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-amber-100 text-amber-800 text-xs font-black shadow-2xs border border-amber-300">
                               🥇 1
                             </span>
-                          ) : idx === 1 ? (
+                          ) : actualRank === 1 ? (
                             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-slate-100 text-slate-700 text-xs font-black border border-slate-300">
                               🥈 2
                             </span>
-                          ) : idx === 2 ? (
+                          ) : actualRank === 2 ? (
                             <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-orange-100 text-orange-800 text-xs font-black border border-orange-300">
                               🥉 3
                             </span>
                           ) : (
                             <span className="text-gray-500 font-semibold text-xs">
-                              #{idx + 1}
+                              #{actualRank + 1}
                             </span>
                           )}
                         </td>
@@ -1041,6 +1097,29 @@ const Dashboard: React.FC = () => {
                   })}
                 </tbody>
               </table>
+
+              {staffLeaderboard.length > staffPageSize && (
+                <div className="p-3 px-4 border-t border-gray-150 bg-gray-50/70 flex items-center justify-between text-xs text-gray-500">
+                  <span>Showing {staffStartIndex + 1}-{staffEndIndex} of {staffLeaderboard.length} staff members</span>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setStaffPage((p) => Math.max(p - 1, 1))}
+                      disabled={staffPage === 1}
+                      className="px-2.5 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                    >
+                      Prev
+                    </button>
+                    <span className="text-[11px] font-bold px-2">{staffPage}/{totalStaffPages}</span>
+                    <button
+                      onClick={() => setStaffPage((p) => Math.min(p + 1, totalStaffPages))}
+                      disabled={staffPage === totalStaffPages}
+                      className="px-2.5 py-1 bg-white border border-gray-200 rounded-md text-[11px] font-semibold hover:bg-gray-100 disabled:opacity-40 cursor-pointer"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
