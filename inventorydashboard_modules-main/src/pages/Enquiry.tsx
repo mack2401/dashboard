@@ -1,5 +1,6 @@
 // src/pages/EnquiryPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
+import { useLocation } from "react-router-dom";
 import { type ColumnDef } from "@tanstack/react-table";
 import DataTable from "../components/Table/DataTable";
 import type { Enquiry } from "../types/enquiry";
@@ -200,8 +201,26 @@ type EmployeeDoc = {
   [k: string]: any;
 };
 
-export default function EnquiryPage() {
+interface EnquiryPageProps {
+  defaultCategory?: "all" | "ecommerce" | "academic";
+}
+
+export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) {
   const { user } = useAuth();
+  const location = useLocation();
+
+  // Helper to determine initial category from props, path, or query params
+  const resolveInitialCategory = (): "all" | "ecommerce" | "academic" => {
+    if (defaultCategory) return defaultCategory;
+    if (location.pathname.includes("/ecommerce")) return "ecommerce";
+    if (location.pathname.includes("/academic")) return "academic";
+    const params = new URLSearchParams(location.search);
+    const typeParam = params.get("type") || params.get("category");
+    if (typeParam === "ecommerce") return "ecommerce";
+    if (typeParam === "academic") return "academic";
+    return "all";
+  };
+
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedEnquiry, setSelectedEnquiry] = useState<Enquiry | null>(null);
@@ -228,7 +247,12 @@ export default function EnquiryPage() {
   const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
   const [dateRangeFilters, setDateRangeFilters] = useState<Record<string, { from: string; to: string }>>({});
   const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "testing" | "pending" | "dropped">("all");
-  const [categoryFilter, setCategoryFilter] = useState<"all" | "ecommerce" | "academic">("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "ecommerce" | "academic">(resolveInitialCategory);
+
+  // Sync category filter when URL changes (e.g. clicking sidebar E-Commerce or Academic links)
+  useEffect(() => {
+    setCategoryFilter(resolveInitialCategory());
+  }, [location.pathname, location.search, defaultCategory]);
   const [modeFilter, setModeFilter] = useState<string>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);

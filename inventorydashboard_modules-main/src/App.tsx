@@ -153,6 +153,8 @@ export default function App() {
 
             {/* Enquiries */}
             <Route path="/enquiries" element={<EnquiryPage />} />
+            <Route path="/enquiries/ecommerce" element={<EnquiryPage defaultCategory="ecommerce" />} />
+            <Route path="/enquiries/academic" element={<EnquiryPage defaultCategory="academic" />} />
             <Route path="/dropped" element={<DroppedPage />} />
             <Route path="/admin/manage-users" element={<ManageUsers />} />
             <Route path="/admin/add-admin" element={<ManageUsers defaultRole="admin" />} />

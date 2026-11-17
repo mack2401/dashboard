@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useLocation } from "react-router-dom";
 import React, { useState } from "react"; 
 import {
   LayoutDashboard,
@@ -17,7 +17,9 @@ import {
   GraduationCap,
   BarChart3,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  ShoppingCart,
+  Layers
 } from "lucide-react";
 import { useAuth } from "../App"; 
 
@@ -28,12 +30,26 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse }) => {
   const { user, logout } = useAuth();
+  const location = useLocation();
   const [isOpen, setIsOpen] = useState(false);
-  const [isManagementOpen, setIsManagementOpen] = useState(false);
+  const [isManagementOpen, setIsManagementOpen] = useState(() => 
+    location.pathname.startsWith("/admin/manage-users") || location.pathname.startsWith("/manage-teams")
+  );
+  const [isEnquiriesOpen, setIsEnquiriesOpen] = useState(() => 
+    location.pathname.startsWith("/enquiries")
+  );
 
-  const baseNavItems = [
+  const topNavItems = [
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={20} /> },
-    { name: "Enquiries", path: "/enquiries", icon: <Calculator size={20} /> },
+  ];
+
+  const enquiryItems = [
+    { name: "All Enquiries", path: "/enquiries", icon: <Layers size={18} /> },
+    { name: "E-Commerce", path: "/enquiries/ecommerce", icon: <ShoppingCart size={18} /> },
+    { name: "Academic", path: "/enquiries/academic", icon: <GraduationCap size={18} /> },
+  ];
+
+  const bottomNavItems = [
     { name: "Bills", path:"/bills", icon:<Receipt size={20}/>},
     { name: "PNL", path: "/pnl", icon: <TrendingUp size={20} /> },
     { name: "Tasks", path:"/task", icon:<ListTodo size={20}/>},
@@ -54,10 +70,17 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
     }
   };
 
+  const handleEnquiriesClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsEnquiriesOpen(!isEnquiriesOpen);
+  };
+
   const handleManagementClick = (e: React.MouseEvent) => {
     e.preventDefault();
     setIsManagementOpen(!isManagementOpen);
   };
+
+  const isEnquiriesActive = location.pathname.startsWith("/enquiries");
 
   return (
     <>
@@ -155,7 +178,130 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
 
           {/* Navigation Items with Inverted Curved Active Indicator */}
           <nav className="flex flex-col gap-1">
-            {baseNavItems.map((item) => (
+            {topNavItems.map((item) => (
+              <NavLink
+                key={item.name}
+                to={item.path}
+                onClick={() => handleNavClick(false)}
+                className={({ isActive }) => `
+                  relative flex items-center transition-colors duration-150 group
+                  ${isCollapsed ? "justify-center mx-2 px-0 py-3" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3"}
+                  ${
+                    isActive
+                      ? "bg-gray-50 text-slate-800 font-bold rounded-l-[26px] z-10"
+                      : "text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-2xl"
+                  }
+                `}
+              >
+                {({ isActive }) => (
+                  <>
+                    {/* Seamless Inverted Fillet Curves connecting into page background */}
+                    {isActive && (
+                      <>
+                        {/* Top Inverted Curve */}
+                        <svg 
+                          className="absolute -top-5 right-0 w-5 h-5 pointer-events-none fill-gray-50" 
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M 20 0 V 20 H 0 C 11.0457 20 20 11.0457 20 0 Z" />
+                        </svg>
+
+                        {/* Bottom Inverted Curve */}
+                        <svg 
+                          className="absolute -bottom-5 right-0 w-5 h-5 pointer-events-none fill-gray-50" 
+                          viewBox="0 0 20 20"
+                        >
+                          <path d="M 20 20 V 0 H 0 C 11.0457 0 20 8.9543 20 20 Z" />
+                        </svg>
+                      </>
+                    )}
+
+                    {/* Icon */}
+                    <span 
+                      className={`shrink-0 transition-transform duration-200 ${
+                        isActive ? "text-[#0284c7]" : "text-white group-hover:scale-110"
+                      }`}
+                    >
+                      {item.icon}
+                    </span>
+
+                    {/* Label (Expanded Mode) */}
+                    {!isCollapsed && (
+                      <span className="text-sm font-semibold tracking-wide truncate">
+                        {item.name}
+                      </span>
+                    )}
+
+                    {/* Floating Tooltip (Collapsed Mode) */}
+                    {isCollapsed && (
+                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-slate-700/60 flex items-center">
+                        <span>{item.name}</span>
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900"></div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </NavLink>
+            ))}
+
+            {/* Enquiries Section (Dropdown) */}
+            <div className="flex flex-col">
+              <button
+                onClick={handleEnquiriesClick}
+                className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-2xl cursor-pointer group ${
+                  isCollapsed ? "justify-center mx-2 px-0 py-3" : "justify-between ml-3.5 pl-3.5 pr-3 py-3"
+                } ${isEnquiriesActive && !isEnquiriesOpen ? "bg-white/15 text-white font-semibold" : ""}`}
+              >
+                <div className="flex items-center gap-3.5">
+                  <span className="text-white group-hover:scale-110 transition-transform">
+                    <Calculator size={20} />
+                  </span>
+                  {!isCollapsed && <span className="text-sm font-semibold">Enquiries</span>}
+                </div>
+                {!isCollapsed && (isEnquiriesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
+
+                {isCollapsed && (
+                  <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-slate-700/60 flex items-center">
+                    <span>Enquiries</span>
+                    <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900"></div>
+                  </div>
+                )}
+              </button>
+
+              {/* Sub-items */}
+              {isEnquiriesOpen && (
+                <div className={`my-1 flex flex-col gap-1 ${isCollapsed ? "items-center" : "ml-6 pl-2 border-l border-white/20"}`}>
+                  {enquiryItems.map((item) => (
+                    <NavLink
+                      key={item.name}
+                      to={item.path}
+                      end={item.path === "/enquiries"}
+                      onClick={() => handleNavClick(false)}
+                      className={({ isActive }) => `
+                        relative flex items-center transition-all duration-200 group
+                        ${isCollapsed ? "justify-center p-2 rounded-xl" : "gap-2.5 px-3 py-2 rounded-l-xl text-xs font-medium"}
+                        ${
+                          isActive
+                            ? "bg-gray-50 text-[#0284c7] font-bold shadow-xs"
+                            : "text-white/80 hover:text-white hover:bg-white/10"
+                        }
+                      `}
+                    >
+                      <span className="shrink-0">{item.icon}</span>
+                      {!isCollapsed && <span>{item.name}</span>}
+                      {isCollapsed && (
+                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-slate-700/60 flex items-center">
+                          <span>{item.name}</span>
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900"></div>
+                        </div>
+                      )}
+                    </NavLink>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {bottomNavItems.map((item) => (
               <NavLink
                 key={item.name}
                 to={item.path}
