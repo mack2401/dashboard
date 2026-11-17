@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Search, Bell, X, Shield, User as UserIcon } from "lucide-react";
+import { Search, Bell, X, Shield, User as UserIcon, ChevronUp, ChevronDown } from "lucide-react";
 import { useAuth } from "../App";
 import { useNotifications } from "../hooks/useNotifications";
 import NotificationsPopover from "./NotificationsPopover";
+import { useGlobalFind } from "../hooks/useGlobalFind";
+import SearchFindPopover from "./SearchFindPopover";
 
 interface TopBarProps {
   onSearch?: (query: string) => void;
@@ -19,26 +21,61 @@ const TopBar: React.FC<TopBarProps> = ({ onSearch }) => {
     dismissNotification,
   } = useNotifications();
   const [searchQuery, setSearchQuery] = useState("");
+  const [showFindResults, setShowFindResults] = useState(false);
+  const searchContainerRef = useRef<HTMLDivElement>(null);
+
+  const {
+    inPageMatches,
+    activeMatchIndex,
+    moduleMatches,
+    isSearching,
+    nextMatch,
+    prevMatch,
+    jumpToMatch,
+    clearHighlights,
+  } = useGlobalFind(searchQuery);
+
   const [showNotifications, setShowNotifications] = useState(false);
   const notificationRef = useRef<HTMLDivElement>(null);
 
-  // Close notifications dropdown when clicking outside
+  // Close notifications dropdown and search popover when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
       if (
         notificationRef.current &&
-        !notificationRef.current.contains(event.target as Node)
+        !notificationRef.current.contains(target)
       ) {
         setShowNotifications(false);
+      }
+      if (
+        searchContainerRef.current &&
+        !searchContainerRef.current.contains(target)
+      ) {
+        setShowFindResults(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (e.shiftKey) {
+        prevMatch();
+      } else {
+        nextMatch();
+      }
+    } else if (e.key === "Escape") {
+      clearSearch();
+    }
+  };
+
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = e.target.value;
     setSearchQuery(val);
+    setShowFindResults(val.trim().length >= 2);
     if (onSearch) {
       onSearch(val);
     }
@@ -46,6 +83,8 @@ const TopBar: React.FC<TopBarProps> = ({ onSearch }) => {
 
   const clearSearch = () => {
     setSearchQuery("");
+    setShowFindResults(false);
+    clearHighlights();
     if (onSearch) {
       onSearch("");
     }
@@ -73,8 +112,8 @@ const TopBar: React.FC<TopBarProps> = ({ onSearch }) => {
 
   return (
     <header className="sticky top-0 z-30 h-16 bg-white/95 backdrop-blur-md border-b border-[#E1E5F0] px-4 pl-16 md:px-6 flex items-center justify-between shadow-2xs transition-all">
-      {/* Search Bar Section */}
-      <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md">
+      {/* Search Bar Section with Integrated Real-World Find Tool */}
+      <div className="flex-1 max-w-xs sm:max-w-sm md:max-w-md relative" ref={searchContainerRef}>
         <div className="relative flex items-center">
           <Search
             size={18}
@@ -84,19 +123,65 @@ const TopBar: React.FC<TopBarProps> = ({ onSearch }) => {
             type="text"
             value={searchQuery}
             onChange={handleSearchChange}
-            placeholder="Search bills, items, enquiries, tasks..."
-            className="w-full pl-10 pr-9 py-2 text-xs sm:text-sm bg-[#F5F6FC] border border-[#E1E5F0] rounded-xl text-[#25324A] placeholder-[#78839A] focus:outline-none focus:ring-2 focus:ring-[#7889F5]/20 focus:border-[#7889F5] focus:bg-white transition-all shadow-2xs"
+            onFocus={() => {
+              if (searchQuery.trim().length >= 2) setShowFindResults(true);
+            }}
+            onKeyDown={handleKeyDown}
+            placeholder="Find on page or across bills, tasks, enquiries..."
+            className="w-full pl-10 pr-24 py-2 text-xs sm:text-sm bg-[#F5F6FC] border border-[#E1E5F0] rounded-xl text-[#25324A] placeholder-[#78839A] focus:outline-none focus:ring-2 focus:ring-[#7889F5]/20 focus:border-[#7889F5] focus:bg-white transition-all shadow-2xs"
           />
-          {searchQuery && (
-            <button
-              onClick={clearSearch}
-              className="absolute right-3 text-[#78839A] hover:text-[#25324A] p-0.5 rounded-md transition-colors cursor-pointer"
-              aria-label="Clear search"
-            >
-              <X size={15} />
-            </button>
-          )}
+
+          {/* Stepper controls inside search bar when matches exist */}
+          <div className="absolute right-2.5 flex items-center gap-1">
+            {inPageMatches.length > 0 && (
+              <div className="flex items-center gap-0.5 bg-white border border-[#E1E5F0] px-1.5 py-0.5 rounded-lg text-[10px] font-bold text-[#7889F5] shadow-2xs select-none">
+                <span>{activeMatchIndex + 1}/{inPageMatches.length}</span>
+                <button
+                  type="button"
+                  onClick={prevMatch}
+                  className="p-0.5 hover:bg-[#F0F0FF] rounded text-[#78839A] hover:text-[#7889F5] transition-colors cursor-pointer"
+                  title="Previous match (Shift + Enter)"
+                >
+                  <ChevronUp size={12} />
+                </button>
+                <button
+                  type="button"
+                  onClick={nextMatch}
+                  className="p-0.5 hover:bg-[#F0F0FF] rounded text-[#78839A] hover:text-[#7889F5] transition-colors cursor-pointer"
+                  title="Next match (Enter)"
+                >
+                  <ChevronDown size={12} />
+                </button>
+              </div>
+            )}
+
+            {searchQuery && (
+              <button
+                onClick={clearSearch}
+                className="text-[#78839A] hover:text-[#25324A] p-1 rounded-md hover:bg-gray-200/50 transition-colors cursor-pointer"
+                aria-label="Clear search"
+                title="Clear (Esc)"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Global Find Dropdown Popover */}
+        {showFindResults && searchQuery.trim().length >= 2 && (
+          <SearchFindPopover
+            searchQuery={searchQuery}
+            inPageMatches={inPageMatches}
+            activeMatchIndex={activeMatchIndex}
+            moduleMatches={moduleMatches}
+            isSearching={isSearching}
+            onNextMatch={nextMatch}
+            onPrevMatch={prevMatch}
+            onJumpToPageMatch={jumpToMatch}
+            onClose={() => setShowFindResults(false)}
+          />
+        )}
       </div>
 
       {/* Right Controls: Notifications & Profile Badge */}
