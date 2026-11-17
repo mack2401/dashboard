@@ -28,8 +28,8 @@ const SidebarLayout = () => {
     <div className="flex min-h-screen w-full overflow-x-hidden bg-[#F5F6FC]">
       <Sidebar isCollapsed={isCollapsed} onToggleCollapse={toggleSidebar} />
       <div
-        className={`flex-1 min-w-0 flex flex-col min-h-screen overflow-x-hidden transition-[margin] duration-300 ease-in-out ${
-          isCollapsed ? "md:ml-[72px]" : "md:ml-64"
+        className={`flex-1 min-w-0 flex flex-col min-h-screen overflow-x-hidden transition-[margin,padding] duration-300 ease-in-out ${
+          isCollapsed ? "md:ml-[88px]" : "md:ml-[272px]"
         }`}
       >
         <TopBar />
