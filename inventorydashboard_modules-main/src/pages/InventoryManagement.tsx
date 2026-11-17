@@ -3718,7 +3718,7 @@ const InventoryManagement: React.FC = () => {
             title="Total unique items in catalog (Stock Keeping Units - Item-wise count)"
           >
             <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
+              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wider truncate">
                 Total SKUs
               </span>
               <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/70 group-hover:scale-105 transition-transform">
@@ -3962,22 +3962,6 @@ const InventoryManagement: React.FC = () => {
                     <span className="w-2.5 h-6 bg-blue-600 rounded-full inline-block"></span>
                     Fast Moving Components
                   </h2>
-                  <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                    Showing high-velocity items for:{" "}
-                    <strong className="text-gray-900 font-semibold">
-                      {fastMovingCustomDate
-                        ? `Date: ${new Date(fastMovingCustomDate).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}`
-                        : fastMovingPeriod === 'today'
-                        ? "Today"
-                        : fastMovingPeriod === 'yesterday'
-                        ? "Yesterday"
-                        : fastMovingPeriod === 'past7'
-                        ? "Past 7 Days"
-                        : fastMovingPeriod === 'past30'
-                        ? "Past 30 Days"
-                        : "All Previous Dates (All Time)"}
-                    </strong>
-                  </p>
                 </div>
 
                 {/* Period Pills */}
