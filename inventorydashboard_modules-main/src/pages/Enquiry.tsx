@@ -606,7 +606,7 @@ export default function EnquiryPage() {
 
       // Fetch all documents (no limit)
       const querySnapshot = await getDocs(q);
-      
+
       // Get employee map for assignedToName
       const empSnap = await getDocs(collection(db, "employees"));
       const employeeMap: Record<string, string> = {};
@@ -919,7 +919,7 @@ export default function EnquiryPage() {
 
       if (!snap.empty) {
         const lastId = snap.docs[0].data().enqId as string;
-         console.log("Last ID found:", lastId);
+        console.log("Last ID found:", lastId);
         const num = parseInt(lastId.replace("IB", ""), 10) || 0;
         const nextNum = num + 1;
         return `IB${nextNum.toString().padStart(3, "0")}`;
@@ -929,9 +929,9 @@ export default function EnquiryPage() {
       console.error("Error generating next Enquiry ID:", err);
       return "IB001";
     }
-    
+
   };
-  
+
 
   // Calculate the display range for the "Showing X to Y of Z entries" text
   const startEntry = filteredEnquiries.length === 0 ? 0 : startIndex + 1;
@@ -1084,11 +1084,10 @@ export default function EnquiryPage() {
           <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl overflow-x-auto">
             <button
               onClick={() => setCategoryFilter("all")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                categoryFilter === "all"
-                  ? "bg-white text-gray-900 shadow-xs"
-                  : "text-gray-600 hover:text-gray-900"
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "all"
+                ? "bg-white text-gray-900 shadow-xs"
+                : "text-gray-600 hover:text-gray-900"
+                }`}
             >
               <Layers className="w-3.5 h-3.5" />
               <span>All Channels ({categoryCounts.all})</span>
@@ -1096,11 +1095,10 @@ export default function EnquiryPage() {
 
             <button
               onClick={() => setCategoryFilter("ecommerce")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                categoryFilter === "ecommerce"
-                  ? "bg-blue-600 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "ecommerce"
+                ? "bg-blue-600 text-white shadow-xs"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+                }`}
             >
               <ShoppingCart className="w-3.5 h-3.5" />
               <span>E-commerce ({categoryCounts.ecommerce})</span>
@@ -1108,11 +1106,10 @@ export default function EnquiryPage() {
 
             <button
               onClick={() => setCategoryFilter("academic")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
-                categoryFilter === "academic"
-                  ? "bg-purple-600 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-              }`}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "academic"
+                ? "bg-purple-600 text-white shadow-xs"
+                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+                }`}
             >
               <GraduationCap className="w-3.5 h-3.5" />
               <span>Academic ({categoryCounts.academic})</span>
@@ -1136,10 +1133,9 @@ export default function EnquiryPage() {
                 onClick={() => setStatusFilter(tab.id as any)}
                 className={`
                   flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap
-                  ${
-                    isActive
-                      ? "bg-slate-900 text-white shadow-xs"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                  ${isActive
+                    ? "bg-slate-900 text-white shadow-xs"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
                   }
                 `}
               >
@@ -1147,10 +1143,9 @@ export default function EnquiryPage() {
                 <span
                   className={`
                     px-2 py-0.5 rounded-full text-[10px] font-bold
-                    ${
-                      isActive
-                        ? "bg-white/20 text-white"
-                        : "bg-gray-100 text-gray-600"
+                    ${isActive
+                      ? "bg-white/20 text-white"
+                      : "bg-gray-100 text-gray-600"
                     }
                   `}
                 >
@@ -1318,10 +1313,9 @@ export default function EnquiryPage() {
                 disabled={currentPage === 1}
                 className={`
                   p-2 rounded-xl border transition-all duration-200 cursor-pointer
-                  ${
-                    currentPage === 1
-                      ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
-                      : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
+                  ${currentPage === 1
+                    ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
+                    : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
                   }
                 `}
                 title="Previous Page"
@@ -1335,10 +1329,9 @@ export default function EnquiryPage() {
                   onClick={() => setCurrentPage(pageNum)}
                   className={`
                     min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer
-                    ${
-                      currentPage === pageNum
-                        ? "bg-slate-900 text-white shadow-xs"
-                        : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
+                    ${currentPage === pageNum
+                      ? "bg-slate-900 text-white shadow-xs"
+                      : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
                     }
                   `}
                 >
@@ -1351,10 +1344,9 @@ export default function EnquiryPage() {
                 disabled={currentPage === totalPages || totalPages === 0}
                 className={`
                   p-2 rounded-xl border transition-all duration-200 cursor-pointer
-                  ${
-                    currentPage === totalPages || totalPages === 0
-                      ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
-                      : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
+                  ${currentPage === totalPages || totalPages === 0
+                    ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
+                    : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
                   }
                 `}
                 title="Next Page"
