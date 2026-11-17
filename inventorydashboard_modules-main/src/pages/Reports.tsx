@@ -20,7 +20,9 @@ import {
   Clock,
   ArrowUpDown,
   Filter,
-  FileSpreadsheet
+  FileSpreadsheet,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -109,6 +111,15 @@ const Reports: React.FC = () => {
   const [customEndDate, setCustomEndDate] = useState("");
   const [sortBy, setSortBy] = useState<"spent" | "orders" | "name" | "recent">("spent");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+
+  // Pagination for Client Summary Table
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+
+  // Reset pagination when filter criteria change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, dateFilter, customStartDate, customEndDate, sortBy, sortOrder]);
 
   // Selected client for detail drill-down modal
   const [selectedClient, setSelectedClient] = useState<ClientReport | null>(null);
@@ -407,6 +418,14 @@ const Reports: React.FC = () => {
 
     return result;
   }, [clientReports, searchTerm, sortBy, sortOrder]);
+
+  // Paginated Clients Slice
+  const totalPages = Math.ceil(filteredAndSortedClients.length / itemsPerPage) || 1;
+  const indexOfLastItem = currentPage * itemsPerPage;
+  const indexOfFirstItem = (currentPage - 1) * itemsPerPage;
+  const currentClients = useMemo(() => {
+    return filteredAndSortedClients.slice(indexOfFirstItem, indexOfLastItem);
+  }, [filteredAndSortedClients, indexOfFirstItem, indexOfLastItem]);
 
   // Overall KPI Metrics
   const totalMetrics = useMemo(() => {
@@ -1051,6 +1070,82 @@ const Reports: React.FC = () => {
         </div>
       </div>
 
+      {/* Visual Analytics Charts (Top Clients by Spend & Top Products) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Clients Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-600" />
+              Top Clients by Spend
+            </h3>
+            <span className="text-xs text-gray-400 font-medium">Top 5</span>
+          </div>
+          <div className="h-64">
+            {topClientsChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topClientsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
+                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(val: any) => [`₹${Number(val).toLocaleString("en-IN")}`, "Total Spent"]}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                  />
+                  <Bar dataKey="totalSpent" fill="#8B5CF6" radius={[6, 6, 0, 0]}>
+                    {topClientsChartData.map((_, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">
+                No purchase data available
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Top Products Chart */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
+              <Package className="w-5 h-5 text-indigo-600" />
+              Top Purchased Products
+            </h3>
+            <span className="text-xs text-gray-400 font-medium">By Revenue</span>
+          </div>
+          <div className="h-64">
+            {topProductsChartData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={topProductsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
+                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
+                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip
+                    formatter={(val: any, name: any, item: any) => [
+                      `₹${Number(val).toLocaleString("en-IN")} (${item.payload.quantity} qty)`,
+                      "Total Revenue",
+                    ]}
+                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
+                  />
+                  <Bar dataKey="revenue" fill="#3B82F6" radius={[6, 6, 0, 0]}>
+                    {topProductsChartData.map((_, index) => (
+                      <Cell key={`prod-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-sm text-gray-400">
+                No product purchase data available
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* MOM and YOY Values & Volume Comparison Analytics (Collapsible) */}
       <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
 
@@ -1187,243 +1282,204 @@ const Reports: React.FC = () => {
             <p className="text-xs text-gray-400 mt-1">Try adjusting your search query or date filters.</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
-              <thead className="bg-gray-50/90 border-b border-gray-200/90">
-                <tr>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Client Name
-                  </th>
-                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Orders
-                  </th>
-                  <th className="px-4 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Total Spent
-                  </th>
-                  <th className="px-4 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Purchased Items
-                  </th>
-                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Payment Mode
-                  </th>
-                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    Last Order
-                  </th>
-                  <th className="px-3 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap w-16">
-                    Action
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-100">
-                {filteredAndSortedClients.map((client) => (
-                  <tr
-                    key={client.key}
-                    className="hover:bg-gray-50/80 transition-colors cursor-pointer"
-                    onClick={() => {
-                      setSelectedClient(client);
-                      setActiveModalTab("products");
-                    }}
-                  >
-                    {/* Client & Contact */}
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <div>
-                        <div className="font-semibold text-gray-900 text-xs flex items-center gap-1.5">
-                          {client.customerName}
-                          {client.companyName && (
-                            <span className="text-[11px] font-normal text-gray-500">({client.companyName})</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-3 text-[11px] text-gray-500 mt-0.5">
-                          {client.contactNumber && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="w-3 h-3 text-gray-400" />
-                              {client.contactNumber}
-                            </span>
-                          )}
-                          {client.email && (
-                            <span className="flex items-center gap-1">
-                              <Mail className="w-3 h-3 text-gray-400" />
-                              {client.email}
-                            </span>
-                          )}
-                          {client.city && (
-                            <span className="flex items-center gap-1">
-                              <MapPin className="w-3 h-3 text-gray-400" />
-                              {client.city}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </td>
-
-                    {/* Orders Count */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
-                        {client.purchaseCount} {client.purchaseCount === 1 ? 'order' : 'orders'}
-                      </span>
-                    </td>
-
-                    {/* Total Spent */}
-                    <td className="px-4 py-3 whitespace-nowrap text-right">
-                      <div className="font-bold text-gray-900 font-mono text-xs tabular-nums">
-                        ₹{client.totalSpent.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      {client.purchaseCount > 0 && (
-                        <div className="text-[10px] text-gray-400 font-mono mt-0.5">
-                          Avg: ₹{(client.totalSpent / client.purchaseCount).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-                        </div>
-                      )}
-                    </td>
-
-                    {/* What All Purchased */}
-                    <td className="px-4 py-3 max-w-xs">
-                      {client.purchasedProducts.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {client.purchasedProducts.slice(0, 2).map((p, pIdx) => (
-                            <span
-                              key={pIdx}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium max-w-[130px] truncate"
-                              title={`${p.productName} - Qty: ${p.totalQuantity} (₹${p.totalAmount.toFixed(0)})`}
-                            >
-                              <span className="truncate">{p.productName}</span>
-                              <span className="text-blue-600 font-bold">x{p.totalQuantity}</span>
-                            </span>
-                          ))}
-                          {client.purchasedProducts.length > 2 && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 text-gray-600 font-semibold rounded text-[10px]">
-                              +{client.purchasedProducts.length - 2}
-                            </span>
-                          )}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-xs">-</span>
-                      )}
-                    </td>
-
-                    {/* Primary Payment Mode */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center">
-                      {client.primaryPaymentMode && client.primaryPaymentMode !== "N/A" ? (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${
-                          client.primaryPaymentMode === "GPay"
-                            ? "bg-blue-50 text-blue-700 border-blue-200"
-                            : client.primaryPaymentMode === "Cash"
-                            ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                            : "bg-indigo-50 text-indigo-700 border-indigo-200"
-                        }`}>
-                          {client.primaryPaymentMode}
-                        </span>
-                      ) : (
-                        <span className="text-gray-400 text-xs">-</span>
-                      )}
-                    </td>
-
-                    {/* Last Order Date */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center text-xs text-gray-600 font-medium">
-                      {client.lastOrderDate ? (
-                        <div>
-                          <div>{client.lastOrderDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
-                          <div className="text-[10px] text-gray-400">{client.lastOrderDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-
-                    {/* Action Button */}
-                    <td className="px-3 py-3 whitespace-nowrap text-center w-16" onClick={(e) => e.stopPropagation()}>
-                      <button
-                        onClick={() => {
-                          setSelectedClient(client);
-                          setActiveModalTab("products");
-                        }}
-                        className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition inline-flex items-center justify-center"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                    </td>
+          <div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs table-fixed">
+                <thead className="bg-gray-50/90 border-b border-gray-200/90">
+                  <tr>
+                    <th className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[28%]">
+                      Client Name
+                    </th>
+                    <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[9%]">
+                      Orders
+                    </th>
+                    <th className="px-3 py-3 text-right text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[14%]">
+                      Total Spent
+                    </th>
+                    <th className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[25%]">
+                      Purchased Items
+                    </th>
+                    <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[11%]">
+                      Payment Mode
+                    </th>
+                    <th className="px-2.5 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider w-[13%]">
+                      Last Order
+                    </th>
+                    <th className="px-2 py-3 text-center text-[11px] font-bold text-gray-500 uppercase tracking-wider w-12">
+                      Action
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-100">
+                  {currentClients.map((client) => (
+                    <tr
+                      key={client.key}
+                      className="hover:bg-gray-50/80 transition-colors cursor-pointer"
+                      onClick={() => {
+                        setSelectedClient(client);
+                        setActiveModalTab("products");
+                      }}
+                    >
+                      {/* Client & Contact */}
+                      <td className="px-3 py-2.5 min-w-0">
+                        <div className="min-w-0">
+                          <div className="font-semibold text-gray-900 text-xs flex items-center gap-1.5 truncate">
+                            <span className="truncate">{client.customerName}</span>
+                            {client.companyName && (
+                              <span className="text-[11px] font-normal text-gray-500 truncate shrink-0">
+                                ({client.companyName})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-gray-500 mt-0.5">
+                            {client.contactNumber && (
+                              <span className="flex items-center gap-1 shrink-0">
+                                <Phone className="w-3 h-3 text-gray-400" />
+                                {client.contactNumber}
+                              </span>
+                            )}
+                            {client.email && (
+                              <span className="flex items-center gap-1 truncate max-w-[140px]" title={client.email}>
+                                <Mail className="w-3 h-3 text-gray-400 shrink-0" />
+                                <span className="truncate">{client.email}</span>
+                              </span>
+                            )}
+                            {client.city && (
+                              <span className="flex items-center gap-1 shrink-0">
+                                <MapPin className="w-3 h-3 text-gray-400" />
+                                {client.city}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Orders Count */}
+                      <td className="px-2.5 py-2.5 text-center">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-50 text-purple-700 border border-purple-200">
+                          {client.purchaseCount} {client.purchaseCount === 1 ? 'order' : 'orders'}
+                        </span>
+                      </td>
+
+                      {/* Total Spent */}
+                      <td className="px-3 py-2.5 text-right">
+                        <div className="font-bold text-gray-900 font-mono text-xs tabular-nums">
+                          ₹{client.totalSpent.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        {client.purchaseCount > 0 && (
+                          <div className="text-[10px] text-gray-400 font-mono mt-0.5">
+                            Avg: ₹{(client.totalSpent / client.purchaseCount).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* What All Purchased */}
+                      <td className="px-3 py-2.5 min-w-0">
+                        {client.purchasedProducts.length > 0 ? (
+                          <div className="flex flex-wrap items-center gap-1">
+                            {client.purchasedProducts.slice(0, 2).map((p, pIdx) => (
+                              <span
+                                key={pIdx}
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-gray-100 text-gray-700 rounded text-[10px] font-medium max-w-[120px] truncate"
+                                title={`${p.productName} - Qty: ${p.totalQuantity} (₹${p.totalAmount.toFixed(0)})`}
+                              >
+                                <span className="truncate">{p.productName}</span>
+                                <span className="text-blue-600 font-bold shrink-0">x{p.totalQuantity}</span>
+                              </span>
+                            ))}
+                            {client.purchasedProducts.length > 2 && (
+                              <span className="inline-flex items-center px-1.5 py-0.5 bg-gray-100 text-gray-600 font-semibold rounded text-[10px] shrink-0">
+                                +{client.purchasedProducts.length - 2}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+
+                      {/* Primary Payment Mode */}
+                      <td className="px-2.5 py-2.5 text-center">
+                        {client.primaryPaymentMode && client.primaryPaymentMode !== "N/A" ? (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold border ${
+                            client.primaryPaymentMode === "GPay"
+                              ? "bg-blue-50 text-blue-700 border-blue-200"
+                              : client.primaryPaymentMode === "Cash"
+                              ? "bg-emerald-50 text-emerald-700 border-emerald-200"
+                              : "bg-indigo-50 text-indigo-700 border-indigo-200"
+                          }`}>
+                            {client.primaryPaymentMode}
+                          </span>
+                        ) : (
+                          <span className="text-gray-400 text-xs">-</span>
+                        )}
+                      </td>
+
+                      {/* Last Order Date */}
+                      <td className="px-2.5 py-2.5 text-center text-xs text-gray-600 font-medium">
+                        {client.lastOrderDate ? (
+                          <div>
+                            <div>{client.lastOrderDate.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</div>
+                            <div className="text-[10px] text-gray-400">{client.lastOrderDate.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" })}</div>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+
+                      {/* Action Button */}
+                      <td className="px-2 py-2.5 text-center w-12" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedClient(client);
+                            setActiveModalTab("products");
+                          }}
+                          className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg cursor-pointer transition inline-flex items-center justify-center"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="px-5 py-3.5 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-gray-50/50">
+                <div className="text-xs font-medium text-gray-500">
+                  Showing <span className="font-bold text-gray-800">{indexOfFirstItem + 1}</span> to{" "}
+                  <span className="font-bold text-gray-800">{Math.min(indexOfLastItem, filteredAndSortedClients.length)}</span> of{" "}
+                  <span className="font-bold text-gray-800">{filteredAndSortedClients.length}</span> clients
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1}
+                    className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs cursor-pointer"
+                    title="Previous Page"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-xs font-semibold text-gray-700 px-2">Page {currentPage} of {totalPages}</span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                    disabled={currentPage === totalPages}
+                    className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs cursor-pointer"
+                    title="Next Page"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
-      </div>
-
-      {/* Visual Analytics Charts (Graphs down below all) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Clients Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <TrendingUp className="w-5 h-5 text-purple-600" />
-              Top Clients by Spend
-            </h3>
-            <span className="text-xs text-gray-400 font-medium">Top 5</span>
-          </div>
-          <div className="h-64">
-            {topClientsChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topClientsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
-                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    formatter={(val: any) => [`₹${Number(val).toLocaleString("en-IN")}`, "Total Spent"]}
-                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
-                  />
-                  <Bar dataKey="totalSpent" fill="#8B5CF6" radius={[6, 6, 0, 0]}>
-                    {topClientsChartData.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-sm text-gray-400">
-                No purchase data available
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Top Products Chart */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-bold text-gray-800 flex items-center gap-2">
-              <Package className="w-5 h-5 text-indigo-600" />
-              Top Purchased Products
-            </h3>
-            <span className="text-xs text-gray-400 font-medium">By Revenue</span>
-          </div>
-          <div className="h-64">
-            {topProductsChartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={topProductsChartData} margin={{ top: 10, right: 10, left: 0, bottom: 25 }}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F3F4F6" />
-                  <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6B7280" }} interval={0} angle={-15} textAnchor="end" />
-                  <YAxis tick={{ fontSize: 11, fill: "#6B7280" }} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                  <Tooltip
-                    formatter={(val: any, name: any, item: any) => [
-                      `₹${Number(val).toLocaleString("en-IN")} (${item.payload.quantity} qty)`,
-                      "Total Revenue",
-                    ]}
-                    labelFormatter={(label, payload) => payload?.[0]?.payload?.fullName || label}
-                  />
-                  <Bar dataKey="revenue" fill="#3B82F6" radius={[6, 6, 0, 0]}>
-                    {topProductsChartData.map((_, index) => (
-                      <Cell key={`prod-${index}`} fill={COLORS[(index + 2) % COLORS.length]} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-full flex items-center justify-center text-sm text-gray-400">
-                No product purchase data available
-              </div>
-            )}
-          </div>
-        </div>
       </div>
 
       {/* Client Detailed Drill-down Modal */}

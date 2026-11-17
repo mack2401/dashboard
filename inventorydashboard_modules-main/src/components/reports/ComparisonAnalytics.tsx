@@ -942,17 +942,26 @@ export default function ComparisonAnalytics({
               </h2>
             </div>
           </div>
-          <div className="md:hidden flex items-center text-gray-400">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(prev => !prev);
+            }}
+            className="md:hidden flex items-center justify-center w-8 h-8 rounded-lg text-gray-500 hover:bg-gray-100 transition-colors cursor-pointer"
+            title={isOpen ? "Collapse section" : "Expand section"}
+          >
             <ChevronDown className={`w-5 h-5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-          </div>
+          </button>
         </div>
 
-        <div className="flex items-center gap-2.5 self-end md:self-auto" onClick={(e) => isOpen && e.stopPropagation()}>
+        <div className="flex items-center gap-2.5 self-end md:self-auto">
           {isOpen && (
-            <>
+            <div className="flex flex-wrap items-center gap-2.5" onClick={(e) => e.stopPropagation()}>
               {/* MOM / YOY Switcher Tabs */}
               <div className="bg-gray-100 p-1 rounded-xl flex items-center border border-gray-200/80">
                 <button
+                  type="button"
                   onClick={() => setComparisonMode("mom")}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     comparisonMode === "mom"
@@ -964,6 +973,7 @@ export default function ComparisonAnalytics({
                   <span>Month-over-Month (MOM)</span>
                 </button>
                 <button
+                  type="button"
                   onClick={() => setComparisonMode("yoy")}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                     comparisonMode === "yoy"
@@ -978,6 +988,7 @@ export default function ComparisonAnalytics({
 
               {/* Export to Excel - Darkened Button Option */}
               <button
+                type="button"
                 onClick={handleExportComparison}
                 className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-slate-800 border border-slate-950 shadow-md shadow-slate-900/25 transition-all cursor-pointer hover:scale-102 active:scale-98"
                 title="Download comparison report to formatted Excel spreadsheet"
@@ -985,13 +996,21 @@ export default function ComparisonAnalytics({
                 <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
                 <span>Export Excel</span>
               </button>
-            </>
+            </div>
           )}
 
           {/* Expand/Collapse Chevron Button */}
-          <div className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50 border border-gray-200 text-gray-500 hover:text-gray-800 transition-colors">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsOpen(prev => !prev);
+            }}
+            className="hidden md:flex items-center justify-center w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-500 hover:text-gray-800 transition-colors cursor-pointer"
+            title={isOpen ? "Collapse section" : "Expand section"}
+          >
             <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
-          </div>
+          </button>
         </div>
       </div>
 
