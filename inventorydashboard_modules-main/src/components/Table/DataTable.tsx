@@ -984,14 +984,23 @@ export default function DataTable<T extends { id?: string }>(
           <thead className="bg-gray-50/90 border-b border-gray-200/90">
             {table.getHeaderGroups().map((headerGroup) => (
               <tr key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <th key={header.id} className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                    {flexRender(
-                      header.column.columnDef.header,
-                      header.getContext()
-                    )}
-                  </th>
-                ))}
+                {headerGroup.headers.map((header) => {
+                  const key = header.column.id;
+                  const isCenter = key === 'sr' || key === 'srNo' || key === 'enqId' || key === 'createdAt' || key === 'type' || key === 'channel' || key === 'status' || key === 'paymentStatus' || key === 'actions' || key === 'mode';
+                  const isRight = key === 'value' || key === 'amount';
+                  const widthClass = (key === 'sr' || key === 'srNo') ? 'w-10' : key === 'actions' ? 'w-24' : '';
+                  return (
+                    <th
+                      key={header.id}
+                      className={`px-2 py-2.5 text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap ${isCenter ? 'text-center' : isRight ? 'text-right' : 'text-left'} ${widthClass}`}
+                    >
+                      {flexRender(
+                        header.column.columnDef.header,
+                        header.getContext()
+                      )}
+                    </th>
+                  );
+                })}
               </tr>
             ))}
             {searchVisible && (
@@ -1002,7 +1011,7 @@ export default function DataTable<T extends { id?: string }>(
                   const isDateColumn = columnTypes[key] === 'date';
 
                   return (
-                    <th key={key} className="px-2 py-2 relative">
+                    <th key={key} className="px-1.5 py-1.5 relative">
                       {canSearch && (
                         <div className="relative">
                           {isDateColumn ? (
@@ -1190,8 +1199,16 @@ export default function DataTable<T extends { id?: string }>(
                     displayValue = formatValue(rawValue);
                   }
 
+                  const key = cell.column.id;
+                  const isCenter = key === 'sr' || key === 'srNo' || key === 'enqId' || key === 'createdAt' || key === 'type' || key === 'channel' || key === 'status' || key === 'paymentStatus' || key === 'actions' || key === 'mode';
+                  const isRight = key === 'value' || key === 'amount';
+                  const widthClass = (key === 'sr' || key === 'srNo') ? 'w-10' : key === 'actions' ? 'w-24' : '';
+
                   return (
-                    <td key={cell.id} className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap align-middle">
+                    <td
+                      key={cell.id}
+                      className={`px-2 py-2 text-xs text-gray-700 align-middle ${isCenter ? 'text-center' : isRight ? 'text-right' : 'text-left'} ${widthClass}`}
+                    >
                       {cell.column.columnDef.cell
                         ? flexRender(
                           cell.column.columnDef.cell,

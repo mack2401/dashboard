@@ -745,7 +745,7 @@ export default function EnquiryPage() {
       },
       {
         id: "createdAt",
-        header: "Enquiry Date",
+        header: "Date",
         accessorFn: (r: any) => r.createdAt ?? null,
         cell: ({ row }) => {
           const d = getEnquiryDate(row.original.createdAt);
@@ -766,10 +766,10 @@ export default function EnquiryPage() {
           const mobile = getEnquiryMobile(row.original);
 
           return (
-            <div className="py-0.5">
-              <div className="text-xs font-semibold text-gray-900">{customerName}</div>
+            <div className="py-0.5 max-w-[130px] sm:max-w-[150px]">
+              <div className="text-xs font-semibold text-gray-900 truncate" title={customerName}>{customerName}</div>
               {mobile && (
-                <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5 font-normal font-mono">
+                <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5 font-normal font-mono truncate" title={mobile}>
                   <Phone className="w-3 h-3 text-[#0284c7] inline flex-shrink-0" />
                   <span>{mobile}</span>
                 </div>
@@ -786,14 +786,14 @@ export default function EnquiryPage() {
           const cat = getEnquiryCategory(row.original);
           if (cat === "academic") {
             return (
-              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
                 <GraduationCap className="w-3 h-3 text-purple-600" />
                 Academic
               </span>
             );
           }
           return (
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
               <ShoppingCart className="w-3 h-3 text-blue-600" />
               E-commerce
             </span>
@@ -819,13 +819,13 @@ export default function EnquiryPage() {
       },
       {
         id: "mode",
-        header: "Source of Enquiry",
+        header: "Source",
         accessorFn: (r: any) => r.mode ?? "-",
-        cell: ({ row }) => {
+              cell: ({row}) => {
           const mode = row.original.mode;
           if (!mode) return <span className="text-gray-400">-</span>;
           return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
               {mode}
             </span>
           );
@@ -833,33 +833,33 @@ export default function EnquiryPage() {
       },
       {
         id: "status",
-        header: "Product Status",
+        header: "Status",
         accessorFn: (r: any) => r.status ?? "-",
-        cell: ({ row }) => {
+              cell: ({row}) => {
           const rawStatus = (row.original.status || "").toLowerCase().trim();
-          if (rawStatus === "testing") {
+              if (rawStatus === "testing") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                 🧪 Testing
               </span>
             );
           }
-          if (rawStatus === "approved" || rawStatus === "delivered" || rawStatus === "dispatched") {
+                if (rawStatus === "approved" || rawStatus === "delivered" || rawStatus === "dispatched") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 capitalize">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 capitalize">
                 ✓ {row.original.status || "Approved"}
               </span>
             );
           }
-          if (rawStatus === "dropped") {
+                  if (rawStatus === "dropped") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-rose-50 text-rose-800 border border-rose-200">
                 ✕ Dropped
               </span>
             );
           }
           return (
-            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-800 border border-slate-200">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-800 border border-slate-200">
               {row.original.status || "-"}
             </span>
           );
@@ -867,85 +867,86 @@ export default function EnquiryPage() {
       },
       {
         id: "paymentStatus",
-        header: "Payment Status",
+        header: "Payment",
         accessorFn: (r: any) => r.paymentStatus ?? "-",
-        cell: ({ row }) => {
+                    cell: ({row}) => {
           const ps = (row.original.paymentStatus || "").toLowerCase().trim();
-          if (ps === "paid" || ps === "completed") {
+                    if (ps === "paid" || ps === "completed") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
                 PAID
               </span>
             );
           }
-          if (ps === "pending") {
+                      if (ps === "pending") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                 PENDING
               </span>
             );
           }
-          return <span className="text-xs text-gray-600 font-medium">{row.original.paymentStatus || "-"}</span>;
+                        return <span>{row.original.paymentStatus || "-"}</span>;
+                        return <span className="text-xs text-gray-600 font-medium">{row.original.paymentStatus || "-"}</span>;
         }
       },
-      {
-        id: "paymentSubStatus",
-        header: "Payment Sub Status",
+                        {
+                          id: "paymentSubStatus",
+                        header: "Payment Sub Status",
         accessorFn: (r: any) => r.paymentSubStatus ?? "-"
       },
-      {
-        id: "shipmentStatus",
-        header: "Shipment Status",
+                        {
+                          id: "shipmentStatus",
+                        header: "Shipment Status",
         accessorFn: (r: any) => r.shipmentStatus ?? "-"
       },
-      {
-        id: "subStatus",
-        header: "Sub-Status",
+                        {
+                          id: "subStatus",
+                        header: "Sub-Status",
         accessorFn: (r: any) => r.subStatus ?? "-"
       },
-      {
-        id: "reason",
-        header: "Reason",
+                        {
+                          id: "reason",
+                        header: "Reason",
         accessorFn: (r: any) => r.reason ?? "-"
       },
-      {
-        id: "assignedToName",
-        header: "Assigned To",
+                        {
+                          id: "assignedToName",
+                        header: "Assigned To",
         accessorFn: (row: any) => row.assignedTo ?? null,
-        cell: ({ row }) => {
+                        cell: ({row}) => {
           const assignedUid = row.original.assignedTo as string;
           if (!assignedUid) return <span className="text-gray-400 text-xs">Unassigned</span>;
           const employee = employeesByUid[assignedUid];
           const name = employee?.employeeName || employee?.name || "Unassigned";
-          return <span className="text-xs font-medium text-gray-700">{name}</span>;
+          return <span className="text-xs font-medium text-gray-700 max-w-[110px] truncate block" title={name}>{name}</span>;
         },
       },
-      {
-        id: "materials",
-        header: "Materials",
+                        {
+                          id: "materials",
+                        header: "Materials",
         accessorFn: (r: any) => r.materials ?? "-",
-        cell: ({ row }) => {
+                        cell: ({row}) => {
           const items = parseMaterialsList(row.original.materials);
-          if (items.length === 0) return <span className="text-gray-400 text-xs">-</span>;
-          return (
-            <div className="flex flex-col gap-1 py-1 max-w-[220px]">
-              {items.slice(0, 2).map((item, idx) => (
-                <div key={idx} className="flex items-center justify-between gap-2 text-xs">
-                  <span className="font-semibold text-gray-800 truncate" title={item.productName}>
-                    {item.productName}
-                  </span>
-                  <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono flex-shrink-0">
-                    × {item.quantity}
-                  </span>
-                </div>
-              ))}
-              {items.length > 2 && (
-                <span className="text-[10px] font-semibold text-gray-400">
-                  +{items.length - 2} more items
-                </span>
-              )}
-            </div>
-          );
+                        if (items.length === 0) return <span className="text-gray-400 text-xs">-</span>;
+                        return (
+                        <div className="flex flex-col gap-1 py-1 max-w-[220px]">
+                          {items.slice(0, 2).map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between gap-2 text-xs">
+                              <span className="font-semibold text-gray-800 truncate" title={item.productName}>
+                                {item.productName}
+                              </span>
+                              <span className="inline-flex items-center px-1.5 py-0.2 rounded text-[10px] font-bold bg-blue-50 text-blue-700 border border-blue-200 font-mono flex-shrink-0">
+                                × {item.quantity}
+                              </span>
+                            </div>
+                          ))}
+                          {items.length > 2 && (
+                            <span className="text-[10px] font-semibold text-gray-400">
+                              +{items.length - 2} more items
+                            </span>
+                          )}
+                        </div>
+                        );
         },
       },
       {
@@ -995,346 +996,346 @@ export default function EnquiryPage() {
         id: "email",
         header: "Email",
         accessorFn: (r: any) => r.email ?? "-"
-      }
+      },
     ];
   }, [employeesByUid, startIndex]);
 
   const handleDelete = async (item: Enquiry) => {
     if (!item.id) {
-      console.error("Cannot delete: item is missing a document ID.");
-      return;
+                              console.error("Cannot delete: item is missing a document ID.");
+                            return;
     }
-    try {
-      await deleteDoc(doc(db, "enquiries", item.id));
+                            try {
+                              await deleteDoc(doc(db, "enquiries", item.id));
     } catch (err) {
-      console.error("Failed to delete enquiry:", err);
-      console.error("User needs to be notified: There was an error deleting the enquiry.");
+                              console.error("Failed to delete enquiry:", err);
+                            console.error("User needs to be notified: There was an error deleting the enquiry.");
     }
   };
 
-  const generateNextEnqId = async (): Promise<string> => {
+                            const generateNextEnqId = async (): Promise<string> => {
     try {
       const q = query(collection(db, "enquiries"), orderBy("createdAt", "desc"), limit(1));
-      const snap = await getDocs(q);
+                              const snap = await getDocs(q);
 
-      if (!snap.empty) {
+                              if (!snap.empty) {
         const lastId = snap.docs[0].data().enqId as string;
-        console.log("Last ID found:", lastId);
-        const num = parseInt(lastId.replace("IB", ""), 10) || 0;
-        const nextNum = num + 1;
-        return `IB${nextNum.toString().padStart(3, "0")}`;
+                              console.log("Last ID found:", lastId);
+                              const num = parseInt(lastId.replace("IB", ""), 10) || 0;
+                              const nextNum = num + 1;
+                              return `IB${nextNum.toString().padStart(3, "0")}`;
       }
-      return "IB001";
+                              return "IB001";
     } catch (err) {
-      console.error("Error generating next Enquiry ID:", err);
-      return "IB001";
+                                console.error("Error generating next Enquiry ID:", err);
+                              return "IB001";
     }
 
   };
 
 
-  // Calculate the display range for the "Showing X to Y of Z entries" text
-  const startEntry = filteredEnquiries.length === 0 ? 0 : startIndex + 1;
-  const endEntry = Math.min(endIndex, filteredEnquiries.length);
+                              // Calculate the display range for the "Showing X to Y of Z entries" text
+                              const startEntry = filteredEnquiries.length === 0 ? 0 : startIndex + 1;
+                              const endEntry = Math.min(endIndex, filteredEnquiries.length);
 
-  return (
-    <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Page Header */}
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2.5">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0284c7] to-[#0ea5e9] text-white flex items-center justify-center shadow-md shadow-[#0284c7]/20">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-                    Customer Enquiries
-                  </h1>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${getRoleBadgeColor(currentUserProfile?.role)}`}>
-                    {currentUserProfile?.role || "Staff"}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
+                              return (
+                              <div className="min-h-screen bg-slate-50 p-4 sm:p-6 lg:p-8 font-sans">
+                                <div className="max-w-7xl mx-auto space-y-6">
+                                  {/* Page Header */}
+                                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                                    <div>
+                                      <div className="flex items-center gap-2.5">
+                                        <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#0284c7] to-[#0ea5e9] text-white flex items-center justify-center shadow-md shadow-[#0284c7]/20">
+                                          <MessageSquare className="w-5 h-5" />
+                                        </div>
+                                        <div>
+                                          <div className="flex items-center gap-2">
+                                            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                                              Customer Enquiries
+                                            </h1>
+                                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${getRoleBadgeColor(currentUserProfile?.role)}`}>
+                                              {currentUserProfile?.role || "Staff"}
+                                            </span>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={handleRefresh}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer"
-            >
-              <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-              Refresh
-            </button>
-            <button
-              onClick={async () => {
-                const nextId = await generateNextEnqId();
-                setSelectedEnquiry({
-                  enqId: nextId,
-                  assignedTo: user?.uid ?? "",
-                  statusHistory: [],
-                } as Enquiry);
-                setModalOpen(true);
-              }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] hover:from-[#0284c7] hover:to-[#0369a1] text-white rounded-xl shadow-xs shadow-[#0284c7]/25 transition cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              + New Enquiry
-            </button>
-          </div>
-        </div>
+                                    {/* Action Buttons */}
+                                    <div className="flex flex-wrap items-center gap-2.5">
+                                      <button
+                                        onClick={handleRefresh}
+                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer"
+                                      >
+                                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
+                                        Refresh
+                                      </button>
+                                      <button
+                                        onClick={async () => {
+                                          const nextId = await generateNextEnqId();
+                                          setSelectedEnquiry({
+                                            enqId: nextId,
+                                            assignedTo: user?.uid ?? "",
+                                            statusHistory: [],
+                                          } as Enquiry);
+                                          setModalOpen(true);
+                                        }}
+                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] hover:from-[#0284c7] hover:to-[#0369a1] text-white rounded-xl shadow-xs shadow-[#0284c7]/25 transition cursor-pointer"
+                                      >
+                                        <Plus className="w-4 h-4" />
+                                        + New Enquiry
+                                      </button>
+                                    </div>
+                                  </div>
 
-        {/* Top Summary Statistics KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* 1. Total Enquiries */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Total Enquiries</span>
-              <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#0284c7] flex items-center justify-center">
-                <MessageSquare className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className="text-xl font-bold text-gray-900 tracking-tight truncate">
-                {statistics.totalCount}
-              </p>
-              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                {statistics.activeCount} Active &bull; {statistics.conversionRate.toFixed(1)}% Conversion
-              </p>
-            </div>
-          </div>
+                                  {/* Top Summary Statistics KPI Cards */}
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+                                    {/* 1. Total Enquiries */}
+                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Total Enquiries</span>
+                                        <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#0284c7] flex items-center justify-center">
+                                          <MessageSquare className="w-4 h-4" />
+                                        </div>
+                                      </div>
+                                      <div className="mt-2.5">
+                                        <p className="text-xl font-bold text-gray-900 tracking-tight truncate">
+                                          {statistics.totalCount}
+                                        </p>
+                                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">
+                                          {statistics.activeCount} Active &bull; {statistics.conversionRate.toFixed(1)}% Conversion
+                                        </p>
+                                      </div>
+                                    </div>
 
-          {/* 2. Pipeline Value */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Pipeline Value</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <IndianRupee className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className="text-xl font-bold text-emerald-700 tracking-tight truncate">
-                ₹{statistics.totalPipelineVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-[11px] text-emerald-600 mt-0.5 truncate">
-                ₹{statistics.approvedVal.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Approved Value
-              </p>
-            </div>
-          </div>
+                                    {/* 2. Pipeline Value */}
+                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Pipeline Value</span>
+                                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                                          <IndianRupee className="w-4 h-4" />
+                                        </div>
+                                      </div>
+                                      <div className="mt-2.5">
+                                        <p className="text-xl font-bold text-emerald-700 tracking-tight truncate">
+                                          ₹{statistics.totalPipelineVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </p>
+                                        <p className="text-[11px] text-emerald-600 mt-0.5 truncate">
+                                          ₹{statistics.approvedVal.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Approved Value
+                                        </p>
+                                      </div>
+                                    </div>
 
-          {/* 3. Approved Orders */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Approved Orders</span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <CheckCircle2 className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className="text-xl font-bold text-indigo-700 tracking-tight truncate">
-                {statistics.approvedCnt}
-              </p>
-              <p className="text-[11px] text-indigo-600 mt-0.5 truncate">
-                {statistics.dispatchedCnt + statistics.deliveredCnt} Dispatched / Delivered
-              </p>
-            </div>
-          </div>
+                                    {/* 3. Approved Orders */}
+                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Approved Orders</span>
+                                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                          <CheckCircle2 className="w-4 h-4" />
+                                        </div>
+                                      </div>
+                                      <div className="mt-2.5">
+                                        <p className="text-xl font-bold text-indigo-700 tracking-tight truncate">
+                                          {statistics.approvedCnt}
+                                        </p>
+                                        <p className="text-[11px] text-indigo-600 mt-0.5 truncate">
+                                          {statistics.dispatchedCnt + statistics.deliveredCnt} Dispatched / Delivered
+                                        </p>
+                                      </div>
+                                    </div>
 
-          {/* 4. In Progress & Testing */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">In Progress & Testing</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <Clock className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className="text-xl font-bold text-amber-700 tracking-tight truncate">
-                {statistics.inProgressCnt + statistics.testingCnt}
-              </p>
-              <p className="text-[11px] text-amber-600 mt-0.5 truncate">
-                {statistics.testingCnt} Testing &bull; {statistics.droppedCnt} Dropped
-              </p>
-            </div>
-          </div>
-        </div>
+                                    {/* 4. In Progress & Testing */}
+                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
+                                      <div className="flex items-center justify-between">
+                                        <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">In Progress & Testing</span>
+                                        <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                                          <Clock className="w-4 h-4" />
+                                        </div>
+                                      </div>
+                                      <div className="mt-2.5">
+                                        <p className="text-xl font-bold text-amber-700 tracking-tight truncate">
+                                          {statistics.inProgressCnt + statistics.testingCnt}
+                                        </p>
+                                        <p className="text-[11px] text-amber-600 mt-0.5 truncate">
+                                          {statistics.testingCnt} Testing &bull; {statistics.droppedCnt} Dropped
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </div>
 
-        {/* Channel / Category Selector (All Channels / E-commerce / Academic) */}
-        <div className="bg-white p-3 rounded-2xl border border-gray-200/90 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-semibold">
-              <Filter className="w-4 h-4 text-slate-600" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Channel View</h3>
-                <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                  {categoryFilter === "all" ? "Viewing Both" : categoryFilter === "ecommerce" ? "E-commerce Only" : "Academic Only"}
-                </span>
-              </div>
-            </div>
-          </div>
+                                  {/* Channel / Category Selector (All Channels / E-commerce / Academic) */}
+                                  <div className="bg-white p-3 rounded-2xl border border-gray-200/90 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2.5">
+                                      <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-semibold">
+                                        <Filter className="w-4 h-4 text-slate-600" />
+                                      </div>
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Channel View</h3>
+                                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                                            {categoryFilter === "all" ? "Viewing Both" : categoryFilter === "ecommerce" ? "E-commerce Only" : "Academic Only"}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    </div>
 
-          <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl overflow-x-auto">
-            <button
-              onClick={() => setCategoryFilter("all")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "all"
-                ? "bg-white text-gray-900 shadow-xs"
-                : "text-gray-600 hover:text-gray-900"
-                }`}
-            >
-              <Layers className="w-3.5 h-3.5" />
-              <span>All Channels ({categoryCounts.all})</span>
-            </button>
+                                    <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl overflow-x-auto">
+                                      <button
+                                        onClick={() => setCategoryFilter("all")}
+                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "all"
+                                          ? "bg-white text-gray-900 shadow-xs"
+                                          : "text-gray-600 hover:text-gray-900"
+                                          }`}
+                                      >
+                                        <Layers className="w-3.5 h-3.5" />
+                                        <span>All Channels ({categoryCounts.all})</span>
+                                      </button>
 
-            <button
-              onClick={() => setCategoryFilter("ecommerce")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "ecommerce"
-                ? "bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] text-white shadow-xs shadow-[#0284c7]/25"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-                }`}
-            >
-              <ShoppingCart className="w-3.5 h-3.5" />
-              <span>E-commerce ({categoryCounts.ecommerce})</span>
-            </button>
+                                      <button
+                                        onClick={() => setCategoryFilter("ecommerce")}
+                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "ecommerce"
+                                          ? "bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] text-white shadow-xs shadow-[#0284c7]/25"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+                                          }`}
+                                      >
+                                        <ShoppingCart className="w-3.5 h-3.5" />
+                                        <span>E-commerce ({categoryCounts.ecommerce})</span>
+                                      </button>
 
-            <button
-              onClick={() => setCategoryFilter("academic")}
-              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "academic"
-                ? "bg-purple-600 text-white shadow-xs"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-                }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Academic ({categoryCounts.academic})</span>
-            </button>
-          </div>
-        </div>
+                                      <button
+                                        onClick={() => setCategoryFilter("academic")}
+                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "academic"
+                                          ? "bg-purple-600 text-white shadow-xs"
+                                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+                                          }`}
+                                      >
+                                        <GraduationCap className="w-3.5 h-3.5" />
+                                        <span>Academic ({categoryCounts.academic})</span>
+                                      </button>
+                                    </div>
+                                  </div>
 
-        {/* Status Filter Tabs (Segmented Control Pill Bar) */}
-        <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-x-auto">
-          {[
-            { id: "all", label: "All Enquiries", count: statistics.totalCount },
-            { id: "approved", label: "Approved / Orders", count: statistics.approvedCnt },
-            { id: "testing", label: "Testing", count: statistics.testingCnt },
-            { id: "pending", label: "In Progress", count: statistics.inProgressCnt },
-            { id: "dropped", label: "Dropped", count: statistics.droppedCnt },
-          ].map((tab) => {
-            const isActive = statusFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id as any)}
-                className={`
+                                  {/* Status Filter Tabs (Segmented Control Pill Bar) */}
+                                  <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-x-auto">
+                                    {[
+                                      { id: "all", label: "All Enquiries", count: statistics.totalCount },
+                                      { id: "approved", label: "Approved / Orders", count: statistics.approvedCnt },
+                                      { id: "testing", label: "Testing", count: statistics.testingCnt },
+                                      { id: "pending", label: "In Progress", count: statistics.inProgressCnt },
+                                      { id: "dropped", label: "Dropped", count: statistics.droppedCnt },
+                                    ].map((tab) => {
+                                      const isActive = statusFilter === tab.id;
+                                      return (
+                                        <button
+                                          key={tab.id}
+                                          onClick={() => setStatusFilter(tab.id as any)}
+                                          className={`
                   flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap
                   ${isActive
-                    ? "bg-gradient-to-r from-[#0ea5e9] via-[#0284c7] to-[#0369a1] text-white shadow-xs shadow-[#0284c7]/25"
-                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
-                  }
+                                              ? "bg-gradient-to-r from-[#0ea5e9] via-[#0284c7] to-[#0369a1] text-white shadow-xs shadow-[#0284c7]/25"
+                                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                                            }
                 `}
-              >
-                <span>{tab.label}</span>
-                <span
-                  className={`
+                                        >
+                                          <span>{tab.label}</span>
+                                          <span
+                                            className={`
                     px-2 py-0.5 rounded-full text-[10px] font-bold
                     ${isActive
-                      ? "bg-white/20 text-white"
-                      : "bg-gray-100 text-gray-600"
-                    }
+                                                ? "bg-white/20 text-white"
+                                                : "bg-gray-100 text-gray-600"
+                                              }
                   `}
-                >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                                          >
+                                            {tab.count}
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
 
-        {/* Multi-Criteria Filter & Search Panel */}
-        <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90">
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
-            {/* Search Input */}
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                value={globalSearch}
-                onChange={(e) => setGlobalSearch(e.target.value)}
-                placeholder="Search by Customer, Mobile, Enq ID, City, Remarks..."
-                className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:bg-white transition-all"
-              />
-              {globalSearch && (
-                <button
-                  onClick={() => setGlobalSearch("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
-                  title="Clear search"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              )}
-            </div>
+                                  {/* Multi-Criteria Filter & Search Panel */}
+                                  <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90">
+                                    <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
+                                      {/* Search Input */}
+                                      <div className="relative flex-1">
+                                        <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                        <input
+                                          type="text"
+                                          value={globalSearch}
+                                          onChange={(e) => setGlobalSearch(e.target.value)}
+                                          placeholder="Search by Customer, Mobile, Enq ID, City, Remarks..."
+                                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:bg-white transition-all"
+                                        />
+                                        {globalSearch && (
+                                          <button
+                                            onClick={() => setGlobalSearch("")}
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                                            title="Clear search"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        )}
+                                      </div>
 
-            {/* Source / Mode Filter Dropdown */}
-            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-              <div className="relative w-full sm:w-56">
-                <select
-                  value={modeFilter}
-                  onChange={(e) => setModeFilter(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:bg-white transition-all cursor-pointer font-medium"
-                >
-                  <option value="all">All Sources / Modes</option>
-                  {availableModes.map((mode) => (
-                    <option key={mode} value={mode}>
-                      {mode}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                                      {/* Source / Mode Filter Dropdown */}
+                                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+                                        <div className="relative w-full sm:w-56">
+                                          <select
+                                            value={modeFilter}
+                                            onChange={(e) => setModeFilter(e.target.value)}
+                                            className="w-full px-3 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#0284c7] focus:bg-white transition-all cursor-pointer font-medium"
+                                          >
+                                            <option value="all">All Sources / Modes</option>
+                                            {availableModes.map((mode) => (
+                                              <option key={mode} value={mode}>
+                                                {mode}
+                                              </option>
+                                            ))}
+                                          </select>
+                                        </div>
 
-              {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
-                <button
-                  onClick={() => {
-                    setGlobalSearch("");
-                    setModeFilter("all");
-                    setStatusFilter("all");
-                    setCategoryFilter("all");
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/70 rounded-xl transition cursor-pointer whitespace-nowrap"
-                >
-                  <X className="w-3.5 h-3.5" />
-                  Reset Filters
-                </button>
-              )}
-            </div>
-          </div>
+                                        {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
+                                          <button
+                                            onClick={() => {
+                                              setGlobalSearch("");
+                                              setModeFilter("all");
+                                              setStatusFilter("all");
+                                              setCategoryFilter("all");
+                                            }}
+                                            className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/70 rounded-xl transition cursor-pointer whitespace-nowrap"
+                                          >
+                                            <X className="w-3.5 h-3.5" />
+                                            Reset Filters
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
 
-          {/* Active Filter notification badge */}
-          {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
-            <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
-              <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-pulse"></span>
-                <span>
-                  Showing <strong>{filteredEnquiries.length}</strong> of <strong>{enquiries.length}</strong> enquiries
-                  {categoryFilter !== "all" && (
-                    <span> &bull; Channel: <strong className="capitalize">{categoryFilter}</strong></span>
-                  )}
-                  {globalSearch && (
-                    <span> matching "<strong>{globalSearch}</strong>"</span>
-                  )}
-                  {modeFilter !== "all" && (
-                    <span> &bull; Mode: <strong>{modeFilter}</strong></span>
-                  )}
-                  {statusFilter !== "all" && (
-                    <span> &bull; Status: <strong className="capitalize">{statusFilter}</strong></span>
-                  )}
-                </span>
-              </div>
-            </div>
-          )}
-        </div>
+                                    {/* Active Filter notification badge */}
+                                    {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
+                                      <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
+                                        <div className="flex items-center gap-2">
+                                          <span className="w-2 h-2 rounded-full bg-[#0284c7] animate-pulse"></span>
+                                          <span>
+                                            Showing <strong>{filteredEnquiries.length}</strong> of <strong>{enquiries.length}</strong> enquiries
+                                            {categoryFilter !== "all" && (
+                                              <span> &bull; Channel: <strong className="capitalize">{categoryFilter}</strong></span>
+                                            )}
+                                            {globalSearch && (
+                                              <span> matching "<strong>{globalSearch}</strong>"</span>
+                                            )}
+                                            {modeFilter !== "all" && (
+                                              <span> &bull; Mode: <strong>{modeFilter}</strong></span>
+                                            )}
+                                            {statusFilter !== "all" && (
+                                              <span> &bull; Status: <strong className="capitalize">{statusFilter}</strong></span>
+                                            )}
+                                          </span>
+                                        </div>
+                                      </div>
+                                    )}
+                                  </div>
 
         {/* DataTable Container */}
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden">
@@ -1373,7 +1374,6 @@ export default function EnquiryPage() {
               'value',
               'status',
               'paymentStatus',
-              'shipmentStatus',
               'assignedToName'
             ]}
             showIndexColumn={false}
@@ -1388,303 +1388,302 @@ export default function EnquiryPage() {
           />
         </div>
 
-        {/* Clean Modern Pagination Footer */}
-        {!isLoading && filteredEnquiries.length > 0 && (
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-gray-200/90 shadow-xs">
-            <div className="text-xs sm:text-sm text-gray-600 font-medium">
-              Showing <span className="font-semibold text-gray-900">{startEntry}</span> to{" "}
-              <span className="font-semibold text-gray-900">{endEntry}</span> of{" "}
-              <span className="font-semibold text-gray-900">{filteredEnquiries.length}</span> entries
-              {filteredEnquiries.length !== enquiries.length && (
-                <span className="text-xs text-gray-400 ml-1.5 font-normal">
-                  (filtered from {enquiries.length} total)
-                </span>
-              )}
-            </div>
+                                  {/* Clean Modern Pagination Footer */}
+                                  {!isLoading && filteredEnquiries.length > 0 && (
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-gray-200/90 shadow-xs">
+                                      <div className="text-xs sm:text-sm text-gray-600 font-medium">
+                                        Showing <span className="font-semibold text-gray-900">{startEntry}</span> to{" "}
+                                        <span className="font-semibold text-gray-900">{endEntry}</span> of{" "}
+                                        <span className="font-semibold text-gray-900">{filteredEnquiries.length}</span> entries
+                                        {filteredEnquiries.length !== enquiries.length && (
+                                          <span className="text-xs text-gray-400 ml-1.5 font-normal">
+                                            (filtered from {enquiries.length} total)
+                                          </span>
+                                        )}
+                                      </div>
 
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                disabled={currentPage === 1}
-                className={`
+                                      <div className="flex items-center gap-1.5">
+                                        <button
+                                          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                                          disabled={currentPage === 1}
+                                          className={`
                   p-2 rounded-xl border transition-all duration-200 cursor-pointer
                   ${currentPage === 1
-                    ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
-                    : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
-                  }
+                                              ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
+                                              : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
+                                            }
                 `}
-                title="Previous Page"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+                                          title="Previous Page"
+                                        >
+                                          <ChevronLeft className="w-4 h-4" />
+                                        </button>
 
-              {pageNumbers.map((pageNum) => (
-                <button
-                  key={pageNum}
-                  onClick={() => setCurrentPage(pageNum)}
-                  className={`
+                                        {pageNumbers.map((pageNum) => (
+                                          <button
+                                            key={pageNum}
+                                            onClick={() => setCurrentPage(pageNum)}
+                                            className={`
                     min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer
                     ${currentPage === pageNum
-                      ? "bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] text-white shadow-xs shadow-[#0284c7]/25"
-                      : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
-                    }
+                                                ? "bg-gradient-to-r from-[#0ea5e9] to-[#0284c7] text-white shadow-xs shadow-[#0284c7]/25"
+                                                : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
+                                              }
                   `}
-                >
-                  {pageNum}
-                </button>
-              ))}
+                                          >
+                                            {pageNum}
+                                          </button>
+                                        ))}
 
-              <button
-                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                disabled={currentPage === totalPages || totalPages === 0}
-                className={`
+                                        <button
+                                          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                                          disabled={currentPage === totalPages || totalPages === 0}
+                                          className={`
                   p-2 rounded-xl border transition-all duration-200 cursor-pointer
                   ${currentPage === totalPages || totalPages === 0
-                    ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
-                    : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
-                  }
+                                              ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
+                                              : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
+                                            }
                 `}
-                title="Next Page"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
+                                          title="Next Page"
+                                        >
+                                          <ChevronRight className="w-4 h-4" />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
 
-      {modalOpen && (
-        <AddEditModal
-          open={modalOpen}
-          initial={selectedEnquiry}
-          onClose={() => {
-            setModalOpen(false);
-            setSelectedEnquiry(null);
-          }}
-          onSave={() => {
-            setModalOpen(false);
-            setSelectedEnquiry(null);
-          }}
-          currentUserProfile={currentUserProfile}
-          employees={employees}
-        />
-      )}
+                                {modalOpen && (
+                                  <AddEditModal
+                                    open={modalOpen}
+                                    initial={selectedEnquiry}
+                                    onClose={() => {
+                                      setModalOpen(false);
+                                      setSelectedEnquiry(null);
+                                    }}
+                                    onSave={() => {
+                                      setModalOpen(false);
+                                      setSelectedEnquiry(null);
+                                    }}
+                                    currentUserProfile={currentUserProfile}
+                                    employees={employees}
+                                  />
+                                )}
 
-      {/* Modern Enquiry Details Modal */}
-      {viewModalOpen && selectedEnquiry && (() => {
-        const parsedMaterials = parseMaterialsList(selectedEnquiry.materials);
-        const enqDate = getEnquiryDate(selectedEnquiry.createdAt);
-        const dateStr = enqDate ? enqDate.toLocaleDateString("en-IN") : "-";
-        const assignedUid = (selectedEnquiry as any).assignedTo;
-        const assignedName = assignedUid ? (employeesByUid[assignedUid]?.employeeName || employeesByUid[assignedUid]?.name || "Unassigned") : "Unassigned";
+                                {/* Modern Enquiry Details Modal */}
+                                {viewModalOpen && selectedEnquiry && (() => {
+                                  const parsedMaterials = parseMaterialsList(selectedEnquiry.materials);
+                                  const enqDate = getEnquiryDate(selectedEnquiry.createdAt);
+                                  const dateStr = enqDate ? enqDate.toLocaleDateString("en-IN") : "-";
+                                  const assignedUid = (selectedEnquiry as any).assignedTo;
+                                  const assignedName = assignedUid ? (employeesByUid[assignedUid]?.employeeName || employeesByUid[assignedUid]?.name || "Unassigned") : "Unassigned";
 
-        return (
-          <div 
-            onClick={() => setViewModalOpen(false)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
-          >
-            <div 
-              onClick={(e) => e.stopPropagation()}
-              onWheel={(e) => e.stopPropagation()}
-              className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-6 animate-fade-in flex flex-col max-h-[90vh] overscroll-contain"
-            >
-              {/* Modal Header */}
-              <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50/70 flex-shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0284c7] to-[#0ea5e9] text-white flex items-center justify-center shadow-xs">
-                    <FileText className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-base font-bold text-gray-900">Enquiry Details</h2>
-                      <span className="font-mono text-xs font-semibold text-[#0284c7] bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
-                        {selectedEnquiry.enqId || "-"}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-0.5">
-                      Date: <span className="font-medium text-gray-700">{dateStr}</span> &nbsp;|&nbsp; Assigned: <span className="font-medium text-gray-700">{assignedName}</span>
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setViewModalOpen(false)}
-                  className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200/50 transition cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
+                                  return (
+                                    <div
+                                      onClick={() => setViewModalOpen(false)}
+                                      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
+                                    >
+                                      <div
+                                        onClick={(e) => e.stopPropagation()}
+                                        onWheel={(e) => e.stopPropagation()}
+                                        className="bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-100 overflow-hidden my-6 animate-fade-in flex flex-col max-h-[90vh] overscroll-contain"
+                                      >
+                                        {/* Modal Header */}
+                                        <div className="flex justify-between items-center px-6 py-4 border-b border-gray-100 bg-slate-50/70 flex-shrink-0">
+                                          <div className="flex items-center gap-3">
+                                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-[#0284c7] to-[#0ea5e9] text-white flex items-center justify-center shadow-xs">
+                                              <FileText className="w-5 h-5" />
+                                            </div>
+                                            <div>
+                                              <div className="flex items-center gap-2">
+                                                <h2 className="text-base font-bold text-gray-900">Enquiry Details</h2>
+                                                <span className="font-mono text-xs font-semibold text-[#0284c7] bg-sky-50 px-2.5 py-0.5 rounded-full border border-sky-200">
+                                                  {selectedEnquiry.enqId || "-"}
+                                                </span>
+                                              </div>
+                                              <p className="text-xs text-gray-500 mt-0.5">
+                                                Date: <span className="font-medium text-gray-700">{dateStr}</span> &nbsp;|&nbsp; Assigned: <span className="font-medium text-gray-700">{assignedName}</span>
+                                              </p>
+                                            </div>
+                                          </div>
+                                          <button
+                                            onClick={() => setViewModalOpen(false)}
+                                            className="w-8 h-8 rounded-xl flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-200/50 transition cursor-pointer"
+                                          >
+                                            <X className="w-4 h-4" />
+                                          </button>
+                                        </div>
 
-              {/* Modal Body (Scrollable) */}
-              <div 
-                onWheel={(e) => e.stopPropagation()}
-                className="p-6 overflow-y-auto space-y-5 flex-1 overscroll-contain"
-              >
-                {/* Details Grid */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                      Customer Name
-                    </span>
-                    <p className="text-xs font-bold text-gray-900 truncate">
-                      {getEnquiryCustomerName(selectedEnquiry) || "-"}
-                    </p>
-                  </div>
+                                        {/* Modal Body (Scrollable) */}
+                                        <div
+                                          onWheel={(e) => e.stopPropagation()}
+                                          className="p-6 overflow-y-auto space-y-5 flex-1 overscroll-contain"
+                                        >
+                                          {/* Details Grid */}
+                                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                                            <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                Customer Name
+                                              </span>
+                                              <p className="text-xs font-bold text-gray-900 truncate">
+                                                {getEnquiryCustomerName(selectedEnquiry) || "-"}
+                                              </p>
+                                            </div>
 
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                      Contact Number
-                    </span>
-                    <p className="text-xs font-semibold text-gray-800 flex items-center gap-1.5 font-mono">
-                      <Phone className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                      {getEnquiryMobile(selectedEnquiry) || "-"}
-                    </p>
-                  </div>
+                                            <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                Contact Number
+                                              </span>
+                                              <p className="text-xs font-semibold text-gray-800 flex items-center gap-1.5 font-mono">
+                                                <Phone className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                                                {getEnquiryMobile(selectedEnquiry) || "-"}
+                                              </p>
+                                            </div>
 
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                      Enquiry Type
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <Building className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
-                      {selectedEnquiry.type ? (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
-                          String(selectedEnquiry.type).toUpperCase().includes("B2B")
-                            ? "bg-purple-100 text-purple-800 border border-purple-200"
-                            : String(selectedEnquiry.type).toUpperCase().includes("B2C")
-                            ? "bg-blue-100 text-blue-800 border border-blue-200"
-                            : "bg-gray-100 text-gray-800 border border-gray-200"
-                        }`}>
-                          {selectedEnquiry.type}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-gray-600">-</span>
-                      )}
-                    </div>
-                  </div>
+                                            <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                Enquiry Type
+                                              </span>
+                                              <div className="flex items-center gap-1.5">
+                                                <Building className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                                                {selectedEnquiry.type ? (
+                                                  <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${String(selectedEnquiry.type).toUpperCase().includes("B2B")
+                                                    ? "bg-purple-100 text-purple-800 border border-purple-200"
+                                                    : String(selectedEnquiry.type).toUpperCase().includes("B2C")
+                                                      ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                                      : "bg-gray-100 text-gray-800 border border-gray-200"
+                                                    }`}>
+                                                    {selectedEnquiry.type}
+                                                  </span>
+                                                ) : (
+                                                  <span className="text-xs text-gray-600">-</span>
+                                                )}
+                                              </div>
+                                            </div>
 
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                      City / Location
-                    </span>
-                    <p className="text-xs font-semibold text-gray-800 flex items-center gap-1 truncate">
-                      <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-                      {selectedEnquiry.city ? `${selectedEnquiry.city}${selectedEnquiry.state ? `, ${selectedEnquiry.state}` : ""}` : "-"}
-                    </p>
-                  </div>
+                                            <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                City / Location
+                                              </span>
+                                              <p className="text-xs font-semibold text-gray-800 flex items-center gap-1 truncate">
+                                                <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+                                                {selectedEnquiry.city ? `${selectedEnquiry.city}${selectedEnquiry.state ? `, ${selectedEnquiry.state}` : ""}` : "-"}
+                                              </p>
+                                            </div>
 
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                      Status
-                    </span>
-                    <p className="text-xs font-bold text-gray-800 capitalize">
-                      {selectedEnquiry.status || "-"}
-                    </p>
-                  </div>
+                                            <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                Status
+                                              </span>
+                                              <p className="text-xs font-bold text-gray-800 capitalize">
+                                                {selectedEnquiry.status || "-"}
+                                              </p>
+                                            </div>
 
-                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                      Total Value
-                    </span>
-                    <p className="text-sm font-bold text-emerald-700">
-                      {selectedEnquiry.value
-                        ? `₹${Number(selectedEnquiry.value).toLocaleString("en-IN")}`
-                        : "-"}
-                    </p>
-                  </div>
+                                            <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
+                                              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                Total Value
+                                              </span>
+                                              <p className="text-sm font-bold text-emerald-700">
+                                                {selectedEnquiry.value
+                                                  ? `₹${Number(selectedEnquiry.value).toLocaleString("en-IN")}`
+                                                  : "-"}
+                                              </p>
+                                            </div>
 
-                  {selectedEnquiry.email && (
-                    <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 sm:col-span-2 md:col-span-3">
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
-                        Email Address
-                      </span>
-                      <p className="text-xs font-semibold text-gray-900 flex items-center gap-1.5 break-all">
-                        <Mail className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-                        {selectedEnquiry.email}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                                            {selectedEnquiry.email && (
+                                              <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 sm:col-span-2 md:col-span-3">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                  Email Address
+                                                </span>
+                                                <p className="text-xs font-semibold text-gray-900 flex items-center gap-1.5 break-all">
+                                                  <Mail className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+                                                  {selectedEnquiry.email}
+                                                </p>
+                                              </div>
+                                            )}
+                                          </div>
 
-                {/* Materials & Products Section */}
-                <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
-                  <div className="bg-slate-50/90 px-4 py-3 border-b border-gray-200/80 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <Package className="w-4 h-4 text-[#0284c7]" />
-                      <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
-                        Products & Materials
-                      </h3>
-                    </div>
-                    <span className="text-[11px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
-                      {parsedMaterials.length} {parsedMaterials.length === 1 ? "item" : "items"}
-                    </span>
-                  </div>
+                                          {/* Materials & Products Section */}
+                                          <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
+                                            <div className="bg-slate-50/90 px-4 py-3 border-b border-gray-200/80 flex items-center justify-between">
+                                              <div className="flex items-center gap-2">
+                                                <Package className="w-4 h-4 text-[#0284c7]" />
+                                                <h3 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                                                  Products & Materials
+                                                </h3>
+                                              </div>
+                                              <span className="text-[11px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
+                                                {parsedMaterials.length} {parsedMaterials.length === 1 ? "item" : "items"}
+                                              </span>
+                                            </div>
 
-                  {parsedMaterials.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead className="bg-gray-50/50 text-[11px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
-                          <tr>
-                            <th className="px-4 py-2.5 text-left w-12">#</th>
-                            <th className="px-4 py-2.5 text-left">Product Name</th>
-                            <th className="px-4 py-2.5 text-right w-28">Quantity</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {parsedMaterials.map((mat, idx) => (
-                            <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
-                              <td className="px-4 py-2.5 text-gray-400 font-mono text-[11px] font-medium">
-                                {idx + 1}
-                              </td>
-                              <td className="px-4 py-2.5 font-semibold text-gray-900">
-                                {mat.productName}
-                              </td>
-                              <td className="px-4 py-2.5 text-right">
-                                <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200/80 font-mono">
-                                  {mat.quantity}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="py-8 text-center text-gray-400 text-xs">
-                      <Package className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
-                      No materials or products listed for this enquiry
-                    </div>
-                  )}
-                </div>
-              </div>
+                                            {parsedMaterials.length > 0 ? (
+                                              <div className="overflow-x-auto">
+                                                <table className="w-full text-xs">
+                                                  <thead className="bg-gray-50/50 text-[11px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                                                    <tr>
+                                                      <th className="px-4 py-2.5 text-left w-12">#</th>
+                                                      <th className="px-4 py-2.5 text-left">Product Name</th>
+                                                      <th className="px-4 py-2.5 text-right w-28">Quantity</th>
+                                                    </tr>
+                                                  </thead>
+                                                  <tbody className="divide-y divide-gray-100">
+                                                    {parsedMaterials.map((mat, idx) => (
+                                                      <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
+                                                        <td className="px-4 py-2.5 text-gray-400 font-mono text-[11px] font-medium">
+                                                          {idx + 1}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 font-semibold text-gray-900">
+                                                          {mat.productName}
+                                                        </td>
+                                                        <td className="px-4 py-2.5 text-right">
+                                                          <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-sky-50 text-sky-700 border border-sky-200/80 font-mono">
+                                                            {mat.quantity}
+                                                          </span>
+                                                        </td>
+                                                      </tr>
+                                                    ))}
+                                                  </tbody>
+                                                </table>
+                                              </div>
+                                            ) : (
+                                              <div className="py-8 text-center text-gray-400 text-xs">
+                                                <Package className="w-6 h-6 mx-auto mb-1.5 opacity-40" />
+                                                No materials or products listed for this enquiry
+                                              </div>
+                                            )}
+                                          </div>
+                                        </div>
 
-              {/* Modal Footer */}
-              <div className="px-6 py-3.5 border-t border-gray-100 bg-slate-50/70 flex items-center justify-between flex-shrink-0">
-                <span className="text-[11px] text-gray-400">
-                  Enquiry Record View
-                </span>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setViewModalOpen(false);
-                      setModalOpen(true);
-                    }}
-                    className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#0284c7] bg-sky-50 hover:bg-sky-100 border border-sky-200 transition cursor-pointer flex items-center gap-1.5"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                    Edit Enquiry
-                  </button>
-                  <button
-                    onClick={() => setViewModalOpen(false)}
-                    className="px-4 py-1.5 rounded-xl text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 transition cursor-pointer"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-    </div>
-  );
+                                        {/* Modal Footer */}
+                                        <div className="px-6 py-3.5 border-t border-gray-100 bg-slate-50/70 flex items-center justify-between flex-shrink-0">
+                                          <span className="text-[11px] text-gray-400">
+                                            Enquiry Record View
+                                          </span>
+                                          <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => {
+                                                setViewModalOpen(false);
+                                                setModalOpen(true);
+                                              }}
+                                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-[#0284c7] bg-sky-50 hover:bg-sky-100 border border-sky-200 transition cursor-pointer flex items-center gap-1.5"
+                                            >
+                                              <Edit3 className="w-3.5 h-3.5" />
+                                              Edit Enquiry
+                                            </button>
+                                            <button
+                                              onClick={() => setViewModalOpen(false)}
+                                              className="px-4 py-1.5 rounded-xl text-xs font-semibold text-gray-700 bg-white hover:bg-gray-100 border border-gray-200 transition cursor-pointer"
+                                            >
+                                              Close
+                                            </button>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                              );
 }
