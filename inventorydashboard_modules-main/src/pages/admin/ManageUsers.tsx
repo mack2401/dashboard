@@ -131,6 +131,17 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
     fetchEmployees();
   }, []);
 
+  // Prevent background page scrolling when modal is open
+  useEffect(() => {
+    if (isFormModalOpen || userToDelete) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = originalOverflow;
+      };
+    }
+  }, [isFormModalOpen, userToDelete]);
+
   const resetForm = () => {
     setEmployeeName("");
     setEmail("");
@@ -375,9 +386,6 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
                 </div>
                 <span>User Management</span>
               </h1>
-              <p className="text-xs sm:text-sm text-gray-500 mt-1">
-                Manage accounts, define role permissions, and track active users across the platform.
-              </p>
             </div>
 
             <div className="flex items-center gap-2.5 self-start sm:self-auto">
@@ -717,8 +725,17 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
 
         {/* ============ USER FORM MODAL (DIALOG BOX METHOD) ============ */}
         {isFormModalOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overscroll-contain animate-in fade-in duration-150">
-            <div className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[90vh]">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overscroll-contain animate-in fade-in duration-150"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) closeFormModal();
+            }}
+            onWheel={(e) => e.stopPropagation()}
+          >
+            <div 
+              className="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-gray-200 overflow-hidden flex flex-col max-h-[90vh] overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
+            >
               {/* Modal Header */}
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-gradient-to-r from-gray-50 to-white">
                 <div className="flex items-center gap-3">
@@ -749,7 +766,7 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
               </div>
 
               {/* Modal Form */}
-              <form onSubmit={handleCreateOrUpdate} className="p-6 space-y-4 overflow-y-auto">
+              <form onSubmit={handleCreateOrUpdate} className="p-6 space-y-4 overflow-y-auto overscroll-contain">
                 {/* Full Name */}
                 <div>
                   <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
@@ -926,8 +943,17 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
 
         {/* Delete Confirmation Modal */}
         {userToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
-            <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150">
+          <div 
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs overscroll-contain animate-in fade-in duration-150"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setUserToDelete(null);
+            }}
+            onWheel={(e) => e.stopPropagation()}
+          >
+            <div 
+              className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-200 animate-in fade-in zoom-in-95 duration-150 overscroll-contain"
+              onClick={(e) => e.stopPropagation()}
+            >
               <div className="flex items-center gap-3 text-rose-600 mb-3">
                 <div className="w-10 h-10 rounded-xl bg-rose-50 flex items-center justify-center">
                   <AlertTriangle className="w-5 h-5 text-rose-600" />

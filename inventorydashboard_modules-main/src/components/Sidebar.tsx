@@ -153,15 +153,26 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center mb-2 shrink-0">
+            <div className="flex flex-col items-center gap-2 mb-2 px-2 shrink-0">
+              <div 
+                onClick={onToggleCollapse} 
+                className="w-10 h-10 bg-white rounded-xl shadow-xs p-1 flex items-center justify-center cursor-pointer hover:shadow-md hover:scale-105 transition-all"
+                title="Expand sidebar"
+              >
+                <img 
+                  src="/ibots-logo.png" 
+                  alt="iBots" 
+                  className="w-full h-full object-contain"
+                />
+              </div>
               {onToggleCollapse && (
                 <button 
                   onClick={onToggleCollapse}
-                  className="hidden md:flex p-2 text-white hover:bg-white/15 rounded-xl transition-colors cursor-pointer justify-center"
+                  className="hidden md:flex p-1.5 text-white/90 hover:text-white hover:bg-white/15 rounded-xl transition-colors cursor-pointer justify-center"
                   title="Expand sidebar"
                   aria-label="Expand sidebar"
                 >
-                  <Menu size={20} />
+                  <Menu size={18} />
                 </button>
               )}
             </div>
