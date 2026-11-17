@@ -4073,55 +4073,17 @@ const InventoryManagement: React.FC = () => {
               )}
             </div>
 
-            {/* Small Low Stock KPI Card + Search Bar */}
+            {/* Search Bar (Left) + Compact Low Stock Toggle (Right) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
-              {/* Small Low Stock KPI Card */}
-              <div 
-                onClick={() => setFastMovingFilterLowStock(prev => !prev)}
-                className={`p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md w-full sm:w-60 md:w-64 ${
-                  fastMovingFilterLowStock
-                    ? 'bg-amber-50/70 border-amber-400 ring-2 ring-amber-500 shadow-sm'
-                    : 'bg-white border-gray-200/80 hover:border-amber-300'
-                }`}
-                title={fastMovingFilterLowStock ? 'Click to show all fast moving items' : 'Click to filter low stock fast-moving items only'}
-              >
-                <div className="flex items-center justify-between gap-1.5">
-                  <span className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wider truncate normal-case">
-                    Low Stock Items
-                  </span>
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border group-hover:scale-105 transition-transform ${
-                    fastMovingFilterLowStock
-                      ? 'bg-amber-500 text-white border-amber-600'
-                      : 'bg-amber-50 text-amber-600 border-amber-100/70'
-                  }`}>
-                    <AlertCircle className="w-4 h-4" />
-                  </div>
-                </div>
-                <div className="mt-3 flex items-baseline justify-between">
-                  <p className="text-xl sm:text-2xl font-bold text-amber-600 tracking-tight truncate tabular-nums">
-                    {lowStockFastMovingCount}
-                  </p>
-                  {fastMovingFilterLowStock ? (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 uppercase">
-                      Filtered
-                    </span>
-                  ) : (
-                    <span className="text-[11px] text-gray-400 group-hover:text-amber-600 transition-colors">
-                      Filter &rarr;
-                    </span>
-                  )}
-                </div>
-              </div>
-
               {/* Search Bar */}
-              <div className="relative w-full sm:w-72 self-stretch sm:self-center">
+              <div className="relative w-full sm:w-80">
                 <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input
                   type="text"
                   value={fastMovingSearch}
                   onChange={(e) => setFastMovingSearch(e.target.value)}
                   placeholder="Search fast-moving item..."
-                  className="w-full pl-9 pr-8 py-2.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-xs transition-all"
+                  className="w-full pl-9 pr-8 py-2 text-xs bg-white border border-gray-200 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-xs transition-all"
                 />
                 {fastMovingSearch && (
                   <button
@@ -4132,6 +4094,28 @@ const InventoryManagement: React.FC = () => {
                   </button>
                 )}
               </div>
+
+              {/* Small Low Stock Button on Right Side */}
+              <button
+                onClick={() => setFastMovingFilterLowStock(prev => !prev)}
+                className={`inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all cursor-pointer shadow-xs self-start sm:self-auto shrink-0 ${
+                  fastMovingFilterLowStock
+                    ? 'bg-amber-500 text-white border-amber-600 ring-2 ring-amber-500/30'
+                    : 'bg-white text-gray-700 border-gray-200 hover:border-amber-400 hover:bg-amber-50/50'
+                }`}
+                title={fastMovingFilterLowStock ? 'Showing low stock items only — click to show all' : 'Click to filter low stock fast-moving items'}
+              >
+                <AlertCircle className={`w-3.5 h-3.5 ${fastMovingFilterLowStock ? 'text-white' : 'text-amber-500'}`} />
+                <span>Low Stock Items:</span>
+                <span className={`px-1.5 py-0.5 rounded-md text-xs font-bold tabular-nums ${
+                  fastMovingFilterLowStock ? 'bg-white/25 text-white' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {lowStockFastMovingCount}
+                </span>
+                {fastMovingFilterLowStock && (
+                  <X className="w-3.5 h-3.5 ml-0.5 text-white/80 hover:text-white" />
+                )}
+              </button>
             </div>
 
             {/* Side-by-Side Tables: Approved Fast Moving vs Enquiry Fast Moving */}

@@ -42,6 +42,7 @@ import {
 import { db } from "../firebase";
 import { useAuth } from "../App";
 import ComparisonAnalytics from "../components/reports/ComparisonAnalytics";
+import * as XLSX from "xlsx-js-style";
 
 // --- Types ---
 export interface PurchasedProductSummary {
@@ -463,47 +464,211 @@ const Reports: React.FC = () => {
       }));
   }, [clientReports]);
 
-  // CSV Export Handler
-  const handleExportCSV = () => {
-    const headers = [
-      "Client Name",
-      "Company Name",
-      "Contact Number",
-      "Email",
-      "City",
-      "State",
-      "Purchase Count",
-      "Total Amount Spent (INR)",
-      "Primary Payment Mode",
-      "Top Products Purchased",
-      "First Purchase Date",
-      "Last Purchase Date",
-    ];
+  // Styled Excel Report Export Handler (xlsx-js-style with theme colors, borders, and auto-widths)
+  const handleExportExcel = () => {
+    try {
+      const wb = XLSX.utils.book_new();
 
-    const rows = filteredAndSortedClients.map((client) => [
-      `"${client.customerName.replace(/"/g, '""')}"`,
-      `"${(client.companyName || "").replace(/"/g, '""')}"`,
-      `"${client.contactNumber}"`,
-      `"${client.email}"`,
-      `"${client.city}"`,
-      `"${client.state}"`,
-      client.purchaseCount,
-      client.totalSpent.toFixed(2),
-      `"${client.primaryPaymentMode}"`,
-      `"${client.purchasedProducts.map((p) => `${p.productName} (${p.totalQuantity})`).join("; ")}"`,
-      client.firstOrderDate ? client.firstOrderDate.toLocaleDateString("en-IN") : "N/A",
-      client.lastOrderDate ? client.lastOrderDate.toLocaleDateString("en-IN") : "N/A",
-    ]);
+      const titleText = "CLIENT PURCHASE & REVENUE SUMMARY REPORT";
+      const metaText = `Generated: ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })} | Total Clients: ${filteredAndSortedClients.length} | Total Revenue: ₹${totalMetrics.totalRevenue.toLocaleString("en-IN", { maximumFractionDigits: 0 })} | Total Orders: ${totalMetrics.totalOrders}`;
 
-    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `client_purchase_report_${new Date().toISOString().slice(0, 10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      const headers = [
+        "S.No",
+        "Client Name",
+        "Company Name",
+        "Contact Number",
+        "Email",
+        "City / Location",
+        "Orders Count",
+        "Total Spent (₹)",
+        "Primary Payment Mode",
+        "Top Products Purchased",
+        "First Purchase Date",
+        "Last Purchase Date",
+      ];
+
+      const dataRows = filteredAndSortedClients.map((client, idx) => [
+        idx + 1,
+        client.customerName,
+        client.companyName || "-",
+        client.contactNumber || "-",
+        client.email || "-",
+        [client.city, client.state].filter(Boolean).join(", ") || "-",
+        client.purchaseCount,
+        Number(client.totalSpent.toFixed(2)),
+        client.primaryPaymentMode || "-",
+        client.purchasedProducts.map((p) => `${p.productName} (x${p.totalQuantity})`).join("; ") || "None",
+        client.firstOrderDate ? client.firstOrderDate.toLocaleDateString("en-IN") : "-",
+        client.lastOrderDate ? client.lastOrderDate.toLocaleDateString("en-IN") : "-",
+      ]);
+
+      const totalSpentSum = filteredAndSortedClients.reduce((sum, c) => sum + (c.totalSpent || 0), 0);
+      const totalOrdersSum = filteredAndSortedClients.reduce((sum, c) => sum + (c.purchaseCount || 0), 0);
+
+      const totalRow = [
+        "TOTAL",
+        "",
+        "",
+        "",
+        "",
+        "",
+        totalOrdersSum,
+        Number(totalSpentSum.toFixed(2)),
+        "",
+        "",
+        "",
+        "",
+      ];
+
+      const allSheetData = [
+        [titleText, "", "", "", "", "", "", "", "", "", "", ""],
+        [metaText, "", "", "", "", "", "", "", "", "", "", ""],
+        ["", "", "", "", "", "", "", "", "", "", "", ""],
+        headers,
+        ...dataRows,
+        totalRow,
+      ];
+
+      const ws = XLSX.utils.aoa_to_sheet(allSheetData);
+
+      // Merge Title and Meta rows across all 12 columns, and TOTAL label across first 6 columns
+      ws["!merges"] = [
+        { s: { r: 0, c: 0 }, e: { r: 0, c: 11 } },
+        { s: { r: 1, c: 0 }, e: { r: 1, c: 11 } },
+        { s: { r: dataRows.length + 4, c: 0 }, e: { r: dataRows.length + 4, c: 5 } },
+      ];
+
+      // Explicit Column Widths
+      ws["!cols"] = [
+        { wch: 8 },  // S.No
+        { wch: 26 }, // Client Name
+        { wch: 22 }, // Company Name
+        { wch: 16 }, // Contact
+        { wch: 26 }, // Email
+        { wch: 18 }, // Location
+        { wch: 14 }, // Orders Count
+        { wch: 20 }, // Total Spent
+        { wch: 18 }, // Payment Mode
+        { wch: 42 }, // Products
+        { wch: 16 }, // First Purchase
+        { wch: 16 }, // Last Purchase
+      ];
+
+      // Explicit Row Heights
+      const rowHeights = [
+        { hpt: 32 }, // Title
+        { hpt: 20 }, // Meta
+        { hpt: 10 }, // Blank
+        { hpt: 26 }, // Headers
+      ];
+      for (let i = 0; i < dataRows.length; i++) {
+        rowHeights.push({ hpt: 22 });
+      }
+      rowHeights.push({ hpt: 26 }); // Total row
+      ws["!rows"] = rowHeights;
+
+      // Styling Title (A1)
+      if (ws["A1"]) {
+        ws["A1"].s = {
+          font: { sz: 14, bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "4F46E5" } },
+          alignment: { horizontal: "center", vertical: "center" },
+        };
+      }
+
+      // Styling Meta (A2)
+      if (ws["A2"]) {
+        ws["A2"].s = {
+          font: { sz: 10, bold: true, color: { rgb: "312E81" } },
+          fill: { fgColor: { rgb: "EEF2FF" } },
+          alignment: { horizontal: "center", vertical: "center" },
+        };
+      }
+
+      // Header Fill Colors & Styles (Row 4, index 3)
+      for (let c = 0; c < 12; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: 3, c });
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { sz: 10, bold: true, color: { rgb: "FFFFFF" } },
+            fill: { fgColor: { rgb: "4338CA" } },
+            alignment: {
+              horizontal: c === 0 || c === 6 || c === 8 || c === 10 || c === 11 ? "center" : c === 7 ? "right" : "left",
+              vertical: "center",
+            },
+            border: {
+              top: { style: "thin", color: { rgb: "6366F1" } },
+              bottom: { style: "medium", color: { rgb: "312E81" } },
+              left: { style: "thin", color: { rgb: "6366F1" } },
+              right: { style: "thin", color: { rgb: "6366F1" } },
+            },
+          };
+        }
+      }
+
+      // Data Rows Styling with zebra striping
+      for (let r = 0; r < dataRows.length; r++) {
+        const rowIndex = r + 4;
+        const isEven = r % 2 === 0;
+        const bgRgb = isEven ? "FFFFFF" : "F8FAFC";
+
+        for (let c = 0; c < 12; c++) {
+          const cellRef = XLSX.utils.encode_cell({ r: rowIndex, c });
+          if (ws[cellRef]) {
+            ws[cellRef].s = {
+              font: {
+                sz: 10,
+                bold: c === 1 || c === 7,
+                color: c === 7 ? { rgb: "059669" } : { rgb: "1E293B" },
+              },
+              fill: { fgColor: { rgb: bgRgb } },
+              alignment: {
+                horizontal: c === 0 || c === 6 || c === 8 || c === 10 || c === 11 ? "center" : c === 7 ? "right" : "left",
+                vertical: "center",
+              },
+              border: {
+                top: { style: "thin", color: { rgb: "E2E8F0" } },
+                bottom: { style: "thin", color: { rgb: "E2E8F0" } },
+                left: { style: "thin", color: { rgb: "E2E8F0" } },
+                right: { style: "thin", color: { rgb: "E2E8F0" } },
+              },
+            };
+          }
+        }
+      }
+
+      // Summary Total Row Styling
+      const totalRowIndex = dataRows.length + 4;
+      for (let c = 0; c < 12; c++) {
+        const cellRef = XLSX.utils.encode_cell({ r: totalRowIndex, c });
+        if (ws[cellRef]) {
+          ws[cellRef].s = {
+            font: { sz: 11, bold: true, color: { rgb: "1E1B4B" } },
+            fill: { fgColor: { rgb: "E0E7FF" } },
+            alignment: {
+              horizontal: c === 0 ? "center" : c === 6 ? "center" : c === 7 ? "right" : "left",
+              vertical: "center",
+            },
+            border: {
+              top: { style: "thin", color: { rgb: "4338CA" } },
+              bottom: { style: "double", color: { rgb: "4338CA" } },
+              left: { style: "thin", color: { rgb: "C7D2FE" } },
+              right: { style: "thin", color: { rgb: "C7D2FE" } },
+            },
+          };
+        }
+      }
+
+      XLSX.utils.book_append_sheet(wb, ws, "Client Purchases");
+      const filename = `client_purchase_report_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      XLSX.writeFile(wb, filename);
+    } catch (err) {
+      console.error("Error exporting Excel:", err);
+      alert("Failed to export Excel report. Please try again.");
+    }
   };
+
+  const handleExportCSV = handleExportExcel;
 
   // Generate Automatic PDF Report
   const handleGenerateAutomaticPDF = (period: "daily" | "weekly" | "monthly") => {
@@ -825,11 +990,12 @@ const Reports: React.FC = () => {
           </div>
 
           <button
-            onClick={handleExportCSV}
-            className="flex items-center gap-2 px-4 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-xl shadow-sm transition-all text-xs"
+            onClick={handleExportExcel}
+            className="flex items-center gap-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold rounded-xl shadow-sm transition-all text-xs cursor-pointer"
+            title="Download styled Excel (.xlsx) report with color theme and totals"
           >
-            <Download className="w-4 h-4" />
-            Export CSV
+            <FileSpreadsheet className="w-4 h-4" />
+            Export Excel
           </button>
         </div>
       </div>
@@ -884,9 +1050,6 @@ const Reports: React.FC = () => {
           </div>
         </div>
       </div>
-
-      {/* MOM and YOY Values & Volume Comparison Analytics */}
-      <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
 
       {/* Visual Analytics Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -1236,6 +1399,9 @@ const Reports: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* MOM and YOY Values & Volume Comparison Analytics */}
+      <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
 
       {/* Client Detailed Drill-down Modal */}
       {selectedClient && (
