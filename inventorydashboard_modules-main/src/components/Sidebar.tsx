@@ -78,7 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
           rounded-[28px] shadow-xl shadow-blue-600/20
           transition-all duration-300 ease-in-out select-none
           flex flex-col justify-between py-4
-          no-scrollbar overflow-y-auto
+          ${isCollapsed ? "overflow-visible" : "overflow-y-auto no-scrollbar"}
           ${isCollapsed ? "w-[72px]" : "w-[256px]"}
           ${isOpen ? "translate-x-0" : "-translate-x-[120%] md:translate-x-0"}
         `}
@@ -160,7 +160,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                 key={item.name}
                 to={item.path}
                 onClick={() => handleNavClick(false)}
-                title={isCollapsed ? item.name : undefined}
                 className={({ isActive }) => `
                   relative flex items-center transition-colors duration-150 group
                   ${isCollapsed ? "justify-center mx-2 px-0 py-3" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3"}
@@ -212,8 +211,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
 
                     {/* Floating Tooltip (Collapsed Mode) */}
                     {isCollapsed && (
-                      <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                        {item.name}
+                      <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-slate-700/60 flex items-center">
+                        <span>{item.name}</span>
+                        <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900"></div>
                       </div>
                     )}
                   </>
@@ -226,7 +226,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               <div className="flex flex-col mt-1">
                 <button
                   onClick={handleManagementClick}
-                  title={isCollapsed ? "Management" : undefined}
                   className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-white/10 font-medium rounded-l-2xl cursor-pointer group ${
                     isCollapsed ? "justify-center mx-2 px-0 py-3" : "justify-between ml-3.5 pl-3.5 pr-3 py-3"
                   }`}
@@ -240,8 +239,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                   {!isCollapsed && (isManagementOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />)}
 
                   {isCollapsed && (
-                    <div className="absolute left-full ml-3 px-2.5 py-1 bg-slate-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                      Management
+                    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-slate-700/60 flex items-center">
+                      <span>Management</span>
+                      <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900"></div>
                     </div>
                   )}
                 </button>
@@ -254,7 +254,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                         key={item.name}
                         to={item.path}
                         onClick={() => handleNavClick(false)}
-                        title={isCollapsed ? item.name : undefined}
                         className={({ isActive }) => `
                           relative flex items-center transition-all duration-200 group
                           ${isCollapsed ? "justify-center p-2 rounded-xl" : "gap-2.5 px-3 py-2 rounded-l-xl text-xs font-medium"}
@@ -267,6 +266,12 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                       >
                         <span className="shrink-0">{item.icon}</span>
                         {!isCollapsed && <span>{item.name}</span>}
+                        {isCollapsed && (
+                          <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-slate-900 text-white text-xs font-semibold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 border border-slate-700/60 flex items-center">
+                            <span>{item.name}</span>
+                            <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-900"></div>
+                          </div>
+                        )}
                       </NavLink>
                     ))}
                   </div>
@@ -283,7 +288,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
               logout();
               handleNavClick(true);
             }}
-            title={isCollapsed ? "Logout" : undefined}
             className={`relative flex items-center transition-all duration-200 text-white/90 hover:text-white hover:bg-rose-500/25 font-semibold rounded-l-2xl cursor-pointer group pt-2.5 border-t border-white/15 ${
               isCollapsed ? "justify-center mx-2 px-0 py-3" : "gap-3.5 ml-3.5 pl-3.5 pr-3 py-3"
             }`}
@@ -293,8 +297,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
             </span>
             {!isCollapsed && <span className="text-sm">Logout</span>}
             {isCollapsed && (
-              <div className="absolute left-full ml-3 px-2.5 py-1 bg-rose-900 text-white text-xs font-semibold rounded-lg shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity duration-150 whitespace-nowrap z-50">
-                Logout
+              <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-rose-600 text-white text-xs font-bold rounded-xl shadow-xl opacity-0 pointer-events-none group-hover:opacity-100 transition-all duration-150 whitespace-nowrap z-50 flex items-center gap-1.5 border border-rose-400/40">
+                <span>Logout</span>
+                <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-rose-600"></div>
               </div>
             )}
           </button>
