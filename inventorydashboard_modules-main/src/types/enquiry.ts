@@ -22,8 +22,8 @@ export type EnquiryMode =
   | "OwnerDirect"
   | "Offline";
 
-// Type alias for the type of enquiry (Business-to-Business or Business-to-Consumer)
-export type EnquiryType = "B2B" | "B2C";
+// Type alias for the type of enquiry (Business-to-Business, Business-to-Consumer, Academic, E-commerce, etc.)
+export type EnquiryType = "B2B" | "B2C" | "Academic" | "E-commerce" | "Training" | (string & {});
 
 // Interface for an entry in the status history log
 export interface StatusHistoryEntry {

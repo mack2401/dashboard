@@ -40,6 +40,8 @@ import {
   MapPin,
   Clock,
   Check,
+  ShoppingCart,
+  GraduationCap,
 } from "lucide-react";
 
 const getEnquiryDate = (ts: any): Date | null => {
@@ -102,6 +104,33 @@ const matchPhone = (phoneStr: string, query: string): boolean => {
   return false;
 };
 
+const getEnquiryCategory = (enquiry: any): "ecommerce" | "academic" => {
+  if (!enquiry) return "ecommerce";
+  const enqType = String(enquiry.type || "").toLowerCase().trim();
+  const enqMode = String(enquiry.mode || enquiry.source || "").toLowerCase().trim();
+  const enqCourse = String(enquiry.course || enquiry.preferredCourse || enquiry.trainingCourse || "").toLowerCase().trim();
+  const materials = String(enquiry.materials || enquiry.productName || enquiry.description || "").toLowerCase().trim();
+
+  if (
+    enqType === "academic" ||
+    enqType === "training" ||
+    enqType.includes("train") ||
+    enqType.includes("course") ||
+    enqType.includes("workshop") ||
+    enqType.includes("academic") ||
+    enqMode === "training" ||
+    enqMode.includes("academic") ||
+    enqCourse.length > 0 ||
+    materials.includes("training") ||
+    materials.includes("course") ||
+    materials.includes("workshop") ||
+    materials.includes("internship")
+  ) {
+    return "academic";
+  }
+  return "ecommerce";
+};
+
 type UserProfile = {
   id: string;
   role: "admin" | "manager" | "staff";
@@ -134,6 +163,7 @@ export default function EnquiryPage() {
   const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
   const [dateRangeFilters, setDateRangeFilters] = useState<Record<string, { from: string; to: string }>>({});
   const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "testing" | "pending" | "dropped">("all");
+  const [categoryFilter, setCategoryFilter] = useState<"all" | "ecommerce" | "academic">("all");
   const [modeFilter, setModeFilter] = useState<string>("all");
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
@@ -164,7 +194,7 @@ export default function EnquiryPage() {
   // Reset to first page when any search or filter criteria changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [globalSearch, columnSearch, dateRangeFilters, statusFilter, modeFilter]);
+  }, [globalSearch, columnSearch, dateRangeFilters, statusFilter, modeFilter, categoryFilter]);
 
   useEffect(() => {
     const unsub = onSnapshot(collection(db, "employees"), (snap) => {
@@ -285,12 +315,30 @@ export default function EnquiryPage() {
     };
   }, [currentUserProfile, refreshTrigger]);
 
+  // Category counts for All / E-commerce / Academic
+  const categoryCounts = useMemo(() => {
+    let ecommerce = 0;
+    let academic = 0;
+    enquiries.forEach((e) => {
+      const cat = getEnquiryCategory(e);
+      if (cat === "academic") academic++;
+      else ecommerce++;
+    });
+    return { all: enquiries.length, ecommerce, academic };
+  }, [enquiries]);
+
   // Apply filters to the full dataset
   const filteredEnquiries = useMemo(() => {
     const qLower = globalSearch.trim().toLowerCase();
 
     return enquiries.filter((enquiry) => {
-      // 0a. Status filter tab
+      // 0a. Channel / Category filter (all | ecommerce | academic)
+      if (categoryFilter !== "all") {
+        const cat = getEnquiryCategory(enquiry);
+        if (cat !== categoryFilter) return false;
+      }
+
+      // 0b. Status filter tab
       if (statusFilter !== "all") {
         const s = (enquiry.status || "").toLowerCase().trim();
         const isApproved = s === "approved" || s === "delivered" || s === "dispatched";
@@ -304,7 +352,7 @@ export default function EnquiryPage() {
         if (statusFilter === "pending" && !isInProgress) return false;
       }
 
-      // 0b. Mode / Source filter dropdown
+      // 0c. Mode / Source filter dropdown
       if (modeFilter !== "all") {
         const m = (enquiry.mode || "").toLowerCase().trim();
         if (m !== modeFilter.toLowerCase().trim()) return false;
@@ -393,11 +441,16 @@ export default function EnquiryPage() {
 
       return dateRangeMatch;
     });
-  }, [enquiries, globalSearch, columnSearch, dateRangeFilters, statusFilter, modeFilter]);
+  }, [enquiries, globalSearch, columnSearch, dateRangeFilters, statusFilter, modeFilter, categoryFilter]);
 
-  // Executive summary statistics for top KPI cards
+  // Executive summary statistics for top KPI cards (reflects selected category filter)
   const statistics = useMemo(() => {
-    let totalCount = enquiries.length;
+    const pool =
+      categoryFilter === "all"
+        ? enquiries
+        : enquiries.filter((e) => getEnquiryCategory(e) === categoryFilter);
+
+    let totalCount = pool.length;
     let activeCount = 0;
     let totalPipelineVal = 0;
     let approvedCnt = 0;
@@ -411,7 +464,7 @@ export default function EnquiryPage() {
     let dispatchedCnt = 0;
     let deliveredCnt = 0;
 
-    enquiries.forEach((enq) => {
+    pool.forEach((enq) => {
       const rawVal = enq.value;
       const val = typeof rawVal === "number" ? rawVal : Number(rawVal) || 0;
       totalPipelineVal += val;
@@ -460,7 +513,7 @@ export default function EnquiryPage() {
       deliveredCnt,
       conversionRate,
     };
-  }, [enquiries]);
+  }, [enquiries, categoryFilter]);
 
   // Available unique modes for dropdown
   const availableModes = useMemo(() => {
@@ -664,6 +717,28 @@ export default function EnquiryPage() {
                 </div>
               )}
             </div>
+          );
+        },
+      },
+      {
+        id: "channel",
+        header: "Channel",
+        accessorFn: (r: any) => getEnquiryCategory(r),
+        cell: ({ row }) => {
+          const cat = getEnquiryCategory(row.original);
+          if (cat === "academic") {
+            return (
+              <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200 whitespace-nowrap">
+                <GraduationCap className="w-3 h-3 text-purple-600" />
+                Academic
+              </span>
+            );
+          }
+          return (
+            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 whitespace-nowrap">
+              <ShoppingCart className="w-3 h-3 text-blue-600" />
+              E-commerce
+            </span>
           );
         },
       },
@@ -990,6 +1065,62 @@ export default function EnquiryPage() {
           </div>
         </div>
 
+        {/* Channel / Category Selector (All Channels / E-commerce / Academic) */}
+        <div className="bg-white p-3 rounded-2xl border border-gray-200/90 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-semibold">
+              <Filter className="w-4 h-4 text-slate-600" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Channel View</h3>
+                <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                  {categoryFilter === "all" ? "Viewing Both" : categoryFilter === "ecommerce" ? "E-commerce Only" : "Academic Only"}
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-500">Filter enquiries between E-commerce components and Academic training</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl overflow-x-auto">
+            <button
+              onClick={() => setCategoryFilter("all")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                categoryFilter === "all"
+                  ? "bg-white text-gray-900 shadow-xs"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>All Channels ({categoryCounts.all})</span>
+            </button>
+
+            <button
+              onClick={() => setCategoryFilter("ecommerce")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                categoryFilter === "ecommerce"
+                  ? "bg-blue-600 text-white shadow-xs"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+              }`}
+            >
+              <ShoppingCart className="w-3.5 h-3.5" />
+              <span>E-commerce ({categoryCounts.ecommerce})</span>
+            </button>
+
+            <button
+              onClick={() => setCategoryFilter("academic")}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${
+                categoryFilter === "academic"
+                  ? "bg-purple-600 text-white shadow-xs"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Academic ({categoryCounts.academic})</span>
+            </button>
+          </div>
+        </div>
+
         {/* Status Filter Tabs (Segmented Control Pill Bar) */}
         <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-x-auto">
           {[
@@ -1072,12 +1203,13 @@ export default function EnquiryPage() {
                 </select>
               </div>
 
-              {(globalSearch || modeFilter !== "all" || statusFilter !== "all") && (
+              {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
                 <button
                   onClick={() => {
                     setGlobalSearch("");
                     setModeFilter("all");
                     setStatusFilter("all");
+                    setCategoryFilter("all");
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-rose-600 hover:text-rose-700 bg-rose-50 hover:bg-rose-100/70 rounded-xl transition cursor-pointer whitespace-nowrap"
                 >
@@ -1089,12 +1221,15 @@ export default function EnquiryPage() {
           </div>
 
           {/* Active Filter notification badge */}
-          {(globalSearch || modeFilter !== "all" || statusFilter !== "all") && (
+          {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
             <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
                 <span>
                   Showing <strong>{filteredEnquiries.length}</strong> of <strong>{enquiries.length}</strong> enquiries
+                  {categoryFilter !== "all" && (
+                    <span> &bull; Channel: <strong className="capitalize">{categoryFilter}</strong></span>
+                  )}
                   {globalSearch && (
                     <span> matching "<strong>{globalSearch}</strong>"</span>
                   )}
@@ -1140,6 +1275,7 @@ export default function EnquiryPage() {
               'enqId',
               'createdAt',
               'customerName',
+              'channel',
               'mode',
               'value',
               'status',

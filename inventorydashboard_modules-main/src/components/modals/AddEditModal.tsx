@@ -1403,6 +1403,8 @@ Date: ${currentDate}`;
                       <option value="" disabled>-- Select Type --</option>
                       <option value="B2B">B2B</option>
                       <option value="B2C">B2C</option>
+                      <option value="Academic">Academic / Training</option>
+                      <option value="E-commerce">E-commerce</option>
                     </select>
                   </div>
 
@@ -1480,6 +1482,8 @@ Date: ${currentDate}`;
                       <option value="" disabled>-- Select Type --</option>
                       <option value="B2B">B2B</option>
                       <option value="B2C">B2C</option>
+                      <option value="Academic">Academic / Training</option>
+                      <option value="E-commerce">E-commerce</option>
                     </select>
                   </div>
                 </div>
