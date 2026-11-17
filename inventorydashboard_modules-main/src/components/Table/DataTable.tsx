@@ -903,9 +903,9 @@ export default function DataTable<T extends { id?: string }>(
 
   return (
     <div className="w-full">
-      <div className={`px-4 py-2 text-white font-bold text-sm flex items-center justify-between border-b border-white/10 ${headerBgColor || "bg-slate-900"}`}>
+      <div className={`px-4 py-2.5 text-white font-bold text-sm flex items-center justify-between border-b border-white/10 ${headerBgColor || "bg-slate-900"}`}>
         <div className="flex items-center gap-2">
-          <span>{title}</span>
+          <span className="text-xs font-bold uppercase tracking-wider text-white/95">{title}</span>
         </div>
         {sumColumn && (
           <div className="flex items-center gap-3">
@@ -921,14 +921,14 @@ export default function DataTable<T extends { id?: string }>(
             )}
           </div>
         )}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           {!hideImportExport && (
             <>
               <label
-                className="p-2 bg-white/20 rounded hover:bg-white/30 cursor-pointer"
+                className="p-1.5 bg-white/15 hover:bg-white/25 rounded-xl transition cursor-pointer text-white flex items-center justify-center shadow-xs"
                 title="Import"
               >
-                <Upload size={20} />
+                <Upload size={16} />
                 <input
                   type="file"
                   accept=".xlsx,.xls,.csv"
@@ -938,54 +938,54 @@ export default function DataTable<T extends { id?: string }>(
               </label>
               <button
                 onClick={() => setExportModal(true)}
-                className="p-2 bg-white/20 rounded hover:bg-white/30 cursor-pointer"
+                className="p-1.5 bg-white/15 hover:bg-white/25 rounded-xl transition cursor-pointer text-white flex items-center justify-center shadow-xs"
                 title="Export"
               >
-                <Download size={20} />
+                <Download size={16} />
               </button>
             </>
           )}
           {extraToolbar && <div>{extraToolbar}</div>}
           <button
             onClick={() => setShowColumnsModal(true)}
-            className="p-2 bg-white/20 rounded hover:bg-white/30 cursor-pointer"
+            className="p-1.5 bg-white/15 hover:bg-white/25 rounded-xl transition cursor-pointer text-white flex items-center justify-center shadow-xs"
             title="Toggle Columns"
           >
-            <LayoutGrid size={20} />
+            <LayoutGrid size={16} />
           </button>
           {!hideAdd && (
             <button
               onClick={onAdd}
-              className="p-2 bg-white/20 rounded hover:bg-white/30 cursor-pointer"
+              className="p-1.5 bg-white/15 hover:bg-white/25 rounded-xl transition cursor-pointer text-white flex items-center justify-center shadow-xs"
               title="Add"
             >
-              <Plus size={20} />
+              <Plus size={16} />
             </button>
           )}
           <button
             onClick={() => window.location.reload()}
-            className="p-2 bg-white/20 rounded hover:bg-white/30 cursor-pointer"
+            className="p-1.5 bg-white/15 hover:bg-white/25 rounded-xl transition cursor-pointer text-white flex items-center justify-center shadow-xs"
             title="Refresh"
           >
-            <RefreshCw size={20} />
+            <RefreshCw size={16} />
           </button>
           <button
             onClick={() => setSearchVisible((s) => !s)}
-            className="p-2 bg-white/20 rounded hover:bg-white/30 cursor-pointer"
+            className="p-1.5 bg-white/15 hover:bg-white/25 rounded-xl transition cursor-pointer text-white flex items-center justify-center shadow-xs"
             title="Search"
           >
-            <Search size={20} />
+            <Search size={16} />
           </button>
         </div>
       </div>
 
-      <div className="border-x border-b overflow-auto">
-        <table className="min-w-full table-fixed">
-          <thead>
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead className="bg-gray-50/90 border-b border-gray-200/90">
             {table.getHeaderGroups().map((headerGroup) => (
-              <tr key={headerGroup.id} className="bg-gray-100">
+              <tr key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  <th key={header.id} className="p-3 text-left font-semibold border-r">
+                  <th key={header.id} className="px-3 py-3 text-left text-[11px] font-bold text-gray-500 uppercase tracking-wider whitespace-nowrap">
                     {flexRender(
                       header.column.columnDef.header,
                       header.getContext()
@@ -995,14 +995,14 @@ export default function DataTable<T extends { id?: string }>(
               </tr>
             ))}
             {searchVisible && (
-              <tr className="bg-gray-50">
+              <tr className="bg-gray-50/60 border-b border-gray-200/80">
                 {table.getHeaderGroups()[0].headers.map((header) => {
                   const key = header.column.id;
                   const canSearch = key !== "sr" && key !== "actions";
                   const isDateColumn = columnTypes[key] === 'date';
 
                   return (
-                    <th key={key} className="p-2 border-r relative">
+                    <th key={key} className="px-2 py-2 relative">
                       {canSearch && (
                         <div className="relative">
                           {isDateColumn ? (
@@ -1177,21 +1177,21 @@ export default function DataTable<T extends { id?: string }>(
               </tr>
             )}
           </thead>
-          <tbody>
+          <tbody className="bg-white divide-y divide-gray-100">
             {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="border-t hover:bg-white/50">
+              <tr key={row.id} className="hover:bg-gray-50/80 transition-colors">
                 {row.getVisibleCells().map((cell) => {
                   const rawValue = cell.getValue();
                   let displayValue: string = "";
 
                   if (rawValue instanceof Timestamp) {
-                    displayValue = rawValue.toDate().toLocaleString();
+                    displayValue = rawValue.toDate().toLocaleDateString("en-IN");
                   } else if (rawValue != null) {
                     displayValue = formatValue(rawValue);
                   }
 
                   return (
-                    <td key={cell.id} className="p-1 align-top border-r">
+                    <td key={cell.id} className="px-3 py-2.5 text-xs text-gray-700 whitespace-nowrap align-middle">
                       {cell.column.columnDef.cell
                         ? flexRender(
                           cell.column.columnDef.cell,
@@ -1207,16 +1207,18 @@ export default function DataTable<T extends { id?: string }>(
         </table>
       </div>
 
-      <div className="flex items-center justify-end p-4">
-        <div className="text-sm text-gray-600">
-          View {filteredData.length ? `1 - ${filteredData.length} of ${rows.length}` : "0 - 0 of 0"}
-          {totalRecords && totalRecords > rows.length && (
-            <span className="ml-2 text-gray-400">
-              (Total: {totalRecords})
-            </span>
-          )}
+      {!disableInternalFiltering && (
+        <div className="flex items-center justify-end p-4 border-t border-gray-100">
+          <div className="text-xs text-gray-500">
+            View {filteredData.length ? `1 - ${filteredData.length} of ${rows.length}` : "0 - 0 of 0"}
+            {totalRecords && totalRecords > rows.length && (
+              <span className="ml-2 text-gray-400">
+                (Total: {totalRecords})
+              </span>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Export Modal */}
       {exportModal && (

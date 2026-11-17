@@ -725,7 +725,7 @@ export default function EnquiryPage() {
         cell: ({ row }) => {
           // Calculate the continuous serial number across all pages
           const serialNumber = startIndex + row.index + 1;
-          return <span className="font-medium text-gray-600">{serialNumber}</span>;
+          return <span className="text-xs font-bold text-gray-600 block text-center">{serialNumber}</span>;
         },
       },
       {
@@ -748,11 +748,13 @@ export default function EnquiryPage() {
         header: "Enquiry Date",
         accessorFn: (r: any) => r.createdAt ?? null,
         cell: ({ row }) => {
-          const ts: any = row.original.createdAt;
-          if (!ts) return "-";
-          if (typeof ts.toDate === "function") return ts.toDate().toLocaleString();
-          const d = new Date(ts);
-          return isNaN(d.getTime()) ? String(ts) : d.toLocaleString();
+          const d = getEnquiryDate(row.original.createdAt);
+          if (!d) return <span className="text-gray-400 text-xs">-</span>;
+          return (
+            <span className="text-xs text-gray-600 font-medium whitespace-nowrap">
+              {d.toLocaleDateString("en-IN")}
+            </span>
+          );
         },
       },
       {
@@ -765,10 +767,10 @@ export default function EnquiryPage() {
 
           return (
             <div className="py-0.5">
-              <div className="font-semibold text-gray-900">{customerName}</div>
+              <div className="text-xs font-semibold text-gray-900">{customerName}</div>
               {mobile && (
-                <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5 font-normal">
-                  <Phone className="w-3 h-3 text-blue-600 inline flex-shrink-0" />
+                <div className="text-[11px] text-gray-500 flex items-center gap-1 mt-0.5 font-normal font-mono">
+                  <Phone className="w-3 h-3 text-[#0284c7] inline flex-shrink-0" />
                   <span>{mobile}</span>
                 </div>
               )}
@@ -803,16 +805,16 @@ export default function EnquiryPage() {
         header: "Value",
         accessorFn: (r: any) => r.value ?? null,
         cell: ({ row }) => {
-          const value = row.original.value;
-          if (value === null || value === undefined || value === "") return "-";
+          const val = row.original.value;
+          if (val === null || val === undefined || val === "") return <span className="text-gray-400 text-xs">-</span>;
+          const num = typeof val === 'number' ? val : parseFloat(String(val));
+          if (isNaN(num)) return <span className="text-gray-400 text-xs">-</span>;
 
-          const formattedValue = new Intl.NumberFormat('en-IN', {
-            style: 'currency',
-            currency: 'INR',
-            maximumFractionDigits: 0,
-          }).format(value);
-
-          return formattedValue;
+          return (
+            <span className="text-xs font-bold text-gray-900 font-mono">
+              ₹{num.toLocaleString("en-IN")}
+            </span>
+          );
         }
       },
       {
@@ -837,21 +839,21 @@ export default function EnquiryPage() {
           const rawStatus = (row.original.status || "").toLowerCase().trim();
           if (rawStatus === "testing") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200">
                 🧪 Testing
               </span>
             );
           }
           if (rawStatus === "approved" || rawStatus === "delivered" || rawStatus === "dispatched") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200 capitalize">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-50 text-emerald-800 border border-emerald-200 capitalize">
                 ✓ {row.original.status || "Approved"}
               </span>
             );
           }
           if (rawStatus === "dropped") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-50 text-rose-800 border border-rose-200">
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-rose-50 text-rose-800 border border-rose-200">
                 ✕ Dropped
               </span>
             );
@@ -871,19 +873,19 @@ export default function EnquiryPage() {
           const ps = (row.original.paymentStatus || "").toLowerCase().trim();
           if (ps === "paid" || ps === "completed") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-800 border border-emerald-200">
-                Paid
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                PAID
               </span>
             );
           }
           if (ps === "pending") {
             return (
-              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-800 border border-amber-200">
-                Pending
+              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-amber-100 text-amber-800 border border-amber-200">
+                PENDING
               </span>
             );
           }
-          return <span>{row.original.paymentStatus || "-"}</span>;
+          return <span className="text-xs text-gray-600 font-medium">{row.original.paymentStatus || "-"}</span>;
         }
       },
       {
@@ -912,9 +914,10 @@ export default function EnquiryPage() {
         accessorFn: (row: any) => row.assignedTo ?? null,
         cell: ({ row }) => {
           const assignedUid = row.original.assignedTo as string;
-          if (!assignedUid) return "UNASSIGNED";
+          if (!assignedUid) return <span className="text-gray-400 text-xs">Unassigned</span>;
           const employee = employeesByUid[assignedUid];
-          return employee?.employeeName || employee?.name || "Unknown";
+          const name = employee?.employeeName || employee?.name || "Unassigned";
+          return <span className="text-xs font-medium text-gray-700">{name}</span>;
         },
       },
       {
@@ -958,14 +961,14 @@ export default function EnquiryPage() {
           const t = String(row.original.type || "").toUpperCase().trim();
           if (t.includes("B2B")) {
             return (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-purple-50 text-purple-700 border border-purple-200">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-purple-100 text-purple-800 border border-purple-200">
                 B2B
               </span>
             );
           }
           if (t.includes("B2C")) {
             return (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200">
                 B2C
               </span>
             );
