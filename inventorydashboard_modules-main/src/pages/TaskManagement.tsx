@@ -1,7 +1,10 @@
 // TaskManagement.tsx - Updated with subtask-level statistics
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import EmptyState from '../components/EmptyState';
+import { useItemHighlighter } from '../hooks/useItemHighlighter';
+import { ItemLocatedBanner } from '../components/common/ItemLocatedBanner';
 import { 
   Search, 
   Calendar, 
@@ -341,6 +344,39 @@ const TaskManagement: React.FC = () => {
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Global search & notification deep-linking highlighter
+  const {
+    highlightId,
+    targetSearch,
+    targetName,
+    isBannerVisible,
+    clearHighlight,
+    isHighlighted,
+    scrollToAndHighlight,
+  } = useItemHighlighter();
+
+  // Populate search filter when navigated from search/notification
+  useEffect(() => {
+    if (targetSearch) {
+      setSearchTerm(targetSearch);
+    }
+  }, [targetSearch]);
+
+  // Ensure targeted task is on current page, expanded, and scrolled to
+  useEffect(() => {
+    if (highlightId && filteredTasks.length > 0) {
+      const foundIdx = filteredTasks.findIndex((t) => t.id === highlightId);
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        setExpandedTaskId(highlightId);
+        scrollToAndHighlight(`task-row-${highlightId}`);
+      }
+    }
+  }, [highlightId, filteredTasks, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -2048,6 +2084,17 @@ const TaskManagement: React.FC = () => {
           </div>
         </div>
 
+        {isBannerVisible && (
+          <ItemLocatedBanner
+            itemLabel="Task"
+            title={targetName || targetSearch || undefined}
+            onClear={() => {
+              clearHighlight();
+              setSearchTerm('');
+            }}
+          />
+        )}
+
         {/* Search */}
         <div className="bg-white rounded-2xl p-4 md:p-6 mb-6 md:mb-8 shadow-sm border border-gray-200">
           <div className="relative flex-1">
@@ -2125,11 +2172,21 @@ const TaskManagement: React.FC = () => {
                     const isCreator = isTaskCreator(task);
                     const isAssignedAndNotOpened = task.status === 'assigned';
                     const statusCounts = getSubTaskStatusCounts(task.subTasks);
+                    const isRowMatch = isHighlighted(task.id, task.task);
                     
                     return (
                       <React.Fragment key={task.id}>
                         <tr 
-                          className={`border-b border-gray-100 hover:bg-gray-50 transition-colors cursor-pointer ${expandedTaskId === task.id ? 'bg-blue-50' : ''} ${isResponsible ? 'border-l-4 border-l-purple-500' : ''} ${isCreator ? 'border-r-4 border-r-green-500' : ''}`} 
+                          id={`task-row-${task.id}`}
+                          className={`border-b border-gray-100 transition-colors cursor-pointer ${
+                            isRowMatch
+                              ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                              : expandedTaskId === task.id
+                              ? "bg-blue-50"
+                              : "hover:bg-gray-50"
+                          } ${isResponsible ? "border-l-4 border-l-purple-500" : ""} ${
+                            isCreator ? "border-r-4 border-r-green-500" : ""
+                          }`} 
                           onClick={() => setExpandedTaskId(expandedTaskId === task.id ? null : task.id)}
                         >
                           <td className="py-3 md:py-4 px-3 md:px-4">
@@ -2151,9 +2208,16 @@ const TaskManagement: React.FC = () => {
                            </td>
                           <td className="py-3 md:py-4 px-3 md:px-4">
                             <div>
-                              <p className="text-gray-800 line-clamp-2 max-w-[200px] md:max-w-md mb-1 capitalize text-sm md:text-base">
-                                {task.task}
-                              </p>
+                              <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                <p className="text-gray-800 line-clamp-2 max-w-[200px] md:max-w-md capitalize text-sm md:text-base font-medium">
+                                  {task.task}
+                                </p>
+                                {isRowMatch && (
+                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs animate-pulse">
+                                    🎯 Match
+                                  </span>
+                                )}
+                              </div>
                               {task.subTasks && task.subTasks.length > 0 && (
                                 <div className="text-xs space-y-1">
                                   <div className="flex flex-wrap gap-2">

@@ -44,7 +44,13 @@ export default function SearchFindPopover({
   const handleModuleClick = (m: ModuleMatch) => {
     onClose();
     if (m.link) {
-      navigate(m.link);
+      navigate(m.link, {
+        state: {
+          highlightId: m.rawId || m.id,
+          targetName: m.title,
+          search: m.searchParam || searchQuery,
+        },
+      });
     }
   };
 

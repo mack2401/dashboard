@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import KPICard from '../components/KPICard';
+import { useItemHighlighter } from '../hooks/useItemHighlighter';
+import { ItemLocatedBanner } from '../components/common/ItemLocatedBanner';
 import { 
   Search, 
   Filter, 
@@ -379,6 +382,41 @@ const InventoryManagement: React.FC = () => {
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(20);
+
+  // Global search & notification deep-linking highlighter
+  const {
+    highlightId,
+    targetSearch,
+    targetName,
+    isBannerVisible,
+    clearHighlight,
+    isHighlighted,
+    scrollToAndHighlight,
+  } = useItemHighlighter();
+
+  // Switch to products tab and populate search term when targeted from search/notification
+  useEffect(() => {
+    if (targetSearch || highlightId) {
+      setActiveTab('all');
+      if (targetSearch) {
+        setSearchTerm(targetSearch);
+      }
+    }
+  }, [targetSearch, highlightId]);
+
+  // Automatically navigate to page containing matched product and scroll into view
+  useEffect(() => {
+    if (highlightId && filteredProducts.length > 0) {
+      const foundIdx = filteredProducts.findIndex((p) => p.id === highlightId);
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        scrollToAndHighlight(`product-row-${highlightId}`);
+      }
+    }
+  }, [highlightId, filteredProducts, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   // Transactions Pagination State
   const [transactionPage, setTransactionPage] = useState(1);
@@ -4337,6 +4375,16 @@ const InventoryManagement: React.FC = () => {
 
         {activeTab === 'all' && (
           <>
+            {isBannerVisible && (
+              <ItemLocatedBanner
+                itemLabel="Product"
+                title={targetName || targetSearch || undefined}
+                onClear={() => {
+                  clearHighlight();
+                  setSearchTerm('');
+                }}
+              />
+            )}
             {/* Controls */}
             <div className="bg-white rounded-2xl p-4 sm:p-5 mb-5 shadow-xs border border-gray-200/80">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
@@ -4691,11 +4739,17 @@ const InventoryManagement: React.FC = () => {
                   currentItems.map((product, index) => {
                     const canEdit = canEditProduct(product);
                     const canDelete = canDeleteProduct(product);
+                    const isRowMatch = isHighlighted(product.id, product.name);
                     
                     return (
                       <React.Fragment key={product.id}>
                         <tr 
-                          className="hover:bg-gray-50/80 cursor-pointer transition-colors"
+                          id={`product-row-${product.id}`}
+                          className={`cursor-pointer transition-all duration-300 ${
+                            isRowMatch
+                              ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                              : "hover:bg-gray-50/80"
+                          }`}
                           onClick={() => {
                             setSelectedDetailsProduct(product);
                             setShowStockHistoryInModal(false);
@@ -4711,8 +4765,13 @@ const InventoryManagement: React.FC = () => {
                             {product.hsnCode || '-'}
                           </td>
                           <td className="py-2.5 px-2.5 max-w-[220px] text-center">
-                            <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate text-center" title={product.name}>
-                              {product.name}
+                            <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate text-center flex items-center justify-center gap-1.5" title={product.name}>
+                              <span>{product.name}</span>
+                              {isRowMatch && (
+                                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs shrink-0 animate-pulse">
+                                  🎯 Match
+                                </span>
+                              )}
                             </div>
                             <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 mt-0.5 flex-wrap">
                               {product.sku && <span className="font-mono">SKU: {product.sku}</span>}

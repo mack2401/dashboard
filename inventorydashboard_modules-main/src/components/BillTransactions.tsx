@@ -1,5 +1,8 @@
 // components/BillTransactions.tsx - Updated with Proforma Invoice print view
 import React, { useState, useEffect, useRef } from "react";
+import { useLocation } from "react-router-dom";
+import { useItemHighlighter } from "../hooks/useItemHighlighter";
+import { ItemLocatedBanner } from "./common/ItemLocatedBanner";
 import {
   collection,
   query,
@@ -193,6 +196,40 @@ const BillTransactions: React.FC = () => {
   const [showDeleteAdminPassword, setShowDeleteAdminPassword] = useState(false);
   const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
   const savedSearchTermRef = useRef<string>("");
+
+  // Global search & notification deep-linking highlighter
+  const {
+    highlightId,
+    targetSearch,
+    targetName,
+    isBannerVisible,
+    clearHighlight,
+    isHighlighted,
+    scrollToAndHighlight,
+  } = useItemHighlighter();
+
+  // Populate search filter when navigated from search/notification
+  useEffect(() => {
+    if (targetSearch) {
+      setSearchTerm(targetSearch);
+    }
+  }, [targetSearch]);
+
+  // Ensure targeted bill is on current page and scrolled to
+  useEffect(() => {
+    if (highlightId && filteredTransactions.length > 0) {
+      const foundIdx = filteredTransactions.findIndex(
+        (b) => b.id === highlightId || b.billId === highlightId || b.invoiceNumber === highlightId
+      );
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        scrollToAndHighlight(`bill-row-${highlightId}`);
+      }
+    }
+  }, [highlightId, filteredTransactions, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   // Prevent background page from scrolling when view modal or delete confirmation is open
   useEffect(() => {
@@ -3115,6 +3152,17 @@ const BillTransactions: React.FC = () => {
           )}
         </div>
 
+        {isBannerVisible && (
+          <ItemLocatedBanner
+            itemLabel="Bill / Invoice"
+            title={targetName || targetSearch || undefined}
+            onClear={() => {
+              clearHighlight();
+              setSearchTerm("");
+            }}
+          />
+        )}
+
         {/* Multi-Criteria Filters Panel */}
         <div className="p-4 bg-white rounded-2xl shadow-xs border border-gray-200/90 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-2.5">
@@ -3324,8 +3372,17 @@ const BillTransactions: React.FC = () => {
             {currentItems.length > 0 ? (
               currentItems.map((bill, index) => {
                 const serialNumber = indexOfFirstItem + index + 1;
+                const isRowMatch = isHighlighted(bill.id, bill.billId, bill.invoiceNumber);
                 return (
-                  <tr key={bill.id} className="hover:bg-gray-50/80 transition-colors">
+                  <tr
+                    key={bill.id}
+                    id={`bill-row-${bill.id}`}
+                    className={`cursor-pointer transition-all duration-300 ${
+                      isRowMatch
+                        ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                        : "hover:bg-gray-50/80 transition-colors"
+                    }`}
+                  >
                     <td className="px-2 py-2.5 whitespace-nowrap text-center text-xs font-bold text-gray-600">
                       {serialNumber}
                     </td>
@@ -3335,7 +3392,14 @@ const BillTransactions: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-2.5 py-2.5 whitespace-nowrap">
-                      <div className="text-xs font-semibold text-gray-900">{bill.invoiceNumber}</div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-semibold text-gray-900">{bill.invoiceNumber}</span>
+                        {isRowMatch && (
+                          <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs animate-pulse">
+                            🎯 Match
+                          </span>
+                        )}
+                      </div>
                       <div className="text-[10px] text-gray-400 font-mono">ID: {bill.billId?.slice(-6) || bill.id?.slice(-6)}</div>
                     </td>
                     <td className="px-2 py-2.5 whitespace-nowrap text-xs text-gray-600 text-center font-medium">

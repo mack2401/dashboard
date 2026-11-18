@@ -55,7 +55,19 @@ export default function NotificationsPopover({
     onMarkAsRead(n.id);
     onClose();
     if (n.link) {
-      navigate(n.link);
+      const cleanTargetId =
+        n.metadata?.targetId ||
+        n.id.replace(
+          /^(stock_out_|stock_low_|task_overdue_|task_crit_|task_my_overdue_|task_my_due_|task_my_assigned_|enq_unassigned_|enq_assigned_|bill_pending_)/,
+          ""
+        );
+      navigate(n.link, {
+        state: {
+          highlightId: cleanTargetId,
+          targetName: n.metadata?.targetName || n.title,
+          search: n.metadata?.targetName || "",
+        },
+      });
     }
   };
 

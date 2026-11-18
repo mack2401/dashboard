@@ -60,6 +60,8 @@ interface DataTableProps<T extends { id?: string }> {
   totalRecords?: number;
   onExportAllPages?: (dateRange?: { from: string; to: string }) => Promise<T[]>;
   headerBgColor?: string;
+  highlightId?: string | null;
+  highlightQuery?: string | null;
 }
 
 interface ExportFilter {
@@ -1187,8 +1189,31 @@ export default function DataTable<T extends { id?: string }>(
             )}
           </thead>
           <tbody className="bg-white divide-y divide-gray-100">
-            {table.getRowModel().rows.map((row) => (
-              <tr key={row.id} className="hover:bg-gray-50/80 transition-colors">
+            {table.getRowModel().rows.map((row) => {
+              const item = row.original as any;
+              const itemId = item?.id ? String(item.id).trim().toLowerCase() : "";
+              const itemEnqId = item?.enqId ? String(item.enqId).trim().toLowerCase() : "";
+              const itemInv = item?.invoiceNumber ? String(item.invoiceNumber).trim().toLowerCase() : "";
+              const hId = props.highlightId ? String(props.highlightId).trim().toLowerCase() : "";
+              const hQuery = props.highlightQuery ? String(props.highlightQuery).trim().toLowerCase() : "";
+
+              const isRowMatch = Boolean(
+                (hId && (itemId === hId || itemEnqId === hId || itemInv === hId || itemId.includes(hId) || hId.includes(itemId))) ||
+                (hQuery && (itemId.includes(hQuery) || itemEnqId.includes(hQuery) || itemInv.includes(hQuery)))
+              );
+
+              const rowDomId = item?.id ? `row-${item.id}` : (item?.enqId ? `row-${item.enqId}` : undefined);
+
+              return (
+              <tr
+                key={row.id}
+                id={rowDomId}
+                className={`transition-all duration-300 ${
+                  isRowMatch
+                    ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                    : "hover:bg-gray-50/80 transition-colors"
+                }`}
+              >
                 {row.getVisibleCells().map((cell) => {
                   const rawValue = cell.getValue();
                   let displayValue: string = "";
@@ -1219,7 +1244,8 @@ export default function DataTable<T extends { id?: string }>(
                   );
                 })}
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>

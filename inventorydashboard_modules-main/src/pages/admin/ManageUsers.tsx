@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
+import { useLocation } from "react-router-dom";
 import Pagination from "../../components/Pagination";
+import { useItemHighlighter } from "../../hooks/useItemHighlighter";
+import { ItemLocatedBanner } from "../../components/common/ItemLocatedBanner";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app, auth, db } from "../../firebase";
 import {
@@ -84,6 +87,41 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
   // Pagination State
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
+
+  // Global search & notification deep-linking highlighter
+  const {
+    highlightId,
+    targetSearch,
+    targetName,
+    isBannerVisible,
+    clearHighlight,
+    isHighlighted,
+    scrollToAndHighlight,
+  } = useItemHighlighter();
+
+  // Populate search filter when navigated from search/notification
+  useEffect(() => {
+    if (targetSearch) {
+      setActiveTab("all");
+      setSearchTerm(targetSearch);
+    }
+  }, [targetSearch]);
+
+  // Ensure targeted employee is on current page and scrolled to
+  useEffect(() => {
+    if (highlightId && filteredEmployees.length > 0) {
+      const foundIdx = filteredEmployees.findIndex(
+        (e) => e.id === highlightId || e.uid === highlightId || e.employeeId === highlightId
+      );
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        scrollToAndHighlight(`user-row-${highlightId}`);
+      }
+    }
+  }, [highlightId, filteredEmployees, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   // Delete modal state
   const [userToDelete, setUserToDelete] = useState<EmployeeRecord | null>(null);
@@ -412,6 +450,16 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
 
         {/* Main Content Area */}
         <div className="max-w-7xl mx-auto space-y-4">
+          {isBannerVisible && (
+            <ItemLocatedBanner
+              itemLabel="User"
+              title={targetName || targetSearch || undefined}
+              onClear={() => {
+                clearHighlight();
+                setSearchTerm("");
+              }}
+            />
+          )}
           {/* Top Controls Card: Filters & Search */}
           <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -556,10 +604,23 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
                       {currentEmployees.map((emp, idx) => {
                         const serialNum = startIndex + idx + 1;
                         const initial = (emp.employeeName || emp.name || "U")[0]?.toUpperCase();
+                        const isRowMatch = isHighlighted(
+                          emp.id,
+                          emp.uid,
+                          emp.employeeId,
+                          emp.employeeName,
+                          emp.name,
+                          emp.email
+                        );
                         return (
                           <tr
                             key={emp.id}
-                            className="hover:bg-blue-50/30 transition-colors duration-150"
+                            id={`user-row-${emp.id}`}
+                            className={`transition-all duration-300 ${
+                              isRowMatch
+                                ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                                : "hover:bg-blue-50/30"
+                            }`}
                           >
                             {/* Serial Number */}
                             <td className="py-3.5 px-4 text-center font-mono text-gray-400 font-medium">
@@ -583,6 +644,11 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
                                 <div>
                                   <div className="font-bold text-gray-900 flex items-center gap-1.5">
                                     <span>{emp.employeeName || emp.name}</span>
+                                    {isRowMatch && (
+                                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs animate-pulse">
+                                        🎯 Match
+                                      </span>
+                                    )}
                                   </div>
                                   <div className="text-[11px] text-gray-400 font-mono">
                                     ID: {emp.employeeId || emp.id.substring(0, 8)}

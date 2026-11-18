@@ -6,3 +6,6 @@ export { default as KPICard } from "./KPICard";
 
 export * from "./EmptyState";
 export { default as EmptyState } from "./EmptyState";
+
+export * from "./ItemLocatedBanner";
+export { default as ItemLocatedBanner } from "./ItemLocatedBanner";

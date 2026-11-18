@@ -5,6 +5,8 @@ import { type ColumnDef } from "@tanstack/react-table";
 import DataTable from "../components/Table/DataTable";
 import Pagination from "../components/Pagination";
 import KPICard from "../components/KPICard";
+import { useItemHighlighter } from "../hooks/useItemHighlighter";
+import { ItemLocatedBanner } from "../components/common/ItemLocatedBanner";
 import type { Enquiry } from "../types/enquiry";
 import AddEditModal from "../components/modals/AddEditModal";
 import {
@@ -250,6 +252,23 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
   const [dateRangeFilters, setDateRangeFilters] = useState<Record<string, { from: string; to: string }>>({});
   const [statusFilter, setStatusFilter] = useState<"all" | "approved" | "testing" | "pending" | "dropped">("all");
   const [categoryFilter, setCategoryFilter] = useState<"all" | "ecommerce" | "academic">(resolveInitialCategory);
+
+  // Global search & notification deep-linking highlighter
+  const {
+    highlightId,
+    targetSearch,
+    targetName,
+    isBannerVisible,
+    clearHighlight,
+    scrollToAndHighlight,
+  } = useItemHighlighter();
+
+  // Populate search filter when navigated from search/notification
+  useEffect(() => {
+    if (targetSearch) {
+      setGlobalSearch(targetSearch);
+    }
+  }, [targetSearch]);
 
   // Sync category filter when URL changes (e.g. clicking sidebar E-Commerce or Academic links)
   useEffect(() => {
@@ -718,6 +737,22 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const currentData = filteredEnquiries.slice(startIndex, endIndex);
+
+  // Ensure targeted enquiry is on current page and scrolled to
+  useEffect(() => {
+    if (highlightId && filteredEnquiries.length > 0) {
+      const foundIdx = filteredEnquiries.findIndex(
+        (e) => e.id === highlightId || e.enqId === highlightId
+      );
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        scrollToAndHighlight(`row-${highlightId}`);
+      }
+    }
+  }, [highlightId, filteredEnquiries, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   // Column definitions with "Sr." column for continuous numbering
   const columns = useMemo<ColumnDef<Enquiry, any>[]>(() => {
@@ -1310,6 +1345,17 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                     )}
                                   </div>
 
+        {isBannerVisible && (
+          <ItemLocatedBanner
+            itemLabel="Enquiry"
+            title={targetName || targetSearch || undefined}
+            onClear={() => {
+              clearHighlight();
+              setGlobalSearch("");
+            }}
+          />
+        )}
+
         {/* DataTable Container */}
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden">
           <DataTable<Enquiry>
@@ -1317,6 +1363,8 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
             columns={columns}
             data={currentData}
             loading={isLoading}
+            highlightId={highlightId}
+            highlightQuery={targetSearch}
             headerBgColor="bg-gradient-to-r from-[#7889F5] via-[#6272E5] to-[#293F70]"
             onAdd={async () => {
               const nextId = await generateNextEnqId();

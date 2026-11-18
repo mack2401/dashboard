@@ -11,6 +11,7 @@ export interface InPageMatch {
 
 export interface ModuleMatch {
   id: string;
+  rawId: string;
   module: "bills" | "enquiries" | "inventory" | "tasks" | "users";
   moduleLabel: string;
   title: string;
@@ -18,6 +19,7 @@ export interface ModuleMatch {
   matchField: string;
   snippet: string;
   link: string;
+  searchParam: string;
 }
 
 export function useGlobalFind(searchQuery: string) {
@@ -200,15 +202,18 @@ export function useGlobalFind(searchQuery: string) {
           contact.toLowerCase().includes(q) ||
           amt.includes(q)
         ) {
+          const searchParam = inv || cust;
           results.push({
             id: `bill_${b.id}`,
+            rawId: b.id,
             module: "bills",
             moduleLabel: "Bills & Invoices",
             title: `Invoice #${inv || b.id.slice(-6)}`,
             subtitle: `Customer: ${cust || "N/A"} • Amount: ₹${Number(amt).toLocaleString("en-IN")}`,
             matchField: inv.toLowerCase().includes(q) ? "Invoice #" : "Customer Details",
             snippet: `${cust} • ${city} • ${contact}`,
-            link: "/bills",
+            link: `/bills?highlightId=${b.id}&invoiceNumber=${encodeURIComponent(inv)}&search=${encodeURIComponent(searchParam)}`,
+            searchParam,
           });
         }
       });
@@ -230,15 +235,18 @@ export function useGlobalFind(searchQuery: string) {
           comp.toLowerCase().includes(q) ||
           status.toLowerCase().includes(q)
         ) {
+          const searchParam = enqId || cust;
           results.push({
             id: `enq_${eq.id}`,
+            rawId: eq.id,
             module: "enquiries",
             moduleLabel: "Enquiries",
             title: `Enquiry #${enqId || eq.id.slice(-6)}`,
             subtitle: `${cust || "Customer"} • Status: ${status || "Active"}`,
             matchField: enqId.toLowerCase().includes(q) ? "Enquiry ID" : "Customer / Contact",
             snippet: `${cust} • ${phone} • ${comp || email}`,
-            link: "/enquiries",
+            link: `/enquiries?highlightId=${eq.id}&enqId=${encodeURIComponent(enqId)}&search=${encodeURIComponent(searchParam)}`,
+            searchParam,
           });
         }
       });
@@ -257,13 +265,15 @@ export function useGlobalFind(searchQuery: string) {
         ) {
           results.push({
             id: `prod_${p.id}`,
+            rawId: p.id,
             module: "inventory",
             moduleLabel: "Inventory",
             title: name,
             subtitle: `Category: ${cat || "General"} • Stock: ${qty} units`,
             matchField: name.toLowerCase().includes(q) ? "Product Name" : "Category / SKU",
             snippet: `In stock: ${qty} • SKU: ${sku || "-"}`,
-            link: "/inventory",
+            link: `/inventory?highlightId=${p.id}&search=${encodeURIComponent(name)}`,
+            searchParam: name,
           });
         }
       });
@@ -283,13 +293,15 @@ export function useGlobalFind(searchQuery: string) {
         ) {
           results.push({
             id: `task_${t.id}`,
+            rawId: t.id,
             module: "tasks",
             moduleLabel: "Tasks",
             title: task,
             subtitle: `Assigned: ${emp || "Unassigned"} • Status: ${status}`,
             matchField: task.toLowerCase().includes(q) ? "Task Description" : "Assignee / Category",
             snippet: `Staff: ${emp} • ${cat} • ${status}`,
-            link: "/task",
+            link: `/task?highlightId=${t.id}&search=${encodeURIComponent(task)}`,
+            searchParam: task,
           });
         }
       });
@@ -307,15 +319,18 @@ export function useGlobalFind(searchQuery: string) {
           role.toLowerCase().includes(q) ||
           phone.toLowerCase().includes(q)
         ) {
+          const searchParam = name || email;
           results.push({
             id: `emp_${e.id}`,
+            rawId: e.id,
             module: "users",
             moduleLabel: "User Directory",
             title: name || email,
             subtitle: `Role: ${role.toUpperCase()} • ${email}`,
             matchField: name.toLowerCase().includes(q) ? "Employee Name" : "Email / Role",
             snippet: `${email} • ${phone} • ${role}`,
-            link: "/admin/manage-users",
+            link: `/admin/manage-users?highlightId=${e.id}&search=${encodeURIComponent(searchParam)}`,
+            searchParam,
           });
         }
       });

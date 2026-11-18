@@ -149,7 +149,8 @@ export function useNotifications() {
               message: `Item "${name}" is completely out of stock (0 left). Reorder required.`,
               type: "inventory",
               severity: "error",
-              link: "/inventory",
+              link: `/inventory?highlightId=${docSnap.id}&search=${encodeURIComponent(name)}`,
+              metadata: { targetId: docSnap.id, targetName: name, targetType: "product" },
               timestamp: parseTimestamp(p.updatedAt || p.createdAt),
               read: false,
             });
@@ -161,7 +162,8 @@ export function useNotifications() {
               message: `"${name}" has only ${qty} units left (Threshold: ${minStock}).`,
               type: "inventory",
               severity: "warning",
-              link: "/inventory",
+              link: `/inventory?highlightId=${docSnap.id}&search=${encodeURIComponent(name)}`,
+              metadata: { targetId: docSnap.id, targetName: name, targetType: "product" },
               timestamp: parseTimestamp(p.updatedAt || p.createdAt),
               read: false,
             });
@@ -205,7 +207,8 @@ export function useNotifications() {
                 message: `"${taskName}" assigned to ${t.employeeName || "staff"} missed its deadline.`,
                 type: "task",
                 severity: "error",
-                link: "/task",
+                link: `/task?highlightId=${docSnap.id}&search=${encodeURIComponent(taskName)}`,
+                metadata: { targetId: docSnap.id, targetName: taskName, targetType: "task" },
                 timestamp: deadline,
                 read: false,
               });
@@ -216,7 +219,8 @@ export function useNotifications() {
                 message: `"${taskName}" requires urgent attention.`,
                 type: "task",
                 severity: "warning",
-                link: "/task",
+                link: `/task?highlightId=${docSnap.id}&search=${encodeURIComponent(taskName)}`,
+                metadata: { targetId: docSnap.id, targetName: taskName, targetType: "task" },
                 timestamp: parseTimestamp(t.updatedAt || t.createdAt),
                 read: false,
               });
@@ -230,7 +234,8 @@ export function useNotifications() {
                 message: `Your task "${taskName}" is overdue. Please complete or update status.`,
                 type: "task",
                 severity: "error",
-                link: "/task",
+                link: `/task?highlightId=${docSnap.id}&search=${encodeURIComponent(taskName)}`,
+                metadata: { targetId: docSnap.id, targetName: taskName, targetType: "task" },
                 timestamp: deadline,
                 read: false,
               });
@@ -241,7 +246,8 @@ export function useNotifications() {
                 message: `"${taskName}" is due within 24 hours.`,
                 type: "task",
                 severity: "warning",
-                link: "/task",
+                link: `/task?highlightId=${docSnap.id}&search=${encodeURIComponent(taskName)}`,
+                metadata: { targetId: docSnap.id, targetName: taskName, targetType: "task" },
                 timestamp: parseTimestamp(t.updatedAt || t.createdAt),
                 read: false,
               });
@@ -252,7 +258,8 @@ export function useNotifications() {
                 message: `You are assigned to: "${taskName}" (Priority: ${(t.priority || "Normal").toUpperCase()}).`,
                 type: "task",
                 severity: "info",
-                link: "/task",
+                link: `/task?highlightId=${docSnap.id}&search=${encodeURIComponent(taskName)}`,
+                metadata: { targetId: docSnap.id, targetName: taskName, targetType: "task" },
                 timestamp: parseTimestamp(t.createdAt),
                 read: false,
               });
@@ -293,7 +300,8 @@ export function useNotifications() {
                 message: `Enquiry #${enqId} from ${custName} needs staff assignment.`,
                 type: "enquiry",
                 severity: "info",
-                link: "/enquiries",
+                link: `/enquiries?highlightId=${docSnap.id}&enqId=${encodeURIComponent(enqId)}&search=${encodeURIComponent(enqId || custName)}`,
+                metadata: { targetId: docSnap.id, targetName: enqId, targetType: "enquiry" },
                 timestamp: parseTimestamp(eq.createdAt),
                 read: false,
               });
@@ -306,7 +314,8 @@ export function useNotifications() {
               message: `You were assigned enquiry #${enqId} for ${custName}.`,
               type: "enquiry",
               severity: "info",
-              link: "/enquiries",
+              link: `/enquiries?highlightId=${docSnap.id}&enqId=${encodeURIComponent(enqId)}&search=${encodeURIComponent(enqId || custName)}`,
+              metadata: { targetId: docSnap.id, targetName: enqId, targetType: "enquiry" },
               timestamp: parseTimestamp(eq.updatedAt || eq.createdAt),
               read: false,
             });
@@ -340,7 +349,8 @@ export function useNotifications() {
                 message: `Invoice #${invNum} for ${cust} (₹${total.toLocaleString("en-IN")}) is pending payment.`,
                 type: "bill",
                 severity: "warning",
-                link: "/bills",
+                link: `/bills?highlightId=${docSnap.id}&invoiceNumber=${encodeURIComponent(invNum)}&search=${encodeURIComponent(invNum)}`,
+                metadata: { targetId: docSnap.id, targetName: invNum, targetType: "bill" },
                 timestamp: parseTimestamp(b.dueDate || b.billDate || b.createdAt),
                 read: false,
               });
