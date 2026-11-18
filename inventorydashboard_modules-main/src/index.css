@@ -68,8 +68,13 @@ body {
   background-color: rgba(254, 240, 138, 0.85) !important;
   color: #0f172a !important;
   border-radius: 4px !important;
-  box-shadow: 0 0 8px rgba(37, 99, 255, 0.25) !important;
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.35) !important;
   transition: all 0.2s ease-in-out !important;
+}
+
+tr.active-find-match,
+tr.active-find-match > td {
+  background-color: rgba(254, 240, 138, 0.75) !important;
 }
 
 /* Deep-link & Notification Located Item Highlight Pulse */

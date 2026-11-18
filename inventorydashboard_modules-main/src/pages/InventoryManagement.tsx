@@ -3,7 +3,6 @@ import { useLocation } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import KPICard from '../components/KPICard';
 import { useItemHighlighter } from '../hooks/useItemHighlighter';
-import { ItemLocatedBanner } from '../components/common/ItemLocatedBanner';
 import { 
   Search, 
   Filter, 
@@ -4396,17 +4395,6 @@ const InventoryManagement: React.FC = () => {
 
         {activeTab === 'all' && (
           <>
-            {isBannerVisible && (
-              <ItemLocatedBanner
-                itemLabel="Product"
-                title={targetName || targetSearch || undefined}
-                onLocate={locateCurrentItem}
-                onClear={() => {
-                  clearHighlight();
-                  setSearchTerm('');
-                }}
-              />
-            )}
             {/* Controls */}
             <div className="bg-white rounded-2xl p-4 sm:p-5 mb-5 shadow-xs border border-gray-200/80">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
@@ -4773,7 +4761,7 @@ const InventoryManagement: React.FC = () => {
                           data-highlight-match={isRowMatch ? "true" : undefined}
                           className={`cursor-pointer transition-all duration-300 ${
                             isRowMatch
-                              ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                              ? "active-find-match ring-4 ring-blue-600 bg-amber-100/90 font-semibold"
                               : "hover:bg-gray-50/80"
                           }`}
                           onClick={() => {

@@ -15,12 +15,25 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [targetSearch, setTargetSearch] = useState<string | null>(null);
   const [targetName, setTargetName] = useState<string | null>(null);
-  const [isBannerVisible, setIsBannerVisible] = useState(false);
   const [isLocated, setIsLocated] = useState(false);
 
-  const bannerTimerRef = useRef<NodeJS.Timeout | null>(null);
   const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const clearTimerRef = useRef<NodeJS.Timeout | null>(null);
   const activeTargetsRef = useRef<string[]>([]);
+
+  // Clear all find-match highlights
+  const removeHighlightClasses = useCallback(() => {
+    document.querySelectorAll(".active-find-match").forEach((elem) => {
+      elem.classList.remove(
+        "active-find-match",
+        "ring-4",
+        "ring-blue-600",
+        "bg-amber-200/90",
+        "rounded-md"
+      );
+      elem.removeAttribute("data-highlight-located");
+    });
+  }, []);
 
   // DOM element finder
   const findElement = useCallback((targets: string[]): HTMLElement | null => {
@@ -66,7 +79,7 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
           if (el) return el;
         }
       } catch {
-        // Ignore CSS selector errors if unusual characters
+        // Ignore CSS selector errors
       }
     }
 
@@ -79,7 +92,7 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
     return null;
   }, []);
 
-  // Polling scroll runner
+  // Polling scroll & highlight runner (exact Search feature highlight)
   const startScrollRetry = useCallback(
     (explicitTargets?: (string | null | undefined)[]) => {
       if (retryTimerRef.current) {
@@ -111,16 +124,27 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
           }
           setIsLocated(true);
 
-          // Center element smoothly in viewport
-          el.scrollIntoView({ behavior: "smooth", block: "center" });
+          // Clear any previous highlights
+          removeHighlightClasses();
 
-          // Apply attention pulse ring
-          el.classList.add("item-highlight-pulse");
+          // Apply exact Search feature highlight
+          el.classList.add(
+            "active-find-match",
+            "ring-4",
+            "ring-blue-600",
+            "bg-amber-200/90",
+            "rounded-md"
+          );
           el.setAttribute("data-highlight-located", "true");
 
-          setTimeout(() => {
-            el.classList.remove("item-highlight-pulse");
-          }, 5000);
+          // Smooth scroll to center of viewport
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+          // Auto-remove highlight after 6 seconds
+          if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+          clearTimerRef.current = setTimeout(() => {
+            removeHighlightClasses();
+          }, options.autoClearDuration || 6000);
 
           return true;
         }
@@ -135,12 +159,12 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
         return false;
       };
 
-      // Try immediately
+      // Try immediately once
       if (!checkAndScroll()) {
         retryTimerRef.current = setInterval(checkAndScroll, 120);
       }
     },
-    [findElement, highlightId, targetSearch, targetName]
+    [findElement, highlightId, targetSearch, targetName, removeHighlightClasses, options.autoClearDuration]
   );
 
   // Parse location and state
@@ -160,40 +184,47 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
       setHighlightId(finalId);
       setTargetSearch(finalSearch);
       setTargetName(finalName);
-      setIsBannerVisible(true);
       setIsLocated(false);
 
       const initialTargets = [finalId, finalSearch, finalName].filter(
         (x): x is string => Boolean(x)
       );
       startScrollRetry(initialTargets);
-
-      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
-      bannerTimerRef.current = setTimeout(() => {
-        setIsBannerVisible(false);
-      }, options.autoClearDuration || 14000);
     }
 
     return () => {
       if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+      if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
     };
-  }, [location.search, location.state, startScrollRetry, options.autoClearDuration]);
+  }, [location.search, location.state, startScrollRetry]);
+
+  // Clean up on user click anywhere
+  useEffect(() => {
+    if (!highlightId && !targetSearch) return;
+
+    const handleDocumentClick = () => {
+      removeHighlightClasses();
+    };
+
+    const timer = setTimeout(() => {
+      window.addEventListener("click", handleDocumentClick, { once: true });
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("click", handleDocumentClick);
+    };
+  }, [highlightId, targetSearch, removeHighlightClasses]);
 
   const clearHighlight = useCallback(() => {
     setHighlightId(null);
     setTargetSearch(null);
     setTargetName(null);
-    setIsBannerVisible(false);
     setIsLocated(false);
-    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
     if (retryTimerRef.current) clearInterval(retryTimerRef.current);
-
-    const els = document.querySelectorAll(".item-highlight-pulse, [data-highlight-located]");
-    els.forEach((el) => {
-      el.classList.remove("item-highlight-pulse");
-      el.removeAttribute("data-highlight-located");
-    });
-  }, []);
+    if (clearTimerRef.current) clearTimeout(clearTimerRef.current);
+    removeHighlightClasses();
+  }, [removeHighlightClasses]);
 
   const scrollToAndHighlight = useCallback(
     (...targets: (string | null | undefined)[]) => {
@@ -230,7 +261,7 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
     highlightId,
     targetSearch,
     targetName,
-    isBannerVisible,
+    isBannerVisible: false, // Disabled: No banner bar
     isLocated,
     clearHighlight,
     isHighlighted,

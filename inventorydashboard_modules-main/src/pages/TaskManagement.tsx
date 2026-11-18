@@ -4,7 +4,6 @@ import { useLocation } from 'react-router-dom';
 import Pagination from '../components/Pagination';
 import EmptyState from '../components/EmptyState';
 import { useItemHighlighter } from '../hooks/useItemHighlighter';
-import { ItemLocatedBanner } from '../components/common/ItemLocatedBanner';
 import { 
   Search, 
   Calendar, 
@@ -2106,18 +2105,6 @@ const TaskManagement: React.FC = () => {
           </div>
         </div>
 
-        {isBannerVisible && (
-          <ItemLocatedBanner
-            itemLabel="Task"
-            title={targetName || targetSearch || undefined}
-            onLocate={locateCurrentItem}
-            onClear={() => {
-              clearHighlight();
-              setSearchTerm('');
-            }}
-          />
-        )}
-
         {/* Search */}
         <div className="bg-white rounded-2xl p-4 md:p-6 mb-6 md:mb-8 shadow-sm border border-gray-200">
           <div className="relative flex-1">
@@ -2207,7 +2194,7 @@ const TaskManagement: React.FC = () => {
                           data-highlight-match={isRowMatch ? "true" : undefined}
                           className={`border-b border-gray-100 transition-colors cursor-pointer ${
                             isRowMatch
-                              ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                              ? "active-find-match ring-4 ring-blue-600 bg-amber-100/90 font-semibold"
                               : expandedTaskId === task.id
                               ? "bg-blue-50"
                               : "hover:bg-gray-50"

@@ -6,7 +6,6 @@ import DataTable from "../components/Table/DataTable";
 import Pagination from "../components/Pagination";
 import KPICard from "../components/KPICard";
 import { useItemHighlighter } from "../hooks/useItemHighlighter";
-import { ItemLocatedBanner } from "../components/common/ItemLocatedBanner";
 import type { Enquiry } from "../types/enquiry";
 import AddEditModal from "../components/modals/AddEditModal";
 import {
@@ -1376,18 +1375,6 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                       </div>
                                     )}
                                   </div>
-
-        {isBannerVisible && (
-          <ItemLocatedBanner
-            itemLabel="Enquiry"
-            title={targetName || targetSearch || undefined}
-            onLocate={locateCurrentItem}
-            onClear={() => {
-              clearHighlight();
-              setGlobalSearch("");
-            }}
-          />
-        )}
 
         {/* DataTable Container */}
         <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden">

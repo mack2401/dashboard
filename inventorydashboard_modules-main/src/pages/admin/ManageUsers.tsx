@@ -2,7 +2,6 @@ import React, { useEffect, useState, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import Pagination from "../../components/Pagination";
 import { useItemHighlighter } from "../../hooks/useItemHighlighter";
-import { ItemLocatedBanner } from "../../components/common/ItemLocatedBanner";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app, auth, db } from "../../firebase";
 import {
@@ -482,17 +481,6 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
 
         {/* Main Content Area */}
         <div className="max-w-7xl mx-auto space-y-4">
-          {isBannerVisible && (
-            <ItemLocatedBanner
-              itemLabel="User"
-              title={targetName || targetSearch || undefined}
-              onLocate={locateCurrentItem}
-              onClear={() => {
-                clearHighlight();
-                setSearchTerm("");
-              }}
-            />
-          )}
           {/* Top Controls Card: Filters & Search */}
           <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -656,7 +644,7 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
                             data-highlight-match={isRowMatch ? "true" : undefined}
                             className={`transition-all duration-300 ${
                               isRowMatch
-                                ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                                ? "active-find-match ring-4 ring-blue-600 bg-amber-100/90 font-semibold"
                                 : "hover:bg-blue-50/30"
                             }`}
                           >

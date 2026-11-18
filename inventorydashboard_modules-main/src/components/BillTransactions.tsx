@@ -2,7 +2,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation } from "react-router-dom";
 import { useItemHighlighter } from "../hooks/useItemHighlighter";
-import { ItemLocatedBanner } from "./common/ItemLocatedBanner";
 import {
   collection,
   query,
@@ -3138,18 +3137,6 @@ const BillTransactions: React.FC = () => {
           )}
         </div>
 
-        {isBannerVisible && (
-          <ItemLocatedBanner
-            itemLabel="Bill / Invoice"
-            title={targetName || targetSearch || undefined}
-            onLocate={locateCurrentItem}
-            onClear={() => {
-              clearHighlight();
-              setSearchTerm("");
-            }}
-          />
-        )}
-
         {/* Multi-Criteria Filters Panel */}
         <div className="p-4 bg-white rounded-2xl shadow-xs border border-gray-200/90 space-y-3">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-gray-100 pb-2.5">
@@ -3345,7 +3332,7 @@ const BillTransactions: React.FC = () => {
                     data-highlight-match={isRowMatch ? "true" : undefined}
                     className={`cursor-pointer transition-all duration-300 ${
                       isRowMatch
-                        ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                        ? "active-find-match ring-4 ring-blue-600 bg-amber-100/90 font-semibold"
                         : "hover:bg-gray-50/80 transition-colors"
                     }`}
                   >

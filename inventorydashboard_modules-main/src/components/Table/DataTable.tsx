@@ -1216,7 +1216,7 @@ export default function DataTable<T extends { id?: string }>(
                 data-highlight-match={isRowMatch ? "true" : undefined}
                 className={`transition-all duration-300 ${
                   isRowMatch
-                    ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
+                    ? "active-find-match ring-4 ring-blue-600 bg-amber-100/90 font-semibold"
                     : "hover:bg-gray-50/80 transition-colors"
                 }`}
               >
