@@ -27,6 +27,7 @@ import * as XLSX from "xlsx-js-style";
 import Pagination from "./Pagination";
 import KPICard from "./KPICard";
 import { DateFilter, isDateInPresetRange } from "./common/DateFilter";
+import { isSoldBill, isDroppedBill, isQuotationBill } from "../utils/billUtils";
 import {
   FileText,
   Eye,
@@ -868,10 +869,13 @@ const BillTransactions: React.FC = () => {
         let status: "quotation" | "paid" | "dropped" = "quotation";
         let transactionPaymentStatus: "pending" | "completed" = "pending";
 
+        const billWithContext = { ...bill, enquiryStatus: productStatus, paymentStatus };
+
         if (
           productStatus.toLowerCase() === "dropped" ||
           enquiryData?.status?.toLowerCase() === "dropped" ||
-          (bill.status as string) === "dropped"
+          (bill.status as string) === "dropped" ||
+          isDroppedBill(billWithContext)
         ) {
           status = "dropped";
           transactionPaymentStatus = "pending";
@@ -882,7 +886,9 @@ const BillTransactions: React.FC = () => {
           paymentStatus === "Paid" ||
           paymentStatus === "PAID" ||
           bill.paymentStatus === "completed" ||
-          bill.status === "paid"
+          bill.status === "paid" ||
+          bill.status === "completed" ||
+          isSoldBill(billWithContext)
         ) {
           status = "paid";
           transactionPaymentStatus = "completed";
@@ -1055,14 +1061,15 @@ const BillTransactions: React.FC = () => {
     let totalIGST = 0;
     let totalShipping = 0;
     let totalGrandRevenue = 0;
+    let quotedAmountVal = 0;
     let paidCount = 0;
     let quoteCount = 0;
     let gstCount = 0;
 
     filteredTransactions.forEach((bill) => {
-      const isPaid = bill.status === "paid" || bill.paymentStatus === "completed";
-      if (isPaid) paidCount++;
-      else quoteCount++;
+      const isDropped = bill.status === "dropped" || isDroppedBill(bill);
+      const isQuotation = !isDropped && (bill.status === "quotation" || isQuotationBill(bill));
+      const isSold = !isDropped && !isQuotation && (bill.status === "paid" || bill.paymentStatus === "completed" || isSoldBill(bill));
 
       if (bill.isGST) gstCount++;
 
@@ -1077,32 +1084,26 @@ const BillTransactions: React.FC = () => {
           : subtotal + cgst + sgst + igst + shipping
       );
 
-      totalTaxable += subtotal;
-      totalCGST += cgst;
-      totalSGST += sgst;
-      totalIGST += igst;
-      totalShipping += shipping;
-      totalGrandRevenue += billTotal;
-
-      // Check if this record is dropped / cancelled / refunded
-      const isDroppedOrRefunded =
-        bill.status === "dropped" ||
-        (bill.paymentStatus as any) === "refunded" ||
-        (bill as any).refunded === true ||
-        (typeof bill.paymentSubStatus === "string" && bill.paymentSubStatus.toLowerCase().includes("refund")) ||
-        (typeof bill.enquiryStatus === "string" && bill.enquiryStatus.toLowerCase() === "dropped");
-
-      if (isDroppedOrRefunded) {
+      if (isDropped) {
         refundVal += billTotal;
         refundCnt++;
-      } else {
+      } else if (isQuotation) {
+        quoteCount++;
+        quotedAmountVal += billTotal;
+      } else if (isSold) {
+        paidCount++;
         sellVal += billTotal;
+        paidSellVal += billTotal;
         activeBillsCnt++;
-        if (isPaid) {
-          paidSellVal += billTotal;
-        }
 
-        // Calculate Purchase Value for this active bill record (identical to PNL.tsx)
+        totalTaxable += subtotal;
+        totalCGST += cgst;
+        totalSGST += sgst;
+        totalIGST += igst;
+        totalShipping += shipping;
+        totalGrandRevenue += billTotal;
+
+        // Calculate Purchase Value for this sold bill record (identical to PNL.tsx)
         let billPurchase = 0;
         let billItemsQty = 0;
 
@@ -1183,8 +1184,8 @@ const BillTransactions: React.FC = () => {
       totalShipping: totalShipping,
       totalRevenue: totalGrandRevenue,
       paidAmount: totalGrandRevenue,
-      quotedAmount: 0,
-      averageBillValue: filteredTransactions.length ? totalGrandRevenue / filteredTransactions.length : 0,
+      quotedAmount: quotedAmountVal,
+      averageBillValue: activeBillsCnt > 0 ? totalGrandRevenue / activeBillsCnt : 0,
     });
   };
 
@@ -2307,16 +2308,22 @@ const BillTransactions: React.FC = () => {
         (sum, b) => sum + Number(b.shippingCharges || 0),
         0
       );
-      const totalAmount = filteredTransactions.reduce(
+      const soldTransactions = filteredTransactions.filter(
+        (b) => b.status === "paid" || isSoldBill(b)
+      );
+      const b2bSoldTransactions = soldTransactions.filter((b) => b.billType === "B2B");
+      const b2cSoldTransactions = soldTransactions.filter((b) => b.billType === "B2C");
+
+      const totalAmount = soldTransactions.reduce(
         (sum, b) => sum + Number(b.totalAmount || 0),
         0
       );
 
-      const b2bTotalAmount = b2bTransactions.reduce(
+      const b2bTotalAmount = b2bSoldTransactions.reduce(
         (sum, b) => sum + Number(b.totalAmount || 0),
         0
       );
-      const b2cTotalAmount = b2cTransactions.reduce(
+      const b2cTotalAmount = b2cSoldTransactions.reduce(
         (sum, b) => sum + Number(b.totalAmount || 0),
         0
       );
@@ -2335,9 +2342,9 @@ const BillTransactions: React.FC = () => {
         ["Date Window / Filter", monthFilter === "all" ? "All Recorded Dates" : monthFilter === "custom" && (startDate || endDate) ? `${startDate || "Start"} to ${endDate || "Present"}` : monthFilter.replace(/_/g, " ").toUpperCase(), ""],
         [],
         ["FINANCIAL METRIC", "AMOUNT (₹) / COUNT", "ANALYSIS & BREAKDOWN"],
-        ["Total Invoiced Revenue", totalAmount, `Total billed revenue across ${filteredTransactions.length} invoices`],
-        ["  • B2B Sales (Business)", b2bTotalAmount, `${b2bTransactions.length} Invoices (${totalAmount > 0 ? ((b2bTotalAmount / totalAmount) * 100).toFixed(1) : 0}% share)`],
-        ["  • B2C Sales (Consumer)", b2cTotalAmount, `${b2cTransactions.length} Invoices (${totalAmount > 0 ? ((b2cTotalAmount / totalAmount) * 100).toFixed(1) : 0}% share)`],
+        ["Total Realized Sales Revenue", totalAmount, `Total realized revenue across ${soldTransactions.length} sold invoices`],
+        ["  • B2B Sales (Business)", b2bTotalAmount, `${b2bSoldTransactions.length} Sold Invoices (${totalAmount > 0 ? ((b2bTotalAmount / totalAmount) * 100).toFixed(1) : 0}% share)`],
+        ["  • B2C Sales (Consumer)", b2cTotalAmount, `${b2cSoldTransactions.length} Sold Invoices (${totalAmount > 0 ? ((b2cTotalAmount / totalAmount) * 100).toFixed(1) : 0}% share)`],
         ["Total Taxable Value", totalTaxable, "Subtotal of all billed items before GST"],
         ["Total GST Tax Collected", totalCGST + totalSGST + totalIGST, "Total tax accumulated across all transactions"],
         ["  • Central GST (CGST)", totalCGST, "CGST collected on intra-state billing"],
@@ -3116,7 +3123,7 @@ const BillTransactions: React.FC = () => {
             iconColor="text-blue-600"
             valueColor="text-blue-700"
             titleColor="text-blue-700"
-            subtitle={`${statistics.activeBillsCount} Active ${statistics.activeBillsCount === 1 ? "Bill" : "Bills"} • ₹${statistics.paidSellValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Paid`}
+            subtitle={`${statistics.activeBillsCount} Sold ${statistics.activeBillsCount === 1 ? "Bill" : "Bills"} • Confirmed Orders`}
           />
 
           <KPICard

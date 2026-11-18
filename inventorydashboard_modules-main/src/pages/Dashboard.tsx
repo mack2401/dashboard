@@ -32,6 +32,7 @@ import {
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
+import { isSoldBill, isDroppedBill } from "../utils/billUtils";
 
 // Clean professional slate & subtle accent palette
 const PIE_COLORS = [
@@ -214,14 +215,16 @@ const Dashboard: React.FC = () => {
     return () => unsubEmployees();
   }, []);
 
-  // Filter bills based on selected timeframe (Yesterday, Today, Past Dates)
+  // Filter bills based on selected timeframe (Yesterday, Today, Past Dates) - SOLD bills only
   const filteredBills = useMemo(() => {
+    const soldBills = bills.filter(isSoldBill);
+
     if (timeFilter === "today") {
-      return bills.filter((b) => isToday(parseDate(b.billDate || b.createdAt)));
+      return soldBills.filter((b) => isToday(parseDate(b.billDate || b.createdAt)));
     }
 
     if (timeFilter === "yesterday") {
-      return bills.filter((b) =>
+      return soldBills.filter((b) =>
         isYesterday(parseDate(b.billDate || b.createdAt))
       );
     }
@@ -236,7 +239,7 @@ const Dashboard: React.FC = () => {
 
       if (pastMode === "specific" && specificPastDate) {
         const targetDate = new Date(specificPastDate);
-        return bills.filter((b) =>
+        return soldBills.filter((b) =>
           isSameDay(parseDate(b.billDate || b.createdAt), targetDate)
         );
       }
@@ -244,7 +247,7 @@ const Dashboard: React.FC = () => {
       if (pastMode === "past7") {
         const sevenDaysAgo = new Date(startOfToday);
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        return bills.filter((b) => {
+        return soldBills.filter((b) => {
           const d = parseDate(b.billDate || b.createdAt);
           return d && d >= sevenDaysAgo && d < startOfToday;
         });
@@ -253,20 +256,20 @@ const Dashboard: React.FC = () => {
       if (pastMode === "past30") {
         const thirtyDaysAgo = new Date(startOfToday);
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return bills.filter((b) => {
+        return soldBills.filter((b) => {
           const d = parseDate(b.billDate || b.createdAt);
           return d && d >= thirtyDaysAgo && d < startOfToday;
         });
       }
 
       // allPast: all records created before today
-      return bills.filter((b) => {
+      return soldBills.filter((b) => {
         const d = parseDate(b.billDate || b.createdAt);
         return d && d < startOfToday;
       });
     }
 
-    return bills;
+    return soldBills;
   }, [bills, timeFilter, pastMode, specificPastDate]);
 
   // Dynamic labels based on active filter
@@ -357,33 +360,35 @@ const Dashboard: React.FC = () => {
     return topItems;
   }, [componentsSold]);
 
-  // All-time Total Sales
+  // All-time Total Sales (Sold bills only, excludes quotations and dropped)
   const allTimeTotalSales = useMemo(() => {
-    return bills.reduce((sum, b) => sum + (Number(b.totalAmount) || 0), 0);
+    return bills
+      .filter(isSoldBill)
+      .reduce((sum, b) => sum + (Number(b.totalAmount) || 0), 0);
   }, [bills]);
 
-  // Today's Bills Calculation
+  // Today's Bills Calculation (Active bills only, excludes dropped)
   const todayBills = useMemo(() => {
-    return bills.filter((b) => isToday(parseDate(b.billDate || b.createdAt)));
+    return bills.filter(
+      (b) =>
+        !isDroppedBill(b) &&
+        isToday(parseDate(b.billDate || b.createdAt))
+    );
   }, [bills]);
 
   const todayPaidBillsCount = useMemo(() => {
-    return todayBills.filter(
-      (b) =>
-        String(b.status || "").toLowerCase() === "paid" ||
-        String(b.paymentStatus || "").toLowerCase() === "completed"
-    ).length;
+    return todayBills.filter(isSoldBill).length;
   }, [todayBills]);
 
   const todayPendingBillsCount = useMemo(() => {
     return todayBills.length - todayPaidBillsCount;
   }, [todayBills, todayPaidBillsCount]);
 
-  // Staff Performance Leaderboard
+  // Staff Performance Leaderboard (Sold bills only)
   const staffLeaderboard = useMemo(() => {
     const staffMap: Record<string, StaffPerformance> = {};
 
-    bills.forEach((bill) => {
+    bills.filter(isSoldBill).forEach((bill) => {
       let staffName = "Unassigned Staff";
       if (bill.assignedToName && String(bill.assignedToName).trim() !== "") {
         staffName = String(bill.assignedToName).trim();

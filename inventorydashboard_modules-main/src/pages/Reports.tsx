@@ -48,6 +48,7 @@ import { db } from "../firebase";
 import { useAuth } from "../App";
 import ComparisonAnalytics from "../components/reports/ComparisonAnalytics";
 import * as XLSX from "xlsx-js-style";
+import { isSoldBill } from "../utils/billUtils";
 
 // --- Types ---
 export interface PurchasedProductSummary {
@@ -714,8 +715,9 @@ const Reports: React.FC = () => {
       return d >= startDate && d <= now;
     });
 
-    // Filter bills in date window
+    // Filter sold bills in date window (strictly excludes quotations and dropped)
     const periodBills = bills.filter((b) => {
+      if (!isSoldBill(b)) return false;
       const d = parseDocDate(b.billDate || b.createdAt);
       return d >= startDate && d <= now;
     });

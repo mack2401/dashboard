@@ -8,6 +8,7 @@ import { db } from "../firebase";
 import { useAuth } from "../App";
 import * as XLSX from "xlsx-js-style";
 import { DateFilter, isDateInPresetRange } from "../components/common/DateFilter";
+import { isSoldBill, isDroppedBill } from "../utils/billUtils";
 import {
   TrendingUp,
   TrendingDown,
@@ -520,25 +521,26 @@ export default function PNL() {
     return Array.from(billMap.values());
   }, [bills]);
 
-  // 2. Filtered Bills (Date Filtered & Status Checked)
+  // 2. Filtered Bills (Date Filtered & Sold Status Checked - strictly excludes quotations and dropped)
   const activeBills = useMemo(() => {
     return deduplicatedBills.filter((b) => {
       // Check linked enquiry status from enquiries collection
       const enqKey = b.enquiryEnqId || b.enquiryId;
       const enq = enqKey ? enquiriesMap.get(enqKey) : null;
-      const isEnquiryDropped =
-        enq?.status?.toLowerCase() === "dropped" ||
-        (enq as any)?.productStatus?.toLowerCase() === "dropped";
+      const linkedEnquiryStatus = enq?.status || (enq as any)?.productStatus || (b as any).enquiryStatus || "";
+      const linkedPaymentStatus = enq?.paymentStatus || (b as any).paymentStatus || "";
 
-      // Exclude dropped or fully refunded bills from revenue
-      const isDroppedOrRefunded =
-        isEnquiryDropped ||
-        b.status === "dropped" ||
-        b.paymentStatus === "refunded" ||
-        (b as any).refunded === true ||
-        (typeof b.paymentSubStatus === "string" && b.paymentSubStatus.toLowerCase().includes("refund")) ||
-        (typeof (b as any).enquiryStatus === "string" && (b as any).enquiryStatus.toLowerCase() === "dropped");
-      if (isDroppedOrRefunded) return false;
+      const billWithContext = {
+        ...b,
+        enquiryStatus: linkedEnquiryStatus,
+        paymentStatus: linkedPaymentStatus,
+      };
+
+      // Exclude dropped or fully refunded bills
+      if (isDroppedBill(billWithContext)) return false;
+
+      // Exclude quotations - only include confirmed sold/paid bills
+      if (!isSoldBill(billWithContext)) return false;
 
       // Filter by Date (prioritize billDate over createdAt)
       const billDate = b.billDate || b.createdAt || b.updatedAt;
