@@ -384,21 +384,6 @@ const TaskManagement: React.FC = () => {
     }
   }, [highlightId, targetSearch, tasks]);
 
-  // Ensure targeted task is on current page, expanded, and scrolled to
-  useEffect(() => {
-    if (highlightId && filteredTasks.length > 0) {
-      const foundIdx = filteredTasks.findIndex((t) => t.id === highlightId);
-      if (foundIdx >= 0) {
-        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
-        if (currentPage !== targetPage) {
-          setCurrentPage(targetPage);
-        }
-        setExpandedTaskId(highlightId);
-        scrollToAndHighlight(`task-row-${highlightId}`, highlightId);
-      }
-    }
-  }, [highlightId, filteredTasks, itemsPerPage, currentPage, scrollToAndHighlight]);
-
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, filterStatus, filterPriority, viewMode, itemsPerPage]);
@@ -1222,6 +1207,21 @@ const TaskManagement: React.FC = () => {
   const paginatedTasks = useMemo(() => {
     return filteredTasks.slice(startIndex, endIndex);
   }, [filteredTasks, startIndex, endIndex]);
+
+  // Ensure targeted task is on current page, expanded, and scrolled to
+  useEffect(() => {
+    if (highlightId && filteredTasks.length > 0) {
+      const foundIdx = filteredTasks.findIndex((t) => t.id === highlightId);
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        setExpandedTaskId(highlightId);
+        scrollToAndHighlight(`task-row-${highlightId}`, highlightId);
+      }
+    }
+  }, [highlightId, filteredTasks, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   // Component to render status breakdown for a task's sub-tasks
   const renderSubTaskStatusBreakdown = useCallback((subTasks: SubTask[] | undefined) => {

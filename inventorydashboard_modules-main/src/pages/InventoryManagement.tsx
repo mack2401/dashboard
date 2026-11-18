@@ -424,20 +424,6 @@ const InventoryManagement: React.FC = () => {
     }
   }, [highlightId, targetSearch, products]);
 
-  // Automatically navigate to page containing matched product and scroll into view
-  useEffect(() => {
-    if (highlightId && filteredProducts.length > 0) {
-      const foundIdx = filteredProducts.findIndex((p) => p.id === highlightId);
-      if (foundIdx >= 0) {
-        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
-        if (currentPage !== targetPage) {
-          setCurrentPage(targetPage);
-        }
-        scrollToAndHighlight(`product-row-${highlightId}`, highlightId);
-      }
-    }
-  }, [highlightId, filteredProducts, itemsPerPage, currentPage, scrollToAndHighlight]);
-
   // Transactions Pagination State
   const [transactionPage, setTransactionPage] = useState(1);
   const transactionItemsPerPage = 10;
@@ -2245,6 +2231,20 @@ const InventoryManagement: React.FC = () => {
     
     return filtered;
   }, [products, searchTerm, filterCategory, filterStock, sortField, sortDirection]);
+
+  // Automatically navigate to page containing matched product and scroll into view
+  useEffect(() => {
+    if (highlightId && filteredProducts.length > 0) {
+      const foundIdx = filteredProducts.findIndex((p) => p.id === highlightId);
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        scrollToAndHighlight(`product-row-${highlightId}`, highlightId);
+      }
+    }
+  }, [highlightId, filteredProducts, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   // Pagination calculation
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);

@@ -132,28 +132,6 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
     }
   }, [highlightId, targetSearch, employees]);
 
-  // Ensure targeted employee is on current page and scrolled to
-  useEffect(() => {
-    if (highlightId && filteredEmployees.length > 0) {
-      const foundIdx = filteredEmployees.findIndex(
-        (e) => e.id === highlightId || e.uid === highlightId || e.employeeId === highlightId
-      );
-      if (foundIdx >= 0) {
-        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
-        if (currentPage !== targetPage) {
-          setCurrentPage(targetPage);
-        }
-        const matchedEmp = filteredEmployees[foundIdx];
-        scrollToAndHighlight(
-          `user-row-${matchedEmp.id}`,
-          matchedEmp.id,
-          matchedEmp.uid,
-          matchedEmp.employeeId
-        );
-      }
-    }
-  }, [highlightId, filteredEmployees, itemsPerPage, currentPage, scrollToAndHighlight]);
-
   // Delete modal state
   const [userToDelete, setUserToDelete] = useState<EmployeeRecord | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -398,6 +376,28 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
   const currentEmployees = useMemo(() => {
     return filteredEmployees.slice(startIndex, endIndex);
   }, [filteredEmployees, startIndex, endIndex]);
+
+  // Ensure targeted employee is on current page and scrolled to
+  useEffect(() => {
+    if (highlightId && filteredEmployees.length > 0) {
+      const foundIdx = filteredEmployees.findIndex(
+        (e) => e.id === highlightId || e.uid === highlightId || e.employeeId === highlightId
+      );
+      if (foundIdx >= 0) {
+        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+        if (currentPage !== targetPage) {
+          setCurrentPage(targetPage);
+        }
+        const matchedEmp = filteredEmployees[foundIdx];
+        scrollToAndHighlight(
+          `user-row-${matchedEmp.id}`,
+          matchedEmp.id,
+          matchedEmp.uid,
+          matchedEmp.employeeId
+        );
+      }
+    }
+  }, [highlightId, filteredEmployees, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   const getRoleBadge = (r?: Role) => {
     switch (r) {
