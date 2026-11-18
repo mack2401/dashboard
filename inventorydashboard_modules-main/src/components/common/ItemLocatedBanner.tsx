@@ -51,3 +51,4 @@ export const ItemLocatedBanner: React.FC<ItemLocatedBannerProps> = ({
 };
 
 export default ItemLocatedBanner;
+

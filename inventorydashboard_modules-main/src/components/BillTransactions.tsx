@@ -27,6 +27,7 @@ import type { Bill } from "../services/billService";
 import * as XLSX from "xlsx-js-style";
 import Pagination from "./Pagination";
 import KPICard from "./KPICard";
+import { DateFilter, isDateInPresetRange } from "./common/DateFilter";
 import {
   FileText,
   Eye,
@@ -129,56 +130,7 @@ const getBillDate = (b: any): Date => {
 };
 // Unified date range filter matching PNL.tsx
 const isDateInFilterRange = (d: Date, preset: string, customStart?: string, customEnd?: string): boolean => {
-  if (!d || isNaN(d.getTime())) return preset === "all";
-  const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  switch (preset) {
-    case "all":
-      return true;
-    case "today":
-      return d >= startOfToday;
-    case "this_week": {
-      const startOfWeek = new Date(startOfToday);
-      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-      return d >= startOfWeek;
-    }
-    case "this_month": {
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      return d >= startOfMonth;
-    }
-    case "last_month": {
-      const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
-      return d >= startOfLastMonth && d <= endOfLastMonth;
-    }
-    case "this_quarter": {
-      const currentQuarter = Math.floor(now.getMonth() / 3);
-      const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
-      return d >= startOfQuarter;
-    }
-    case "this_fy": {
-      // Indian Financial Year: April 1 to March 31
-      const currentYear = now.getFullYear();
-      const fyStart = now.getMonth() >= 3 ? new Date(currentYear, 3, 1) : new Date(currentYear - 1, 3, 1);
-      return d >= fyStart;
-    }
-    case "custom": {
-      if (!customStart && !customEnd) return true;
-      const start = customStart ? new Date(customStart) : new Date(0);
-      start.setHours(0, 0, 0, 0);
-      const end = customEnd ? new Date(customEnd) : new Date(2100, 0, 1);
-      end.setHours(23, 59, 59, 999);
-      return d >= start && d <= end;
-    }
-    default: {
-      if (preset.includes("-")) {
-        const yyyy = d.getFullYear();
-        const mm = String(d.getMonth() + 1).padStart(2, "0");
-        return `${yyyy}-${mm}` === preset;
-      }
-      return true;
-    }
-  }
+  return isDateInPresetRange(d, preset, customStart, customEnd);
 };
 const BillTransactions: React.FC = () => {
   const [transactions, setTransactions] = useState<BillTransaction[]>([]);
@@ -3277,50 +3229,24 @@ const BillTransactions: React.FC = () => {
                 <Calendar className="w-3 h-3 text-blue-600" />
                 Date Period
               </label>
-              <select
-                value={monthFilter}
-                onChange={(e) => setMonthFilter(e.target.value)}
-                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="this_week">This Week</option>
-                <option value="this_month">This Month</option>
-                <option value="last_month">Last Month</option>
-                <option value="this_quarter">This Quarter</option>
-                <option value="this_fy">This Financial Year (FY)</option>
-                {availableMonths.length > 0 && <option disabled>── Monthly Ledger ──</option>}
-                {availableMonths.map((m) => (
-                  <option key={m} value={m}>
-                    {formatMonthLabel(m)}
-                  </option>
-                ))}
-                <option value="custom">Custom Date Range...</option>
-              </select>
+              <DateFilter
+                preset={monthFilter}
+                onPresetChange={(val) => {
+                  setMonthFilter(val);
+                  if (val !== "custom") {
+                    setStartDate("");
+                    setEndDate("");
+                  }
+                }}
+                startDate={startDate}
+                onStartDateChange={setStartDate}
+                endDate={endDate}
+                onEndDateChange={setEndDate}
+                monthlyOptions={availableMonths}
+                showIcon={false}
+              />
             </div>
           </div>
-
-          {/* Custom Date Range Inputs */}
-          {monthFilter === "custom" && (
-            <div className="flex flex-wrap items-center gap-3 pt-2.5 border-t border-gray-100">
-              <span className="text-xs text-gray-500 font-medium">Custom Range:</span>
-              <div className="flex items-center gap-2">
-                <input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-gray-50 text-gray-800"
-                />
-                <span className="text-xs text-gray-400">to</span>
-                <input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="px-2.5 py-1 text-xs border border-gray-200 rounded-lg bg-gray-50 text-gray-800"
-                />
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Transactions Table Card */}

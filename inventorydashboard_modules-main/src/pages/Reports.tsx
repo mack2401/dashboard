@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Pagination from "../components/Pagination";
 import KPICard from "../components/KPICard";
+import { DateFilter, isDateInPresetRange } from "../components/common/DateFilter";
 import {
   Users,
   IndianRupee,
@@ -184,27 +185,7 @@ const Reports: React.FC = () => {
 
   // Filter raw data by date
   const filterDateRange = (date: Date | null): boolean => {
-    if (!date) return true;
-    const now = new Date();
-
-    if (dateFilter === "today") {
-      return date.toDateString() === now.toDateString();
-    } else if (dateFilter === "this_month") {
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
-    } else if (dateFilter === "last_30_days") {
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return date >= thirtyDaysAgo;
-    } else if (dateFilter === "custom") {
-      if (customStartDate && date < new Date(customStartDate)) return false;
-      if (customEndDate) {
-        const end = new Date(customEndDate);
-        end.setHours(23, 59, 59, 999);
-        if (date > end) return false;
-      }
-      return true;
-    }
-    return true;
+    return isDateInPresetRange(date, dateFilter, customStartDate, customEndDate);
   };
 
   // Aggregate Client Purchase Data
@@ -1100,40 +1081,27 @@ const Reports: React.FC = () => {
           {/* Filters & Sorting */}
           <div className="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
             {/* Date Preset Filter */}
-            <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200/80 text-xs font-medium text-gray-600">
-              <button
-                onClick={() => setDateFilter("all")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  dateFilter === "all" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                }`}
-              >
-                All Time
-              </button>
-              <button
-                onClick={() => setDateFilter("this_month")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  dateFilter === "this_month" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                }`}
-              >
-                This Month
-              </button>
-              <button
-                onClick={() => setDateFilter("last_30_days")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  dateFilter === "last_30_days" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                }`}
-              >
-                Last 30 Days
-              </button>
-              <button
-                onClick={() => setDateFilter("custom")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
-                  dateFilter === "custom" ? "bg-blue-600 text-white shadow-xs" : "text-gray-600 hover:text-gray-900 hover:bg-gray-100"
-                }`}
-              >
-                Custom
-              </button>
-            </div>
+            <DateFilter
+              variant="pills"
+              preset={dateFilter}
+              onPresetChange={(val) => setDateFilter(val)}
+              startDate={customStartDate}
+              onStartDateChange={setCustomStartDate}
+              endDate={customEndDate}
+              onEndDateChange={setCustomEndDate}
+              presets={[
+                { value: "all", label: "All Time" },
+                { value: "today", label: "Today" },
+                { value: "this_month", label: "This Month" },
+                { value: "last_30_days", label: "Last 30 Days" },
+                { value: "custom", label: "Custom" },
+              ]}
+              onClear={() => {
+                setDateFilter("all");
+                setCustomStartDate("");
+                setCustomEndDate("");
+              }}
+            />
 
             {/* Sort Dropdown */}
             <div className="flex items-center gap-1.5 bg-white border border-gray-200 px-3 py-1.5 rounded-xl text-xs font-medium text-gray-700 shadow-xs">
@@ -1159,26 +1127,6 @@ const Reports: React.FC = () => {
             </div>
           </div>
         </div>
-
-        {/* Custom Date Range Row */}
-        {dateFilter === "custom" && (
-          <div className="flex flex-wrap items-center gap-3 pt-3 border-t border-gray-100 text-xs">
-            <span className="text-gray-500 font-medium">From:</span>
-            <input
-              type="date"
-              value={customStartDate}
-              onChange={(e) => setCustomStartDate(e.target.value)}
-              className="px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
-            />
-            <span className="text-gray-500 font-medium">To:</span>
-            <input
-              type="date"
-              value={customEndDate}
-              onChange={(e) => setCustomEndDate(e.target.value)}
-              className="px-2.5 py-1.5 border border-gray-200 rounded-lg bg-white text-gray-700 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20"
-            />
-          </div>
-        )}
       </div>
 
       {/* Client Summary Table */}

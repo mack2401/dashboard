@@ -7,6 +7,7 @@ import {
 import { db } from "../firebase";
 import { useAuth } from "../App";
 import * as XLSX from "xlsx-js-style";
+import { DateFilter, isDateInPresetRange } from "../components/common/DateFilter";
 import {
   TrendingUp,
   TrendingDown,
@@ -487,59 +488,7 @@ export default function PNL() {
 
   // Date Range Filtering Helper
   const isDateInSelectedRange = (dateVal: any): boolean => {
-    if (!dateVal) return datePreset === "all";
-    let d: Date | null = null;
-    if (dateVal?.toDate && typeof dateVal.toDate === "function") {
-      d = dateVal.toDate();
-    } else if (dateVal instanceof Date) {
-      d = dateVal;
-    } else if (typeof dateVal === "string" || typeof dateVal === "number") {
-      d = new Date(dateVal);
-    }
-    if (!d || isNaN(d.getTime())) return datePreset === "all";
-
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    switch (datePreset) {
-      case "all":
-        return true;
-      case "today":
-        return d >= startOfToday;
-      case "this_week": {
-        const startOfWeek = new Date(startOfToday);
-        startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-        return d >= startOfWeek;
-      }
-      case "this_month": {
-        const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        return d >= startOfMonth;
-      }
-      case "last_month": {
-        const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-        const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
-        return d >= startOfLastMonth && d <= endOfLastMonth;
-      }
-      case "this_quarter": {
-        const currentQuarter = Math.floor(now.getMonth() / 3);
-        const startOfQuarter = new Date(now.getFullYear(), currentQuarter * 3, 1);
-        return d >= startOfQuarter;
-      }
-      case "this_fy": {
-        // Indian Financial Year: April 1 to March 31
-        const currentYear = now.getFullYear();
-        const fyStart = now.getMonth() >= 3 ? new Date(currentYear, 3, 1) : new Date(currentYear - 1, 3, 1);
-        return d >= fyStart;
-      }
-      case "custom": {
-        if (!customStartDate && !customEndDate) return true;
-        const start = customStartDate ? new Date(customStartDate) : new Date(0);
-        const end = customEndDate ? new Date(`${customEndDate}T23:59:59`) : new Date(2100, 0, 1);
-        return d >= start && d <= end;
-      }
-      default:
-        return true;
-    }
+    return isDateInPresetRange(dateVal, datePreset, customStartDate, customEndDate);
   };
 
   // 1.5 Deduplicated Bills (Keep only newest revision per enquiry, matching BillTransactions)
@@ -1742,42 +1691,30 @@ export default function PNL() {
           </div>
 
           {/* Date Range Presets */}
-          <div className="flex flex-wrap items-center gap-2">
-            <div className="flex items-center gap-1.5 text-xs text-gray-600">
-              <select
-                value={datePreset}
-                onChange={(e) => setDatePreset(e.target.value as DateRangePreset)}
-                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              >
-                <option value="all">All Time</option>
-                <option value="today">Today</option>
-                <option value="this_week">This Week</option>
-                <option value="this_month">This Month</option>
-                <option value="last_month">Last Month</option>
-                <option value="this_quarter">This Quarter</option>
-                <option value="this_fy">This Financial Year (FY)</option>
-                <option value="custom">Custom Date Range</option>
-              </select>
-            </div>
-
-            {datePreset === "custom" && (
-              <div className="flex items-center gap-1.5">
-                <input
-                  type="date"
-                  value={customStartDate}
-                  onChange={(e) => setCustomStartDate(e.target.value)}
-                  className="px-2 py-1 text-xs border border-gray-200 rounded-lg bg-gray-50"
-                />
-                <span className="text-xs text-gray-400">to</span>
-                <input
-                  type="date"
-                  value={customEndDate}
-                  onChange={(e) => setCustomEndDate(e.target.value)}
-                  className="px-2 py-1 text-xs border border-gray-200 rounded-lg bg-gray-50"
-                />
-              </div>
-            )}
-          </div>
+          <DateFilter
+            preset={datePreset}
+            onPresetChange={(val) => {
+              setDatePreset(val as DateRangePreset);
+              if (val !== "custom") {
+                setCustomStartDate("");
+                setCustomEndDate("");
+              }
+            }}
+            startDate={customStartDate}
+            onStartDateChange={setCustomStartDate}
+            endDate={customEndDate}
+            onEndDateChange={setCustomEndDate}
+            presets={[
+              { value: "all", label: "All Time" },
+              { value: "today", label: "Today" },
+              { value: "this_week", label: "This Week" },
+              { value: "this_month", label: "This Month" },
+              { value: "last_month", label: "Last Month" },
+              { value: "this_quarter", label: "This Quarter" },
+              { value: "this_fy", label: "This Financial Year (FY)" },
+              { value: "custom", label: "Custom Date Range" },
+            ]}
+          />
         </div>
       </div>
 

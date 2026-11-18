@@ -104,3 +104,4 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
 }
 
 export default useItemHighlighter;
+
