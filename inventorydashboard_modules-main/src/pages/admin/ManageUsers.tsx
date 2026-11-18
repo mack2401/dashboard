@@ -97,15 +97,41 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
     clearHighlight,
     isHighlighted,
     scrollToAndHighlight,
+    locateCurrentItem,
   } = useItemHighlighter();
 
-  // Populate search filter when navigated from search/notification
+  // Handle deep-linking navigation: reset conflicting filters and ensure page switches to targeted employee
   useEffect(() => {
-    if (targetSearch) {
-      setActiveTab("all");
-      setSearchTerm(targetSearch);
+    if (!highlightId && !targetSearch) return;
+
+    if (employees.length > 0) {
+      const targetEmp = highlightId
+        ? employees.find(
+            (e) => e.id === highlightId || e.uid === highlightId || e.employeeId === highlightId
+          )
+        : targetSearch
+        ? employees.find(
+            (e) =>
+              (e.employeeName && e.employeeName.toLowerCase().includes(targetSearch.toLowerCase())) ||
+              (e.name && e.name.toLowerCase().includes(targetSearch.toLowerCase())) ||
+              (e.email && e.email.toLowerCase().includes(targetSearch.toLowerCase()))
+          )
+        : null;
+
+      if (targetEmp) {
+        setActiveTab("all");
+        setRoleFilter("all");
+        setStatusFilter("all");
+        if (
+          searchTerm &&
+          (!targetEmp.employeeName || !targetEmp.employeeName.toLowerCase().includes(searchTerm.toLowerCase())) &&
+          (!targetEmp.email || !targetEmp.email.toLowerCase().includes(searchTerm.toLowerCase()))
+        ) {
+          setSearchTerm("");
+        }
+      }
     }
-  }, [targetSearch]);
+  }, [highlightId, targetSearch, employees]);
 
   // Ensure targeted employee is on current page and scrolled to
   useEffect(() => {
@@ -118,7 +144,13 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
         if (currentPage !== targetPage) {
           setCurrentPage(targetPage);
         }
-        scrollToAndHighlight(`user-row-${highlightId}`);
+        const matchedEmp = filteredEmployees[foundIdx];
+        scrollToAndHighlight(
+          `user-row-${matchedEmp.id}`,
+          matchedEmp.id,
+          matchedEmp.uid,
+          matchedEmp.employeeId
+        );
       }
     }
   }, [highlightId, filteredEmployees, itemsPerPage, currentPage, scrollToAndHighlight]);
@@ -454,6 +486,7 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
             <ItemLocatedBanner
               itemLabel="User"
               title={targetName || targetSearch || undefined}
+              onLocate={locateCurrentItem}
               onClear={() => {
                 clearHighlight();
                 setSearchTerm("");
@@ -616,6 +649,11 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
                           <tr
                             key={emp.id}
                             id={`user-row-${emp.id}`}
+                            data-id={emp.id}
+                            data-uid={emp.uid}
+                            data-employee-id={emp.employeeId}
+                            data-highlight-id={`${emp.id || ""} ${emp.uid || ""} ${emp.employeeId || ""}`.trim()}
+                            data-highlight-match={isRowMatch ? "true" : undefined}
                             className={`transition-all duration-300 ${
                               isRowMatch
                                 ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"

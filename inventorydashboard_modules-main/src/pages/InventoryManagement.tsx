@@ -392,17 +392,38 @@ const InventoryManagement: React.FC = () => {
     clearHighlight,
     isHighlighted,
     scrollToAndHighlight,
+    locateCurrentItem,
   } = useItemHighlighter();
 
-  // Switch to products tab and populate search term when targeted from search/notification
+  // Handle deep-linking navigation: reset conflicting filters and ensure page switches to targeted product
   useEffect(() => {
-    if (targetSearch || highlightId) {
-      setActiveTab('all');
-      if (targetSearch) {
-        setSearchTerm(targetSearch);
+    if (!highlightId && !targetSearch) return;
+
+    setActiveTab('all');
+
+    if (products.length > 0) {
+      const targetProduct = highlightId
+        ? products.find((p) => p.id === highlightId)
+        : targetSearch
+        ? products.find((p) =>
+            p.name.toLowerCase().includes(targetSearch.toLowerCase()) ||
+            (p.sku && p.sku.toLowerCase().includes(targetSearch.toLowerCase()))
+          )
+        : null;
+
+      if (targetProduct) {
+        setFilterStock('all');
+        setFilterCategory('all');
+        if (
+          searchTerm &&
+          !targetProduct.name.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          (!targetProduct.sku || !targetProduct.sku.toLowerCase().includes(searchTerm.toLowerCase()))
+        ) {
+          setSearchTerm('');
+        }
       }
     }
-  }, [targetSearch, highlightId]);
+  }, [highlightId, targetSearch, products]);
 
   // Automatically navigate to page containing matched product and scroll into view
   useEffect(() => {
@@ -413,7 +434,7 @@ const InventoryManagement: React.FC = () => {
         if (currentPage !== targetPage) {
           setCurrentPage(targetPage);
         }
-        scrollToAndHighlight(`product-row-${highlightId}`);
+        scrollToAndHighlight(`product-row-${highlightId}`, highlightId);
       }
     }
   }, [highlightId, filteredProducts, itemsPerPage, currentPage, scrollToAndHighlight]);
@@ -4379,6 +4400,7 @@ const InventoryManagement: React.FC = () => {
               <ItemLocatedBanner
                 itemLabel="Product"
                 title={targetName || targetSearch || undefined}
+                onLocate={locateCurrentItem}
                 onClear={() => {
                   clearHighlight();
                   setSearchTerm('');
@@ -4745,6 +4767,10 @@ const InventoryManagement: React.FC = () => {
                       <React.Fragment key={product.id}>
                         <tr 
                           id={`product-row-${product.id}`}
+                          data-id={product.id}
+                          data-product-id={product.id}
+                          data-highlight-id={product.id}
+                          data-highlight-match={isRowMatch ? "true" : undefined}
                           className={`cursor-pointer transition-all duration-300 ${
                             isRowMatch
                               ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"

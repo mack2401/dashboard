@@ -107,13 +107,34 @@ export function useNotifications() {
             if (targetUser && targetUser !== userUid) return;
             if (targetRole !== "all" && targetRole !== rawRole && !(isAdmin && targetRole === "admin")) return;
 
+            const targetId =
+              data.targetId ||
+              data.productId ||
+              data.taskId ||
+              data.enquiryId ||
+              data.enqId ||
+              data.billId ||
+              data.invoiceNumber ||
+              data.userId ||
+              null;
+            let link = data.link || "/dashboard";
+            if (targetId && !link.includes("highlightId")) {
+              const sep = link.includes("?") ? "&" : "?";
+              link = `${link}${sep}highlightId=${encodeURIComponent(targetId)}`;
+            }
+
             list.push({
               id: docSnap.id,
               title: data.title || "Notification",
               message: data.message || "",
               type: data.type || "system",
               severity: data.severity || "info",
-              link: data.link || "/dashboard",
+              link,
+              metadata: {
+                targetId: targetId || undefined,
+                targetName: data.targetName || data.title,
+                targetType: data.type,
+              },
               timestamp: parseTimestamp(data.createdAt || data.timestamp),
               read: false,
               targetRole: data.targetRole,

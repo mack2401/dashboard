@@ -158,14 +158,42 @@ const BillTransactions: React.FC = () => {
     clearHighlight,
     isHighlighted,
     scrollToAndHighlight,
+    locateCurrentItem,
   } = useItemHighlighter();
 
-  // Populate search filter when navigated from search/notification
+  // Handle deep-linking navigation: reset conflicting filters and ensure page switches to targeted bill
   useEffect(() => {
-    if (targetSearch) {
-      setSearchTerm(targetSearch);
+    if (!highlightId && !targetSearch) return;
+
+    if (transactions.length > 0) {
+      const targetBill = highlightId
+        ? transactions.find(
+            (b) => b.id === highlightId || b.billId === highlightId || b.invoiceNumber === highlightId
+          )
+        : targetSearch
+        ? transactions.find(
+            (b) =>
+              (b.invoiceNumber && b.invoiceNumber.toLowerCase().includes(targetSearch.toLowerCase())) ||
+              (b.customerName && b.customerName.toLowerCase().includes(targetSearch.toLowerCase())) ||
+              (b.customerMobile && b.customerMobile.includes(targetSearch))
+          )
+        : null;
+
+      if (targetBill) {
+        setBillTypeFilter("all");
+        setOrderStatusFilter("all");
+        setPaymentStatusFilter("all");
+        setMonthFilter("all");
+        if (
+          searchTerm &&
+          (!targetBill.invoiceNumber || !targetBill.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) &&
+          (!targetBill.customerName || !targetBill.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
+        ) {
+          setSearchTerm("");
+        }
+      }
     }
-  }, [targetSearch]);
+  }, [highlightId, targetSearch, transactions]);
 
   // Ensure targeted bill is on current page and scrolled to
   useEffect(() => {
@@ -178,7 +206,13 @@ const BillTransactions: React.FC = () => {
         if (currentPage !== targetPage) {
           setCurrentPage(targetPage);
         }
-        scrollToAndHighlight(`bill-row-${highlightId}`);
+        const matchedBill = filteredTransactions[foundIdx];
+        scrollToAndHighlight(
+          `bill-row-${matchedBill.id}`,
+          matchedBill.id,
+          matchedBill.invoiceNumber,
+          matchedBill.billId
+        );
       }
     }
   }, [highlightId, filteredTransactions, itemsPerPage, currentPage, scrollToAndHighlight]);
@@ -3108,6 +3142,7 @@ const BillTransactions: React.FC = () => {
           <ItemLocatedBanner
             itemLabel="Bill / Invoice"
             title={targetName || targetSearch || undefined}
+            onLocate={locateCurrentItem}
             onClear={() => {
               clearHighlight();
               setSearchTerm("");
@@ -3303,6 +3338,11 @@ const BillTransactions: React.FC = () => {
                   <tr
                     key={bill.id}
                     id={`bill-row-${bill.id}`}
+                    data-id={bill.id}
+                    data-bill-id={bill.billId}
+                    data-invoice-number={bill.invoiceNumber}
+                    data-highlight-id={`${bill.id || ""} ${bill.billId || ""} ${bill.invoiceNumber || ""}`.trim()}
+                    data-highlight-match={isRowMatch ? "true" : undefined}
                     className={`cursor-pointer transition-all duration-300 ${
                       isRowMatch
                         ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"

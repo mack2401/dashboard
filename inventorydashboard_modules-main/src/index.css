@@ -68,6 +68,32 @@ body {
   background-color: rgba(254, 240, 138, 0.85) !important;
   color: #0f172a !important;
   border-radius: 4px !important;
-  box-shadow: 0 0 8px rgba(37, 99, 235, 0.25) !important;
+  box-shadow: 0 0 8px rgba(37, 99, 255, 0.25) !important;
   transition: all 0.2s ease-in-out !important;
 }
+
+/* Deep-link & Notification Located Item Highlight Pulse */
+@keyframes itemHighlightPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(120, 137, 245, 0.75);
+    background-color: rgba(240, 240, 255, 0.95);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(120, 137, 245, 0.35);
+    background-color: rgba(240, 240, 255, 1);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(120, 137, 245, 0);
+    background-color: rgba(240, 240, 255, 0.95);
+  }
+}
+
+.item-highlight-pulse {
+  animation: itemHighlightPulse 1.6s infinite ease-in-out !important;
+  outline: 2px solid #7889F5 !important;
+  outline-offset: -2px !important;
+  border-radius: 8px !important;
+  z-index: 10 !important;
+  position: relative !important;
+}
+

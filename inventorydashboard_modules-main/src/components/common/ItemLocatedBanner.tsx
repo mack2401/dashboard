@@ -1,10 +1,11 @@
 import React from "react";
-import { Target, X } from "lucide-react";
+import { Target, X, LocateFixed } from "lucide-react";
 
 export interface ItemLocatedBannerProps {
   title?: string;
   itemLabel?: string;
   onClear: () => void;
+  onLocate?: () => void;
   className?: string;
 }
 
@@ -12,6 +13,7 @@ export const ItemLocatedBanner: React.FC<ItemLocatedBannerProps> = ({
   title,
   itemLabel = "Item",
   onClear,
+  onLocate,
   className = "",
 }) => {
   return (
@@ -37,10 +39,21 @@ export const ItemLocatedBanner: React.FC<ItemLocatedBannerProps> = ({
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0">
+        {onLocate && (
+          <button
+            type="button"
+            onClick={onLocate}
+            className="text-xs font-bold px-3 py-1.5 rounded-xl bg-[#7889F5] text-white hover:bg-[#6877E0] transition-all cursor-pointer shadow-2xs flex items-center gap-1.5"
+            title="Scroll and center this item"
+          >
+            <LocateFixed className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">Focus Item</span>
+          </button>
+        )}
         <button
           type="button"
           onClick={onClear}
-          className="text-xs font-semibold px-2.5 py-1 rounded-xl bg-white border border-[#E1E5F0] text-[#78839A] hover:text-[#1E315B] hover:border-[#7889F5]/40 hover:bg-[#F0F0FF] transition-all cursor-pointer shadow-2xs flex items-center gap-1"
+          className="text-xs font-semibold px-2.5 py-1.5 rounded-xl bg-white border border-[#E1E5F0] text-[#78839A] hover:text-[#1E315B] hover:border-[#7889F5]/40 hover:bg-[#F0F0FF] transition-all cursor-pointer shadow-2xs flex items-center gap-1"
         >
           <X className="w-3.5 h-3.5" />
           <span>Dismiss</span>
@@ -51,4 +64,3 @@ export const ItemLocatedBanner: React.FC<ItemLocatedBannerProps> = ({
 };
 
 export default ItemLocatedBanner;
-

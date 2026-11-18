@@ -261,14 +261,40 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
     isBannerVisible,
     clearHighlight,
     scrollToAndHighlight,
+    locateCurrentItem,
   } = useItemHighlighter();
 
-  // Populate search filter when navigated from search/notification
+  // Handle deep-linking navigation: reset conflicting filters and ensure page switches to targeted enquiry
   useEffect(() => {
-    if (targetSearch) {
-      setGlobalSearch(targetSearch);
+    if (!highlightId && !targetSearch) return;
+
+    if (enquiries.length > 0) {
+      const targetEnquiry = highlightId
+        ? enquiries.find((e) => e.id === highlightId || e.enqId === highlightId)
+        : targetSearch
+        ? enquiries.find((e) =>
+            (e.enqId && e.enqId.toLowerCase().includes(targetSearch.toLowerCase())) ||
+            (e.customerName && e.customerName.toLowerCase().includes(targetSearch.toLowerCase())) ||
+            (e.name && e.name.toLowerCase().includes(targetSearch.toLowerCase()))
+          )
+        : null;
+
+      if (targetEnquiry) {
+        if (categoryFilter !== "all" && targetEnquiry.category && categoryFilter !== targetEnquiry.category) {
+          setCategoryFilter("all");
+        }
+        setStatusFilter("all");
+        setModeFilter("all");
+        if (
+          globalSearch &&
+          (!targetEnquiry.enqId || !targetEnquiry.enqId.toLowerCase().includes(globalSearch.toLowerCase())) &&
+          (!targetEnquiry.customerName || !targetEnquiry.customerName.toLowerCase().includes(globalSearch.toLowerCase()))
+        ) {
+          setGlobalSearch("");
+        }
+      }
     }
-  }, [targetSearch]);
+  }, [highlightId, targetSearch, enquiries, categoryFilter]);
 
   // Sync category filter when URL changes (e.g. clicking sidebar E-Commerce or Academic links)
   useEffect(() => {
@@ -749,7 +775,13 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
         if (currentPage !== targetPage) {
           setCurrentPage(targetPage);
         }
-        scrollToAndHighlight(`row-${highlightId}`);
+        const matchedEnq = filteredEnquiries[foundIdx];
+        scrollToAndHighlight(
+          `row-${matchedEnq.id}`,
+          `row-${matchedEnq.enqId}`,
+          matchedEnq.id,
+          matchedEnq.enqId
+        );
       }
     }
   }, [highlightId, filteredEnquiries, itemsPerPage, currentPage, scrollToAndHighlight]);
@@ -1349,6 +1381,7 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
           <ItemLocatedBanner
             itemLabel="Enquiry"
             title={targetName || targetSearch || undefined}
+            onLocate={locateCurrentItem}
             onClear={() => {
               clearHighlight();
               setGlobalSearch("");

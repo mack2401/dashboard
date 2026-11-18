@@ -354,14 +354,36 @@ const TaskManagement: React.FC = () => {
     clearHighlight,
     isHighlighted,
     scrollToAndHighlight,
+    locateCurrentItem,
   } = useItemHighlighter();
 
-  // Populate search filter when navigated from search/notification
+  // Handle deep-linking navigation: reset conflicting filters and ensure page switches to targeted task
   useEffect(() => {
-    if (targetSearch) {
-      setSearchTerm(targetSearch);
+    if (!highlightId && !targetSearch) return;
+
+    if (tasks.length > 0) {
+      const targetTask = highlightId
+        ? tasks.find((t) => t.id === highlightId)
+        : targetSearch
+        ? tasks.find((t) =>
+            t.task.toLowerCase().includes(targetSearch.toLowerCase()) ||
+            (t.employeeName && t.employeeName.toLowerCase().includes(targetSearch.toLowerCase()))
+          )
+        : null;
+
+      if (targetTask) {
+        setViewMode('all');
+        setFilterStatus('all');
+        setFilterPriority('all');
+        if (
+          searchTerm &&
+          !targetTask.task.toLowerCase().includes(searchTerm.toLowerCase())
+        ) {
+          setSearchTerm('');
+        }
+      }
     }
-  }, [targetSearch]);
+  }, [highlightId, targetSearch, tasks]);
 
   // Ensure targeted task is on current page, expanded, and scrolled to
   useEffect(() => {
@@ -373,7 +395,7 @@ const TaskManagement: React.FC = () => {
           setCurrentPage(targetPage);
         }
         setExpandedTaskId(highlightId);
-        scrollToAndHighlight(`task-row-${highlightId}`);
+        scrollToAndHighlight(`task-row-${highlightId}`, highlightId);
       }
     }
   }, [highlightId, filteredTasks, itemsPerPage, currentPage, scrollToAndHighlight]);
@@ -2088,6 +2110,7 @@ const TaskManagement: React.FC = () => {
           <ItemLocatedBanner
             itemLabel="Task"
             title={targetName || targetSearch || undefined}
+            onLocate={locateCurrentItem}
             onClear={() => {
               clearHighlight();
               setSearchTerm('');
@@ -2178,6 +2201,10 @@ const TaskManagement: React.FC = () => {
                       <React.Fragment key={task.id}>
                         <tr 
                           id={`task-row-${task.id}`}
+                          data-id={task.id}
+                          data-task-id={task.id}
+                          data-highlight-id={task.id}
+                          data-highlight-match={isRowMatch ? "true" : undefined}
                           className={`border-b border-gray-100 transition-colors cursor-pointer ${
                             isRowMatch
                               ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"

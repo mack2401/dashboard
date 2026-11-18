@@ -5,14 +5,145 @@ export interface ItemHighlighterOptions {
   autoClearDuration?: number;
 }
 
+// Safely escape CSS attribute selector values
+function safeEscape(str: string): string {
+  return str.replace(/["\\]/g, "\\$&");
+}
+
 export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
   const location = useLocation();
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [targetSearch, setTargetSearch] = useState<string | null>(null);
   const [targetName, setTargetName] = useState<string | null>(null);
   const [isBannerVisible, setIsBannerVisible] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const [isLocated, setIsLocated] = useState(false);
 
+  const bannerTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const retryTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const activeTargetsRef = useRef<string[]>([]);
+
+  // DOM element finder
+  const findElement = useCallback((targets: string[]): HTMLElement | null => {
+    for (const rawTarget of targets) {
+      if (!rawTarget || typeof rawTarget !== "string") continue;
+      const t = rawTarget.trim();
+      if (!t) continue;
+
+      // 1. Direct and prefixed element IDs
+      const directCandidates = [
+        t,
+        `product-row-${t}`,
+        `task-row-${t}`,
+        `bill-row-${t}`,
+        `user-row-${t}`,
+        `row-${t}`,
+      ];
+
+      for (const id of directCandidates) {
+        const el = document.getElementById(id);
+        if (el) return el;
+      }
+
+      // 2. Data attributes
+      try {
+        const escaped = safeEscape(t);
+        const attributeQueries = [
+          `[data-id="${escaped}"]`,
+          `[data-product-id="${escaped}"]`,
+          `[data-task-id="${escaped}"]`,
+          `[data-bill-id="${escaped}"]`,
+          `[data-invoice-number="${escaped}"]`,
+          `[data-enq-id="${escaped}"]`,
+          `[data-uid="${escaped}"]`,
+          `[data-employee-id="${escaped}"]`,
+          `[data-item-id="${escaped}"]`,
+          `[data-highlight-id~="${escaped}"]`,
+          `[data-highlight-id*="${escaped}"]`,
+        ];
+
+        for (const query of attributeQueries) {
+          const el = document.querySelector<HTMLElement>(query);
+          if (el) return el;
+        }
+      } catch {
+        // Ignore CSS selector errors if unusual characters
+      }
+    }
+
+    // 3. Fallback: Search for element with highlight match attribute
+    const matchRow = document.querySelector<HTMLElement>(
+      'tr[data-highlight-match="true"], [data-highlight-match="true"]'
+    );
+    if (matchRow) return matchRow;
+
+    return null;
+  }, []);
+
+  // Polling scroll runner
+  const startScrollRetry = useCallback(
+    (explicitTargets?: (string | null | undefined)[]) => {
+      if (retryTimerRef.current) {
+        clearInterval(retryTimerRef.current);
+        retryTimerRef.current = null;
+      }
+
+      const targets = (
+        explicitTargets && explicitTargets.length > 0
+          ? explicitTargets
+          : [highlightId, targetSearch, targetName]
+      )
+        .filter((x): x is string => Boolean(x && typeof x === "string"))
+        .map((x) => x.trim());
+
+      if (targets.length === 0) return;
+      activeTargetsRef.current = targets;
+
+      let attempts = 0;
+      const maxAttempts = 35; // 35 * 120ms ≈ 4.2 seconds
+
+      const checkAndScroll = () => {
+        attempts++;
+        const el = findElement(activeTargetsRef.current);
+        if (el) {
+          if (retryTimerRef.current) {
+            clearInterval(retryTimerRef.current);
+            retryTimerRef.current = null;
+          }
+          setIsLocated(true);
+
+          // Center element smoothly in viewport
+          el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+          // Apply attention pulse ring
+          el.classList.add("item-highlight-pulse");
+          el.setAttribute("data-highlight-located", "true");
+
+          setTimeout(() => {
+            el.classList.remove("item-highlight-pulse");
+          }, 5000);
+
+          return true;
+        }
+
+        if (attempts >= maxAttempts) {
+          if (retryTimerRef.current) {
+            clearInterval(retryTimerRef.current);
+            retryTimerRef.current = null;
+          }
+          return false;
+        }
+        return false;
+      };
+
+      // Try immediately
+      if (!checkAndScroll()) {
+        retryTimerRef.current = setInterval(checkAndScroll, 120);
+      }
+    },
+    [findElement, highlightId, targetSearch, targetName]
+  );
+
+  // Parse location and state
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const idFromParam = params.get("highlightId") || params.get("id");
@@ -30,49 +161,50 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
       setTargetSearch(finalSearch);
       setTargetName(finalName);
       setIsBannerVisible(true);
+      setIsLocated(false);
 
-      // Scroll to element after DOM settles
-      const timeout = setTimeout(() => {
-        if (finalId) {
-          const el =
-            document.getElementById(`row-${finalId}`) ||
-            document.getElementById(`product-row-${finalId}`) ||
-            document.getElementById(`bill-row-${finalId}`) ||
-            document.getElementById(`task-row-${finalId}`) ||
-            document.getElementById(`user-row-${finalId}`) ||
-            document.getElementById(finalId);
+      const initialTargets = [finalId, finalSearch, finalName].filter(
+        (x): x is string => Boolean(x)
+      );
+      startScrollRetry(initialTargets);
 
-          if (el) {
-            el.scrollIntoView({ behavior: "smooth", block: "center" });
-          }
-        }
-      }, 350);
-
-      if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = setTimeout(() => {
         setIsBannerVisible(false);
-      }, options.autoClearDuration || 9000);
-
-      return () => clearTimeout(timeout);
+      }, options.autoClearDuration || 14000);
     }
-  }, [location.search, location.state]);
+
+    return () => {
+      if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+    };
+  }, [location.search, location.state, startScrollRetry, options.autoClearDuration]);
 
   const clearHighlight = useCallback(() => {
     setHighlightId(null);
     setTargetSearch(null);
     setTargetName(null);
     setIsBannerVisible(false);
-    if (timerRef.current) clearTimeout(timerRef.current);
+    setIsLocated(false);
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    if (retryTimerRef.current) clearInterval(retryTimerRef.current);
+
+    const els = document.querySelectorAll(".item-highlight-pulse, [data-highlight-located]");
+    els.forEach((el) => {
+      el.classList.remove("item-highlight-pulse");
+      el.removeAttribute("data-highlight-located");
+    });
   }, []);
 
-  const scrollToAndHighlight = useCallback((elementId: string) => {
-    setTimeout(() => {
-      const el = document.getElementById(elementId);
-      if (el) {
-        el.scrollIntoView({ behavior: "smooth", block: "center" });
-      }
-    }, 250);
-  }, []);
+  const scrollToAndHighlight = useCallback(
+    (...targets: (string | null | undefined)[]) => {
+      startScrollRetry(targets);
+    },
+    [startScrollRetry]
+  );
+
+  const locateCurrentItem = useCallback(() => {
+    startScrollRetry([highlightId, targetSearch, targetName]);
+  }, [startScrollRetry, highlightId, targetSearch, targetName]);
 
   const isHighlighted = useCallback(
     (...ids: (string | number | undefined | null)[]) => {
@@ -80,11 +212,13 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
       return ids.some((id) => {
         if (!id) return false;
         const strId = String(id).trim().toLowerCase();
-        if (highlightId && strId === highlightId.trim().toLowerCase()) return true;
-        if (targetSearch && strId === targetSearch.trim().toLowerCase()) return true;
-        // Check if substring or number match
-        if (highlightId && (strId.includes(highlightId.trim().toLowerCase()) || highlightId.trim().toLowerCase().includes(strId))) {
-          return true;
+        if (highlightId) {
+          const h = highlightId.trim().toLowerCase();
+          if (strId === h || strId.includes(h) || h.includes(strId)) return true;
+        }
+        if (targetSearch) {
+          const s = targetSearch.trim().toLowerCase();
+          if (strId === s || strId.includes(s) || s.includes(strId)) return true;
         }
         return false;
       });
@@ -97,11 +231,12 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
     targetSearch,
     targetName,
     isBannerVisible,
+    isLocated,
     clearHighlight,
     isHighlighted,
     scrollToAndHighlight,
+    locateCurrentItem,
   };
 }
 
 export default useItemHighlighter;
-

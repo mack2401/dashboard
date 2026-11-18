@@ -1208,6 +1208,12 @@ export default function DataTable<T extends { id?: string }>(
               <tr
                 key={row.id}
                 id={rowDomId}
+                data-id={item?.id}
+                data-item-id={item?.id}
+                data-enq-id={item?.enqId}
+                data-invoice-number={item?.invoiceNumber}
+                data-highlight-id={`${item?.id || ""} ${item?.enqId || ""} ${item?.invoiceNumber || ""}`.trim()}
+                data-highlight-match={isRowMatch ? "true" : undefined}
                 className={`transition-all duration-300 ${
                   isRowMatch
                     ? "bg-[#F0F0FF] ring-2 sm:ring-4 ring-[#7889F5] shadow-md font-semibold"
