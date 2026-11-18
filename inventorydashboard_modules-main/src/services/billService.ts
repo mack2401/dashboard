@@ -178,12 +178,12 @@ class BillService {
         const billsMap = new Map<string, Bill>();
         
         createdBySnap.forEach((doc) => {
-          billsMap.set(doc.id, { id: doc.id, ...doc.data() } as Bill);
+          billsMap.set(doc.id, { ...doc.data(), id: doc.id } as Bill);
         });
         
         assignedToSnap.forEach((doc) => {
           if (!billsMap.has(doc.id)) {
-            billsMap.set(doc.id, { id: doc.id, ...doc.data() } as Bill);
+            billsMap.set(doc.id, { ...doc.data(), id: doc.id } as Bill);
           }
         });
         
@@ -218,25 +218,25 @@ class BillService {
         const q = query(this.billsCollection, where("createdBy", "==", options.userId));
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach((doc) => {
-          bills.push({ id: doc.id, ...doc.data() } as Bill);
+          bills.push({ ...doc.data(), id: doc.id } as Bill);
         });
       } else if (options?.status) {
         const q = query(this.billsCollection, where("status", "==", options.status));
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach((doc) => {
-          bills.push({ id: doc.id, ...doc.data() } as Bill);
+          bills.push({ ...doc.data(), id: doc.id } as Bill);
         });
       } else if (options?.paymentStatus) {
         const q = query(this.billsCollection, where("paymentStatus", "==", options.paymentStatus));
         const querySnapshot = await getDocs(q);
         querySnapshot.forEach((doc) => {
-          bills.push({ id: doc.id, ...doc.data() } as Bill);
+          bills.push({ ...doc.data(), id: doc.id } as Bill);
         });
       } else {
         // No filters - get all documents
         const querySnapshot = await getDocs(this.billsCollection);
         querySnapshot.forEach((doc) => {
-          bills.push({ id: doc.id, ...doc.data() } as Bill);
+          bills.push({ ...doc.data(), id: doc.id } as Bill);
         });
       }
       
@@ -282,12 +282,12 @@ class BillService {
       const billsMap = new Map<string, Bill>();
       
       createdBySnap.forEach((doc) => {
-        billsMap.set(doc.id, { id: doc.id, ...doc.data() } as Bill);
+        billsMap.set(doc.id, { ...doc.data(), id: doc.id } as Bill);
       });
       
       assignedToSnap.forEach((doc) => {
         if (!billsMap.has(doc.id)) {
-          billsMap.set(doc.id, { id: doc.id, ...doc.data() } as Bill);
+          billsMap.set(doc.id, { ...doc.data(), id: doc.id } as Bill);
         }
       });
       

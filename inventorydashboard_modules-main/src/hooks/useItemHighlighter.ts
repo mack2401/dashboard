@@ -66,6 +66,7 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
           `[data-task-id="${escaped}"]`,
           `[data-bill-id="${escaped}"]`,
           `[data-invoice-number="${escaped}"]`,
+          `[data-customer-name="${escaped}"]`,
           `[data-enq-id="${escaped}"]`,
           `[data-uid="${escaped}"]`,
           `[data-employee-id="${escaped}"]`,
@@ -239,7 +240,7 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
 
   const isHighlighted = useCallback(
     (...ids: (string | number | undefined | null)[]) => {
-      if (!highlightId && !targetSearch) return false;
+      if (!highlightId && !targetSearch && !targetName) return false;
       return ids.some((id) => {
         if (!id) return false;
         const strId = String(id).trim().toLowerCase();
@@ -251,10 +252,14 @@ export function useItemHighlighter(options: ItemHighlighterOptions = {}) {
           const s = targetSearch.trim().toLowerCase();
           if (strId === s || strId.includes(s) || s.includes(strId)) return true;
         }
+        if (targetName) {
+          const n = targetName.trim().toLowerCase();
+          if (strId === n || strId.includes(n) || n.includes(strId)) return true;
+        }
         return false;
       });
     },
-    [highlightId, targetSearch]
+    [highlightId, targetSearch, targetName]
   );
 
   return {

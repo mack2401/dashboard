@@ -357,8 +357,8 @@ export function useNotifications() {
           const list: AppNotification[] = [];
           snap.forEach((docSnap) => {
             const b = docSnap.data();
-            const invNum = b.invoiceNumber || docSnap.id.slice(-6);
-            const cust = b.customerName || "Customer";
+            const invNum = b.invoiceNumber || (b as any).billNumber || (b as any).quoteNo || (b as any).quotationNumber || docSnap.id.slice(-6);
+            const cust = b.customerName || b.billedTo?.name || (b as any).clientName || (b as any).customer || "Customer";
             const total = Number(b.totalAmount || 0);
             const status = String(b.status || "").toLowerCase();
             const payStatus = String(b.paymentStatus || "").toLowerCase();
@@ -370,8 +370,8 @@ export function useNotifications() {
                 message: `Invoice #${invNum} for ${cust} (₹${total.toLocaleString("en-IN")}) is pending payment.`,
                 type: "bill",
                 severity: "warning",
-                link: `/bills?highlightId=${docSnap.id}&invoiceNumber=${encodeURIComponent(invNum)}&search=${encodeURIComponent(invNum)}`,
-                metadata: { targetId: docSnap.id, targetName: invNum, targetType: "bill" },
+                link: `/bills?highlightId=${docSnap.id}&invoiceNumber=${encodeURIComponent(invNum)}&search=${encodeURIComponent(invNum)}&name=${encodeURIComponent(cust)}`,
+                metadata: { targetId: docSnap.id, targetName: invNum, customerName: cust, targetType: "bill" },
                 timestamp: parseTimestamp(b.dueDate || b.billDate || b.createdAt),
                 read: false,
               });

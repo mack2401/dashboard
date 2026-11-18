@@ -66,6 +66,7 @@ export default function NotificationsPopover({
           highlightId: cleanTargetId,
           targetName: n.metadata?.targetName || n.title,
           search: n.metadata?.targetName || "",
+          customerName: (n.metadata as any)?.customerName || "",
         },
       });
     }

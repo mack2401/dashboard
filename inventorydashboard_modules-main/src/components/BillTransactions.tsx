@@ -167,62 +167,68 @@ const BillTransactions: React.FC = () => {
     locateCurrentItem,
   } = useItemHighlighter();
 
-  // Handle deep-linking navigation: reset conflicting filters and ensure page switches to targeted bill
+  // Handle deep-linking navigation: reset conflicting filters immediately when target is present
   useEffect(() => {
-    if (!highlightId && !targetSearch) return;
+    if (!highlightId && !targetSearch && !targetName) return;
 
-    if (transactions.length > 0) {
-      const targetBill = highlightId
-        ? transactions.find(
-            (b) => b.id === highlightId || b.billId === highlightId || b.invoiceNumber === highlightId
-          )
-        : targetSearch
-        ? transactions.find(
-            (b) =>
-              (b.invoiceNumber && b.invoiceNumber.toLowerCase().includes(targetSearch.toLowerCase())) ||
-              (b.customerName && b.customerName.toLowerCase().includes(targetSearch.toLowerCase())) ||
-              (b.customerMobile && b.customerMobile.includes(targetSearch))
-          )
-        : null;
-
-      if (targetBill) {
-        setBillTypeFilter("all");
-        setOrderStatusFilter("all");
-        setMonthFilter("all");
-        setStartDate("");
-        setEndDate("");
-        if (
-          searchTerm &&
-          (!targetBill.invoiceNumber || !targetBill.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) &&
-          (!targetBill.customerName || !targetBill.customerName.toLowerCase().includes(searchTerm.toLowerCase()))
-        ) {
-          setSearchTerm("");
-        }
-      }
+    setBillTypeFilter("all");
+    setOrderStatusFilter("all");
+    setMonthFilter("all");
+    setStartDate("");
+    setEndDate("");
+    if (searchTerm) {
+      setSearchTerm("");
     }
-  }, [highlightId, targetSearch, transactions]);
+  }, [highlightId, targetSearch, targetName]);
 
-  // Ensure targeted bill is on current page and scrolled to
+  // Ensure targeted bill is located in filteredTransactions, switched to correct page, and highlighted
   useEffect(() => {
-    if (highlightId && filteredTransactions.length > 0) {
-      const foundIdx = filteredTransactions.findIndex(
-        (b) => b.id === highlightId || b.billId === highlightId || b.invoiceNumber === highlightId
+    if ((!highlightId && !targetSearch && !targetName) || filteredTransactions.length === 0) return;
+
+    const h = (highlightId || "").trim().toLowerCase();
+    const s = (targetSearch || "").trim().toLowerCase();
+    const n = (targetName || "").trim().toLowerCase();
+
+    const foundIdx = filteredTransactions.findIndex((b) => {
+      const bId = (b.id || "").toLowerCase();
+      const bBillId = (b.billId || "").toLowerCase();
+      const bInv = (b.invoiceNumber || (b as any).billNumber || (b as any).quoteNo || "").toLowerCase();
+      const bCust = (b.customerName || b.billedTo?.name || (b as any).clientName || "").toLowerCase();
+      const bEnq = (b.enquiryEnqId || "").toLowerCase();
+
+      if (h) {
+        if (bId === h || bBillId === h || bInv === h || bEnq === h) return true;
+        if (bId.includes(h) || h.includes(bId)) return true;
+        if (bInv.includes(h) || h.includes(bInv)) return true;
+      }
+      if (s) {
+        if (bInv.includes(s) || s.includes(bInv)) return true;
+        if (bCust.includes(s) || s.includes(bCust)) return true;
+        if (bId === s || bBillId === s) return true;
+      }
+      if (n) {
+        if (bInv.includes(n) || n.includes(bInv)) return true;
+        if (bCust.includes(n) || n.includes(bCust)) return true;
+      }
+      return false;
+    });
+
+    if (foundIdx >= 0) {
+      const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
+      if (currentPage !== targetPage) {
+        setCurrentPage(targetPage);
+      }
+      const matchedBill = filteredTransactions[foundIdx];
+      scrollToAndHighlight(
+        `bill-row-${matchedBill.id}`,
+        matchedBill.id,
+        matchedBill.invoiceNumber,
+        matchedBill.billId,
+        matchedBill.customerName,
+        matchedBill.billedTo?.name
       );
-      if (foundIdx >= 0) {
-        const targetPage = Math.floor(foundIdx / itemsPerPage) + 1;
-        if (currentPage !== targetPage) {
-          setCurrentPage(targetPage);
-        }
-        const matchedBill = filteredTransactions[foundIdx];
-        scrollToAndHighlight(
-          `bill-row-${matchedBill.id}`,
-          matchedBill.id,
-          matchedBill.invoiceNumber,
-          matchedBill.billId
-        );
-      }
     }
-  }, [highlightId, filteredTransactions, itemsPerPage, currentPage, scrollToAndHighlight]);
+  }, [highlightId, targetSearch, targetName, filteredTransactions, itemsPerPage, currentPage, scrollToAndHighlight]);
 
   // Prevent background page from scrolling when view modal or delete confirmation is open
   useEffect(() => {
@@ -565,7 +571,7 @@ const BillTransactions: React.FC = () => {
           const billsRef = collection(db, "bills");
           const snap = await getDocs(billsRef);
           snap.forEach((doc) => {
-            fetchedBills.push({ id: doc.id, ...doc.data() } as Bill);
+            fetchedBills.push({ ...doc.data(), id: doc.id } as Bill);
           });
           console.log("Fallback fetched all bills:", fetchedBills.length);
         } catch (fallbackError) {
@@ -574,7 +580,7 @@ const BillTransactions: React.FC = () => {
         }
       }
 
-      // DEDUPLICATE: Keep only the latest bill per enquiryEnqId
+      // Deduplicate duplicate drafts/revisions: keep the latest revision of identical invoice number or document ID
       const billMap = new Map<string, Bill>();
       
       const sortedBills = [...fetchedBills].sort((a, b) => {
@@ -583,12 +589,13 @@ const BillTransactions: React.FC = () => {
         return dateB.getTime() - dateA.getTime();
       });
       
-      sortedBills.forEach(bill => {
-        const key = bill.enquiryEnqId || bill.enquiryId || bill.id || `bill-${Math.random()}`;
+      sortedBills.forEach((bill) => {
+        const invNum = (bill.invoiceNumber || (bill as any).billNumber || (bill as any).quoteNo || "").trim();
+        const key = invNum ? `inv_${invNum.toLowerCase()}` : (bill.id || `bill_${Math.random()}`);
         if (!billMap.has(key)) {
           billMap.set(key, bill);
         } else {
-          console.log(`Deduplicating: Removing older bill ${bill.id} for enquiry ${key}, keeping newer one`);
+          console.log(`Deduplicating duplicate bill revision: keeping newest of ${key}`);
         }
       });
       
@@ -884,8 +891,39 @@ const BillTransactions: React.FC = () => {
           transactionPaymentStatus = "pending";
         }
 
+        const customerName =
+          bill.customerName ||
+          bill.billedTo?.name ||
+          (bill as any).clientName ||
+          (bill as any).customer ||
+          enquiryData?.customerName ||
+          enquiryData?.name ||
+          enquiryData?.contactPerson ||
+          "";
+
+        const customerContact =
+          bill.customerContact ||
+          bill.billedTo?.contactNumber ||
+          (bill as any).phone ||
+          (bill as any).mobile ||
+          enquiryData?.contactNumber ||
+          "";
+
+        const invoiceNumber =
+          bill.invoiceNumber ||
+          (bill as any).billNumber ||
+          (bill as any).quoteNo ||
+          (bill as any).quotationNumber ||
+          (bill as any).proformaInvoiceNumber ||
+          bill.billId ||
+          "";
+
         return {
           ...bill,
+          id: bill.id,
+          customerName,
+          customerContact,
+          invoiceNumber,
           items: Array.isArray(billItems) ? billItems : [],
           status,
           paymentStatus: transactionPaymentStatus,
@@ -942,19 +980,30 @@ const BillTransactions: React.FC = () => {
   const filterTransactions = () => {
     let filtered = [...transactions];
 
+    const hasActiveSearch = searchTerm.trim().length > 0;
+
     // 1. Search Filter
-    if (searchTerm.trim()) {
-      const term = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (bill) =>
-          bill.customerName?.toLowerCase().includes(term) ||
-          bill.companyName?.toLowerCase().includes(term) ||
-          bill.gstin?.toLowerCase().includes(term) ||
-          bill.invoiceNumber?.toLowerCase().includes(term) ||
-          bill.customerContact?.includes(term) ||
-          bill.billId?.includes(term) ||
-          bill.enquiryEnqId?.toLowerCase().includes(term)
-      );
+    if (hasActiveSearch) {
+      const term = searchTerm.toLowerCase().trim();
+      filtered = filtered.filter((bill) => {
+        const custName = (bill.customerName || bill.billedTo?.name || (bill as any).clientName || (bill as any).customer || "").toLowerCase();
+        const compName = (bill.companyName || (bill as any).clientCompanyName || "").toLowerCase();
+        const gst = (bill.gstin || bill.billedTo?.gstin || "").toLowerCase();
+        const inv = (bill.invoiceNumber || (bill as any).billNumber || (bill as any).quoteNo || (bill as any).quotationNumber || bill.billId || "").toLowerCase();
+        const contact = (bill.customerContact || bill.billedTo?.contactNumber || (bill as any).phone || (bill as any).mobile || "").toLowerCase();
+        const bId = (bill.billId || bill.id || "").toLowerCase();
+        const enq = (bill.enquiryEnqId || "").toLowerCase();
+
+        return (
+          custName.includes(term) ||
+          compName.includes(term) ||
+          gst.includes(term) ||
+          inv.includes(term) ||
+          contact.includes(term) ||
+          bId.includes(term) ||
+          enq.includes(term)
+        );
+      });
     }
 
     // 2. Bill Type Filter (B2B vs B2C)
@@ -965,19 +1014,27 @@ const BillTransactions: React.FC = () => {
     }
 
     // 3. Order Status Filter (All, Approved/Paid, Quotation, Dropped)
+    // If a search term is actively typed and would yield 0 results in current tab, don't restrict by tab
     if (orderStatusFilter === "approved") {
-      filtered = filtered.filter((b) => b.status === "paid");
+      const statusFiltered = filtered.filter((b) => b.status === "paid");
+      filtered = hasActiveSearch && statusFiltered.length === 0 ? filtered : statusFiltered;
     } else if (orderStatusFilter === "quotation") {
-      filtered = filtered.filter((b) => b.status === "quotation");
+      const statusFiltered = filtered.filter((b) => b.status === "quotation");
+      filtered = hasActiveSearch && statusFiltered.length === 0 ? filtered : statusFiltered;
     } else if (orderStatusFilter === "dropped") {
-      filtered = filtered.filter((b) => b.status === "dropped");
+      const statusFiltered = filtered.filter((b) => b.status === "dropped");
+      filtered = hasActiveSearch && statusFiltered.length === 0 ? filtered : statusFiltered;
     }
 
     // 4. Unified Date Range Filter (matching PNL presets & monthly ledger)
-    filtered = filtered.filter((b) => {
-      const d = getBillDate(b);
-      return isDateInFilterRange(d, monthFilter, startDate, endDate);
-    });
+    // If a search term is actively typed and yields 0 results within date range, don't restrict by date
+    if (monthFilter !== "all" || startDate || endDate) {
+      const dateFiltered = filtered.filter((b) => {
+        const d = getBillDate(b);
+        return isDateInFilterRange(d, monthFilter, startDate, endDate);
+      });
+      filtered = hasActiveSearch && dateFiltered.length === 0 ? filtered : dateFiltered;
+    }
 
     setFilteredTransactions(filtered);
     setCurrentPage(1);
@@ -3321,7 +3378,14 @@ const BillTransactions: React.FC = () => {
             {currentItems.length > 0 ? (
               currentItems.map((bill, index) => {
                 const serialNumber = indexOfFirstItem + index + 1;
-                const isRowMatch = isHighlighted(bill.id, bill.billId, bill.invoiceNumber);
+                const isRowMatch = isHighlighted(
+                  bill.id,
+                  bill.billId,
+                  bill.invoiceNumber,
+                  bill.customerName,
+                  bill.billedTo?.name,
+                  bill.enquiryEnqId
+                );
                 return (
                   <tr
                     key={bill.id}
@@ -3329,7 +3393,9 @@ const BillTransactions: React.FC = () => {
                     data-id={bill.id}
                     data-bill-id={bill.billId}
                     data-invoice-number={bill.invoiceNumber}
-                    data-highlight-id={`${bill.id || ""} ${bill.billId || ""} ${bill.invoiceNumber || ""}`.trim()}
+                    data-customer-name={bill.customerName}
+                    data-enq-id={bill.enquiryEnqId}
+                    data-highlight-id={`${bill.id || ""} ${bill.billId || ""} ${bill.invoiceNumber || ""} ${bill.customerName || ""} ${bill.billedTo?.name || ""} ${bill.enquiryEnqId || ""}`.trim()}
                     data-highlight-match={isRowMatch ? "true" : undefined}
                     className={`cursor-pointer transition-all duration-300 ${
                       isRowMatch
