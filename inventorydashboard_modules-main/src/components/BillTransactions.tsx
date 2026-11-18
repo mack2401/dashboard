@@ -27,7 +27,17 @@ import * as XLSX from "xlsx-js-style";
 import Pagination from "./Pagination";
 import KPICard from "./KPICard";
 import { DateFilter, isDateInPresetRange } from "./common/DateFilter";
-import { isSoldBill, isDroppedBill, isQuotationBill } from "../utils/billUtils";
+import {
+  isSoldBill,
+  isDroppedBill,
+  isQuotationBill,
+  deduplicateBills,
+  buildEnquiriesMap,
+  resolveBillWithEnquiry,
+  getBillTotal,
+  getBillDate,
+  calculateBillPurchaseCost,
+} from "../utils/billUtils";
 import {
   FileText,
   Eye,
@@ -582,49 +592,18 @@ const BillTransactions: React.FC = () => {
       }
 
       // Deduplicate duplicate drafts/revisions: keep the latest revision of identical invoice number or document ID
-      const billMap = new Map<string, Bill>();
-      
-      const sortedBills = [...fetchedBills].sort((a, b) => {
-        const dateA = a.updatedAt?.toDate?.() || a.createdAt?.toDate?.() || new Date(0);
-        const dateB = b.updatedAt?.toDate?.() || b.createdAt?.toDate?.() || new Date(0);
-        return dateB.getTime() - dateA.getTime();
-      });
-      
-      sortedBills.forEach((bill) => {
-        const invNum = (bill.invoiceNumber || (bill as any).billNumber || (bill as any).quoteNo || "").trim();
-        const key = invNum ? `inv_${invNum.toLowerCase()}` : (bill.id || `bill_${Math.random()}`);
-        if (!billMap.has(key)) {
-          billMap.set(key, bill);
-        } else {
-          console.log(`Deduplicating duplicate bill revision: keeping newest of ${key}`);
-        }
-      });
-      
-      const deduplicatedBills = Array.from(billMap.values());
+      const deduplicatedBills = deduplicateBills(fetchedBills);
       console.log("After deduplication:", deduplicatedBills.length, "bills (from", fetchedBills.length, "total)");
 
       // Batch load enquiries map to avoid slow N+1 individual queries
-      const enquiriesMap = new Map<string, any>();
-      const allEnquiriesList: any[] = [];
+      let enquiriesMap = new Map<string, any>();
       try {
         const enquiriesSnap = await getDocs(collection(db, "enquiries"));
+        const allEnquiriesList: any[] = [];
         enquiriesSnap.forEach((docSnap) => {
-          const d: any = { id: docSnap.id, ...docSnap.data() };
-          allEnquiriesList.push(d);
-          if (d.enqId) {
-            const rawId = String(d.enqId).trim();
-            enquiriesMap.set(rawId, d);
-            enquiriesMap.set(rawId.toLowerCase(), d);
-            enquiriesMap.set(rawId.toUpperCase(), d);
-            const compactId = rawId.replace(/[\s-_]/g, "");
-            if (compactId) {
-              enquiriesMap.set(compactId.toLowerCase(), d);
-              enquiriesMap.set(compactId.toUpperCase(), d);
-            }
-          }
-          enquiriesMap.set(docSnap.id, d);
-          enquiriesMap.set(docSnap.id.toLowerCase(), d);
+          allEnquiriesList.push({ id: docSnap.id, ...docSnap.data() });
         });
+        enquiriesMap = buildEnquiriesMap(allEnquiriesList);
       } catch (err) {
         console.warn("Could not batch load enquiries in BillTransactions:", err);
       }
@@ -1078,11 +1057,7 @@ const BillTransactions: React.FC = () => {
       const sgst = Number(bill.sgst || 0);
       const igst = Number(bill.igst || 0);
       const shipping = Number(bill.shippingCharges || 0);
-      const billTotal = Number(
-        bill.totalAmount !== undefined && bill.totalAmount !== null
-          ? bill.totalAmount
-          : subtotal + cgst + sgst + igst + shipping
-      );
+      const billTotal = getBillTotal(bill);
 
       if (isDropped) {
         refundVal += billTotal;
@@ -1104,53 +1079,12 @@ const BillTransactions: React.FC = () => {
         totalGrandRevenue += billTotal;
 
         // Calculate Purchase Value for this sold bill record (identical to PNL.tsx)
-        let billPurchase = 0;
-        let billItemsQty = 0;
-
-        // Resolve items array safely (handle JSON strings if any)
-        let itemsList: any[] = bill.items;
-        if (typeof itemsList === "string") {
-          try {
-            itemsList = JSON.parse(itemsList);
-          } catch (e) {
-            itemsList = [];
-          }
-        }
-        if (!Array.isArray(itemsList) || itemsList.length === 0) {
-          const altItems = (bill as any).materials || (bill as any).products;
-          if (Array.isArray(altItems)) {
-            itemsList = altItems;
-          } else if (typeof altItems === "string") {
-            try {
-              itemsList = JSON.parse(altItems);
-            } catch (e) {
-              itemsList = [];
-            }
-          }
-        }
-
-        if (Array.isArray(itemsList) && itemsList.length > 0) {
-          for (const item of itemsList) {
-            const qty = Number(item.quantity) || 1;
-            billItemsQty += qty;
-            const matchedProd = findInventoryProduct(item);
-            const unitCost = getProductUnitCost(matchedProd, item);
-            billPurchase += unitCost * qty;
-          }
-        }
-
-        // If no item-level purchase cost was found, fall back to explicit bill-level cost if available
-        if (billPurchase === 0) {
-          const explicitBillCost = (bill as any).purchaseValue ?? (bill as any).totalCost;
-          if (
-            explicitBillCost !== undefined &&
-            explicitBillCost !== null &&
-            !isNaN(Number(explicitBillCost)) &&
-            Number(explicitBillCost) > 0
-          ) {
-            billPurchase = Number(explicitBillCost);
-          }
-        }
+        const { billPurchase, billItemsQty } = calculateBillPurchaseCost(
+          bill,
+          productsMap,
+          productsByName,
+          productsList
+        );
 
         purchaseVal += billPurchase;
         purchaseItemsCnt += billItemsQty;

@@ -32,7 +32,16 @@ import {
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
-import { isSoldBill, isDroppedBill } from "../utils/billUtils";
+import {
+  isSoldBill,
+  isDroppedBill,
+  isQuotationBill,
+  deduplicateBills,
+  buildEnquiriesMap,
+  resolveBillWithEnquiry,
+  getBillTotal,
+  getBillDate,
+} from "../utils/billUtils";
 
 // Clean professional slate & subtle accent palette
 const PIE_COLORS = [
@@ -158,6 +167,7 @@ const Dashboard: React.FC = () => {
   const { user } = useAuth();
 
   const [bills, setBills] = useState<any[]>([]);
+  const [enquiries, setEnquiries] = useState<any[]>([]);
   const [employees, setEmployees] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
 
@@ -193,7 +203,26 @@ const Dashboard: React.FC = () => {
     return () => unsubBills();
   }, []);
 
-  // 2. Subscribe to Firestore Employees
+  // 2. Subscribe to Firestore Enquiries (to resolve bill status & payment matching Billing & PNL)
+  useEffect(() => {
+    const unsubEnquiries = onSnapshot(
+      collection(db, "enquiries"),
+      (snap) => {
+        const fetched: any[] = [];
+        snap.forEach((doc) => {
+          fetched.push({ id: doc.id, ...doc.data() });
+        });
+        setEnquiries(fetched);
+      },
+      (err) => {
+        console.error("Error subscribing to enquiries in Dashboard:", err);
+      }
+    );
+
+    return () => unsubEnquiries();
+  }, []);
+
+  // 3. Subscribe to Firestore Employees
   useEffect(() => {
     const unsubEmployees = onSnapshot(
       collection(db, "employees"),
@@ -215,17 +244,27 @@ const Dashboard: React.FC = () => {
     return () => unsubEmployees();
   }, []);
 
+  const enquiriesMap = useMemo(() => {
+    return buildEnquiriesMap(enquiries);
+  }, [enquiries]);
+
+  // Deduplicate and resolve bills with linked enquiry context (100% parity with BillTransactions and PNL)
+  const resolvedBills = useMemo(() => {
+    const dedup = deduplicateBills(bills);
+    return dedup.map((b) => resolveBillWithEnquiry(b, enquiriesMap));
+  }, [bills, enquiriesMap]);
+
   // Filter bills based on selected timeframe (Yesterday, Today, Past Dates) - SOLD bills only
   const filteredBills = useMemo(() => {
-    const soldBills = bills.filter(isSoldBill);
+    const soldBills = resolvedBills.filter((b) => isSoldBill(b) && b.status === "paid");
 
     if (timeFilter === "today") {
-      return soldBills.filter((b) => isToday(parseDate(b.billDate || b.createdAt)));
+      return soldBills.filter((b) => isToday(getBillDate(b)));
     }
 
     if (timeFilter === "yesterday") {
       return soldBills.filter((b) =>
-        isYesterday(parseDate(b.billDate || b.createdAt))
+        isYesterday(getBillDate(b))
       );
     }
 
@@ -240,7 +279,7 @@ const Dashboard: React.FC = () => {
       if (pastMode === "specific" && specificPastDate) {
         const targetDate = new Date(specificPastDate);
         return soldBills.filter((b) =>
-          isSameDay(parseDate(b.billDate || b.createdAt), targetDate)
+          isSameDay(getBillDate(b), targetDate)
         );
       }
 
@@ -248,7 +287,7 @@ const Dashboard: React.FC = () => {
         const sevenDaysAgo = new Date(startOfToday);
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         return soldBills.filter((b) => {
-          const d = parseDate(b.billDate || b.createdAt);
+          const d = getBillDate(b);
           return d && d >= sevenDaysAgo && d < startOfToday;
         });
       }
@@ -257,20 +296,20 @@ const Dashboard: React.FC = () => {
         const thirtyDaysAgo = new Date(startOfToday);
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
         return soldBills.filter((b) => {
-          const d = parseDate(b.billDate || b.createdAt);
+          const d = getBillDate(b);
           return d && d >= thirtyDaysAgo && d < startOfToday;
         });
       }
 
       // allPast: all records created before today
       return soldBills.filter((b) => {
-        const d = parseDate(b.billDate || b.createdAt);
+        const d = getBillDate(b);
         return d && d < startOfToday;
       });
     }
 
     return soldBills;
-  }, [bills, timeFilter, pastMode, specificPastDate]);
+  }, [resolvedBills, timeFilter, pastMode, specificPastDate]);
 
   // Dynamic labels based on active filter
 
@@ -289,7 +328,7 @@ const Dashboard: React.FC = () => {
   // Selected period total sales
   const periodSales = useMemo(() => {
     return filteredBills.reduce(
-      (sum, b) => sum + (Number(b.totalAmount) || 0),
+      (sum, b) => sum + getBillTotal(b),
       0
     );
   }, [filteredBills]);
@@ -362,22 +401,23 @@ const Dashboard: React.FC = () => {
 
   // All-time Total Sales (Sold bills only, excludes quotations and dropped)
   const allTimeTotalSales = useMemo(() => {
-    return bills
-      .filter(isSoldBill)
-      .reduce((sum, b) => sum + (Number(b.totalAmount) || 0), 0);
-  }, [bills]);
+    return resolvedBills
+      .filter((b) => isSoldBill(b) && b.status === "paid")
+      .reduce((sum, b) => sum + getBillTotal(b), 0);
+  }, [resolvedBills]);
 
   // Today's Bills Calculation (Active bills only, excludes dropped)
   const todayBills = useMemo(() => {
-    return bills.filter(
+    return resolvedBills.filter(
       (b) =>
         !isDroppedBill(b) &&
-        isToday(parseDate(b.billDate || b.createdAt))
+        b.status !== "dropped" &&
+        isToday(getBillDate(b))
     );
-  }, [bills]);
+  }, [resolvedBills]);
 
   const todayPaidBillsCount = useMemo(() => {
-    return todayBills.filter(isSoldBill).length;
+    return todayBills.filter((b) => isSoldBill(b) && b.status === "paid").length;
   }, [todayBills]);
 
   const todayPendingBillsCount = useMemo(() => {
@@ -388,7 +428,7 @@ const Dashboard: React.FC = () => {
   const staffLeaderboard = useMemo(() => {
     const staffMap: Record<string, StaffPerformance> = {};
 
-    bills.filter(isSoldBill).forEach((bill) => {
+    resolvedBills.filter((b) => isSoldBill(b) && b.status === "paid").forEach((bill) => {
       let staffName = "Unassigned Staff";
       if (bill.assignedToName && String(bill.assignedToName).trim() !== "") {
         staffName = String(bill.assignedToName).trim();
@@ -409,7 +449,7 @@ const Dashboard: React.FC = () => {
         };
       }
 
-      const amount = Number(bill.totalAmount) || 0;
+      const amount = getBillTotal(bill);
       staffMap[staffName].totalSales += amount;
       staffMap[staffName].billsCount += 1;
 
@@ -419,7 +459,7 @@ const Dashboard: React.FC = () => {
     });
 
     return Object.values(staffMap).sort((a, b) => b.totalSales - a.totalSales);
-  }, [bills, employees]);
+  }, [resolvedBills, employees]);
 
   // Table Pagination States
   const [componentPage, setComponentPage] = useState<number>(1);

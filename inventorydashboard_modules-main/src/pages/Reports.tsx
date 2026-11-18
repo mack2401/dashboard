@@ -48,7 +48,16 @@ import { db } from "../firebase";
 import { useAuth } from "../App";
 import ComparisonAnalytics from "../components/reports/ComparisonAnalytics";
 import * as XLSX from "xlsx-js-style";
-import { isSoldBill } from "../utils/billUtils";
+import {
+  isSoldBill,
+  isDroppedBill,
+  isQuotationBill,
+  deduplicateBills,
+  buildEnquiriesMap,
+  resolveBillWithEnquiry,
+  getBillTotal,
+  getBillDate,
+} from "../utils/billUtils";
 
 // --- Types ---
 export interface PurchasedProductSummary {
@@ -183,6 +192,18 @@ const Reports: React.FC = () => {
       unsubBills();
     };
   }, []);
+
+  const enquiriesMap = useMemo(() => {
+    return buildEnquiriesMap(enquiries);
+  }, [enquiries]);
+
+  const deduplicatedBills = useMemo(() => {
+    return deduplicateBills(bills);
+  }, [bills]);
+
+  const resolvedBills = useMemo(() => {
+    return deduplicatedBills.map((b) => resolveBillWithEnquiry(b, enquiriesMap));
+  }, [deduplicatedBills, enquiriesMap]);
 
   // Filter raw data by date
   const filterDateRange = (date: Date | null): boolean => {
@@ -716,16 +737,16 @@ const Reports: React.FC = () => {
     });
 
     // Filter sold bills in date window (strictly excludes quotations and dropped)
-    const periodBills = bills.filter((b) => {
-      if (!isSoldBill(b)) return false;
-      const d = parseDocDate(b.billDate || b.createdAt);
+    const periodBills = resolvedBills.filter((b) => {
+      if (!isSoldBill(b) || b.status !== "paid") return false;
+      const d = getBillDate(b);
       return d >= startDate && d <= now;
     });
 
     // Calculate metrics
     let totalRevenue = 0;
     periodBills.forEach((b) => {
-      totalRevenue += b.totalAmount || 0;
+      totalRevenue += getBillTotal(b);
     });
 
     // Status breakdown
@@ -1055,7 +1076,7 @@ const Reports: React.FC = () => {
       </div>
 
       {/* MOM and YOY Values & Volume Comparison Analytics (Collapsible) */}
-      <ComparisonAnalytics bills={bills} enquiries={enquiries} user={user} />
+      <ComparisonAnalytics bills={resolvedBills} enquiries={enquiries} user={user} />
 
       {/* Filter and Search Bar */}
       <div className="bg-white rounded-2xl shadow-xs border border-gray-200/90 p-4 space-y-3">

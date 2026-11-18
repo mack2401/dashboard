@@ -8,7 +8,19 @@ import { db } from "../firebase";
 import { useAuth } from "../App";
 import * as XLSX from "xlsx-js-style";
 import { DateFilter, isDateInPresetRange } from "../components/common/DateFilter";
-import { isSoldBill, isDroppedBill } from "../utils/billUtils";
+import {
+  isSoldBill,
+  isDroppedBill,
+  isQuotationBill,
+  deduplicateBills,
+  buildEnquiriesMap,
+  resolveBillWithEnquiry,
+  getBillTotal,
+  getBillDate,
+  findInventoryProduct,
+  getProductUnitCost,
+  calculateBillPurchaseCost,
+} from "../utils/billUtils";
 import {
   TrendingUp,
   TrendingDown,
@@ -311,38 +323,12 @@ export default function PNL() {
   }, [products]);
 
   const enquiriesMap = useMemo(() => {
-    const map = new Map<string, EnquiryRecord>();
-    enquiries.forEach((enq) => {
-      if (enq.enqId) map.set(enq.enqId, enq);
-      if (enq.id) map.set(enq.id, enq);
-    });
-    return map;
+    return buildEnquiriesMap(enquiries);
   }, [enquiries]);
 
   // Product Matching Engine
   const findProduct = (item: any): InventoryProduct | null => {
-    if (!item) return null;
-    if (item.productId && productsMap.has(item.productId)) {
-      return productsMap.get(item.productId)!;
-    }
-    const rawName = String(item.productName || item.name || "").trim().toLowerCase();
-    if (!rawName) return null;
-    if (productsByName.has(rawName)) return productsByName.get(rawName)!;
-
-    const alphaNum = rawName.replace(/[^a-z0-9]/g, "");
-    if (alphaNum && productsByName.has(alphaNum)) return productsByName.get(alphaNum)!;
-
-    const rawSku = String(item.sku || "").trim().toLowerCase();
-    if (rawSku && productsByName.has(rawSku)) return productsByName.get(rawSku)!;
-
-    for (const p of products) {
-      if (!p.name) continue;
-      const pLower = p.name.trim().toLowerCase();
-      if (pLower.length >= 4 && (rawName.includes(pLower) || pLower.includes(rawName))) {
-        return p;
-      }
-    }
-    return null;
+    return findInventoryProduct(item, productsMap, productsByName, products);
   };
 
   // Helper: Identify if an item or product represents Course / Training (Academic)
@@ -492,60 +478,26 @@ export default function PNL() {
     return isDateInPresetRange(dateVal, datePreset, customStartDate, customEndDate);
   };
 
-  // 1.5 Deduplicated Bills (Keep only newest revision per enquiry, matching BillTransactions)
+  // 1.5 Deduplicated Bills (Keep only newest revision per invoice, matching BillTransactions)
   const deduplicatedBills = useMemo(() => {
-    const billMap = new Map<string, BillRecord>();
-    const sorted = [...bills].sort((a, b) => {
-      const getD = (x: any) => {
-        const val = x.updatedAt || x.createdAt || x.billDate;
-        if (val?.toDate && typeof val.toDate === "function") return val.toDate().getTime();
-        if (val instanceof Date) return val.getTime();
-        if (typeof val === "string" || typeof val === "number") {
-          const t = new Date(val).getTime();
-          if (!isNaN(t)) return t;
-        }
-        return 0;
-      };
-      return getD(b) - getD(a);
-    });
-
-    sorted.forEach((bill) => {
-      const key = bill.enquiryEnqId || bill.enquiryId || bill.id;
-      if (key && !billMap.has(key)) {
-        billMap.set(key, bill);
-      } else if (!key) {
-        billMap.set(bill.id || `bill-${Math.random()}`, bill);
-      }
-    });
-
-    return Array.from(billMap.values());
+    return deduplicateBills(bills);
   }, [bills]);
 
   // 2. Filtered Bills (Date Filtered & Sold Status Checked - strictly excludes quotations and dropped)
   const activeBills = useMemo(() => {
-    return deduplicatedBills.filter((b) => {
-      // Check linked enquiry status from enquiries collection
-      const enqKey = b.enquiryEnqId || b.enquiryId;
-      const enq = enqKey ? enquiriesMap.get(enqKey) : null;
-      const linkedEnquiryStatus = enq?.status || (enq as any)?.productStatus || (b as any).enquiryStatus || "";
-      const linkedPaymentStatus = enq?.paymentStatus || (b as any).paymentStatus || "";
+    return deduplicatedBills
+      .map((b) => resolveBillWithEnquiry(b, enquiriesMap))
+      .filter((b) => {
+        // Exclude dropped or fully refunded bills
+        if (isDroppedBill(b) || b.status === "dropped") return false;
 
-      const billWithContext = {
-        ...b,
-        enquiryStatus: linkedEnquiryStatus,
-        paymentStatus: linkedPaymentStatus,
-      };
+        // Exclude quotations - only include confirmed sold/paid bills
+        if (!isSoldBill(b) || b.status !== "paid") return false;
 
-      // Exclude dropped or fully refunded bills
-      if (isDroppedBill(billWithContext)) return false;
-
-      // Exclude quotations - only include confirmed sold/paid bills
-      if (!isSoldBill(billWithContext)) return false;
-
-      // Filter by Date (prioritize billDate over createdAt)
-      const billDate = b.billDate || b.createdAt || b.updatedAt;
-      return isDateInSelectedRange(billDate);
-    });
+        // Filter by Date
+        const billDate = getBillDate(b);
+        return isDateInSelectedRange(billDate);
+      });
   }, [deduplicatedBills, enquiriesMap, datePreset, customStartDate, customEndDate]);
 
   // Helper to extract unit purchase cost
@@ -856,32 +808,41 @@ export default function PNL() {
   const summaryMetrics = useMemo(() => {
     let ecommerceCount = 0;
     let academicCount = 0;
+    let directTotalSales = 0;
+    let directTotalPurchaseCost = 0;
+    let directEcommerceSales = 0;
+    let directAcademicSales = 0;
+
     activeBills.forEach((bill) => {
+      const bTotal = getBillTotal(bill);
+      directTotalSales += bTotal;
+
       if (resolveBillChannel(bill) === "ecommerce") {
         ecommerceCount++;
+        directEcommerceSales += bTotal;
       } else {
         academicCount++;
+        directAcademicSales += bTotal;
       }
+
+      const { billPurchase } = calculateBillPurchaseCost(bill, productsMap, productsByName, products);
+      directTotalPurchaseCost += billPurchase;
     });
 
-    const totalSales = productData.reduce((s, p) => s + p.salesValue, 0);
-    const ecommerceSales = productData.reduce((s, p) => s + p.ecommerceSales, 0);
-    const academicSales = productData.reduce((s, p) => s + p.academicSales, 0);
-    const totalPurchaseCost = productData.reduce((s, p) => s + p.purchaseCost, 0);
+    const grossMargin = directTotalSales - directTotalPurchaseCost;
+    const netMargin = directTotalSales - directTotalPurchaseCost;
+    const marginPct = directTotalSales > 0 ? (netMargin / directTotalSales) * 100 : 0;
     const totalWastageCost = productData.reduce((s, p) => s + p.wastageValue, 0);
     const totalWastageUnits = productData.reduce((s, p) => s + p.wastageQty, 0);
     const totalBilledUnits = productData.reduce((s, p) => s + p.unitsSold, 0);
-    const grossMargin = totalSales - totalPurchaseCost;
-    const netMargin = totalSales - totalPurchaseCost;
-    const marginPct = totalSales > 0 ? (netMargin / totalSales) * 100 : 0;
 
     return {
-      totalSales,
-      ecommerceSales,
-      academicSales,
+      totalSales: directTotalSales,
+      ecommerceSales: directEcommerceSales,
+      academicSales: directAcademicSales,
       ecommerceCount,
       academicCount,
-      totalPurchaseCost,
+      totalPurchaseCost: directTotalPurchaseCost,
       totalWastageCost,
       totalWastageUnits,
       grossMargin,
@@ -890,7 +851,7 @@ export default function PNL() {
       totalBilledUnits,
       activeBillsCount: activeBills.length,
     };
-  }, [productData, activeBills]);
+  }, [activeBills, productData, productsMap, productsByName, products]);
 
   // 7. Filtered & Sorted Category Data
   const sortedCategoryData = useMemo(() => {

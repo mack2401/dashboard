@@ -37,7 +37,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import * as XLSX from "xlsx-js-style";
-import { isSoldBill, isDroppedBill } from "../../utils/billUtils";
+import { isSoldBill, isDroppedBill, getBillTotal, getBillDate } from "../../utils/billUtils";
 
 interface ComparisonAnalyticsProps {
   bills: any[];
@@ -179,19 +179,10 @@ export default function ComparisonAnalytics({
       if (b.enquiryId) processedEnqIds.add(b.enquiryId);
       if (b.enquiryEnqId) processedEnqIds.add(b.enquiryEnqId);
 
-      const d = parseDateSafely(b.billDate || b.createdAt || b.updatedAt);
-      if (!d) return;
+      const d = getBillDate(b);
+      if (!d || isNaN(d.getTime()) || d.getTime() === 0) return;
 
-      const subtotal = Number(b.subtotal || b.taxableValue || 0);
-      const cgst = Number(b.cgst || 0);
-      const sgst = Number(b.sgst || 0);
-      const igst = Number(b.igst || 0);
-      const shipping = Number(b.shippingCharges || 0);
-      const sellingPrice = Number(
-        b.totalAmount !== undefined && b.totalAmount !== null
-          ? b.totalAmount
-          : subtotal + cgst + sgst + igst + shipping
-      );
+      const sellingPrice = getBillTotal(b);
 
       // Extract item quantities
       let itemsList: any[] = b.items;
