@@ -148,6 +148,13 @@ const BillTransactions: React.FC = () => {
   const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
   const savedSearchTermRef = useRef<string>("");
 
+  // Dynamic filter state variables
+  const [billTypeFilter, setBillTypeFilter] = useState<"all" | "b2b" | "b2c">("all");
+  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "approved" | "quotation" | "dropped">("all");
+  const [monthFilter, setMonthFilter] = useState<string>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
+
   // Global search & notification deep-linking highlighter
   const {
     highlightId,
@@ -181,8 +188,9 @@ const BillTransactions: React.FC = () => {
       if (targetBill) {
         setBillTypeFilter("all");
         setOrderStatusFilter("all");
-        setPaymentStatusFilter("all");
         setMonthFilter("all");
+        setStartDate("");
+        setEndDate("");
         if (
           searchTerm &&
           (!targetBill.invoiceNumber || !targetBill.invoiceNumber.toLowerCase().includes(searchTerm.toLowerCase())) &&
@@ -226,13 +234,6 @@ const BillTransactions: React.FC = () => {
       };
     }
   }, [selectedBill, showDeleteConfirm]);
-
-  // Dynamic filter state variables
-  const [billTypeFilter, setBillTypeFilter] = useState<"all" | "b2b" | "b2c">("all");
-  const [orderStatusFilter, setOrderStatusFilter] = useState<"all" | "approved" | "quotation" | "dropped">("all");
-  const [monthFilter, setMonthFilter] = useState<string>("all");
-  const [startDate, setStartDate] = useState<string>("");
-  const [endDate, setEndDate] = useState<string>("");
 
   const [statistics, setStatistics] = useState({
     purchaseValue: 0,
@@ -4027,7 +4028,7 @@ const BillTransactions: React.FC = () => {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500 font-medium">Total Amount:</span>
-                  <span className="font-bold text-gray-900">₹{(billToDelete.totalAmount || 0).toFixed(2)}</span>
+                  <span className="font-bold text-gray-900">₹{Number(billToDelete.totalAmount || 0).toFixed(2)}</span>
                 </div>
               </div>
 
