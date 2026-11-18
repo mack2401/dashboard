@@ -3,7 +3,6 @@ import React, { useState } from "react";
 import {
   LayoutDashboard,
   Calculator,
-  ShieldCheck,
   Users,
   UsersRound,
   LogOut,
@@ -45,7 +44,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
     { name: "Inventory", path: "/inventory", icon: <Package size={20} /> },
     { name: "Training", path: "/training", icon: <GraduationCap size={20} /> },
     { name: "Reports", path: "/reports", icon: <BarChart3 size={20} /> },
-    { name: "Master Data", path: "/master-data", icon: <ShieldCheck size={20} /> },
   ];
   
   const managementItems = [
