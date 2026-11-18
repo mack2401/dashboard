@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import { type ColumnDef } from "@tanstack/react-table";
 import DataTable from "../components/Table/DataTable";
 import Pagination from "../components/Pagination";
+import KPICard from "../components/KPICard";
 import type { Enquiry } from "../types/enquiry";
 import AddEditModal from "../components/modals/AddEditModal";
 import {
@@ -1092,77 +1093,47 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
 
                                   {/* Top Summary Statistics KPI Cards */}
                                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-                                    {/* 1. Total Enquiries */}
-                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Total Enquiries</span>
-                                        <div className="w-8 h-8 rounded-xl bg-sky-50 text-[#7889F5] flex items-center justify-center">
-                                          <MessageSquare className="w-4 h-4" />
-                                        </div>
-                                      </div>
-                                      <div className="mt-2.5">
-                                        <p className="text-xl font-bold text-gray-900 tracking-tight truncate">
-                                          {statistics.totalCount}
-                                        </p>
-                                        <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                                          {statistics.activeCount} Active &bull; {statistics.conversionRate.toFixed(1)}% Conversion
-                                        </p>
-                                      </div>
-                                    </div>
+                                    <KPICard
+                                      title="Total Enquiries"
+                                      value={statistics.totalCount}
+                                      icon={<MessageSquare className="w-4 h-4" />}
+                                      iconBg="bg-sky-50"
+                                      iconColor="text-[#7889F5]"
+                                      subtitle={`${statistics.activeCount} Active • ${statistics.conversionRate.toFixed(1)}% Conversion`}
+                                    />
 
-                                    {/* 2. Pipeline Value */}
-                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Pipeline Value</span>
-                                        <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                                          <IndianRupee className="w-4 h-4" />
-                                        </div>
-                                      </div>
-                                      <div className="mt-2.5">
-                                        <p className="text-xl font-bold text-emerald-700 tracking-tight truncate">
-                                          ₹{statistics.totalPipelineVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                        </p>
-                                        <p className="text-[11px] text-emerald-600 mt-0.5 truncate">
-                                          ₹{statistics.approvedVal.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Approved Value
-                                        </p>
-                                      </div>
-                                    </div>
+                                    <KPICard
+                                      title="Pipeline Value"
+                                      value={`₹${statistics.totalPipelineVal.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                      icon={<IndianRupee className="w-4 h-4" />}
+                                      iconBg="bg-emerald-50"
+                                      iconColor="text-emerald-600"
+                                      valueColor="text-emerald-700"
+                                      titleColor="text-emerald-700"
+                                      subtitle={`₹${statistics.approvedVal.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Approved Value`}
+                                    />
 
-                                    {/* 3. Approved Orders */}
-                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-indigo-700 uppercase tracking-wider">Approved Orders</span>
-                                        <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                                          <CheckCircle2 className="w-4 h-4" />
-                                        </div>
-                                      </div>
-                                      <div className="mt-2.5">
-                                        <p className="text-xl font-bold text-indigo-700 tracking-tight truncate">
-                                          {statistics.approvedCnt}
-                                        </p>
-                                        <p className="text-[11px] text-indigo-600 mt-0.5 truncate">
-                                          {statistics.dispatchedCnt + statistics.deliveredCnt} Dispatched / Delivered
-                                        </p>
-                                      </div>
-                                    </div>
+                                    <KPICard
+                                      title="Approved Orders"
+                                      value={statistics.approvedCnt}
+                                      icon={<CheckCircle2 className="w-4 h-4" />}
+                                      iconBg="bg-indigo-50"
+                                      iconColor="text-indigo-600"
+                                      valueColor="text-indigo-700"
+                                      titleColor="text-indigo-700"
+                                      subtitle={`${statistics.dispatchedCnt + statistics.deliveredCnt} Dispatched / Delivered`}
+                                    />
 
-                                    {/* 4. In Progress & Testing */}
-                                    <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-                                      <div className="flex items-center justify-between">
-                                        <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">In Progress & Testing</span>
-                                        <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                                          <Clock className="w-4 h-4" />
-                                        </div>
-                                      </div>
-                                      <div className="mt-2.5">
-                                        <p className="text-xl font-bold text-amber-700 tracking-tight truncate">
-                                          {statistics.inProgressCnt + statistics.testingCnt}
-                                        </p>
-                                        <p className="text-[11px] text-amber-600 mt-0.5 truncate">
-                                          {statistics.testingCnt} Testing &bull; {statistics.droppedCnt} Dropped
-                                        </p>
-                                      </div>
-                                    </div>
+                                    <KPICard
+                                      title="In Progress & Testing"
+                                      value={statistics.inProgressCnt + statistics.testingCnt}
+                                      icon={<Clock className="w-4 h-4" />}
+                                      iconBg="bg-amber-50"
+                                      iconColor="text-amber-600"
+                                      valueColor="text-amber-700"
+                                      titleColor="text-amber-700"
+                                      subtitle={`${statistics.testingCnt} Testing • ${statistics.droppedCnt} Dropped`}
+                                    />
                                   </div>
 
                                   {/* Channel / Category Selector (All Channels / E-commerce / Academic) */}

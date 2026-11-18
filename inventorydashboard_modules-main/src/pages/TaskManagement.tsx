@@ -1,6 +1,7 @@
 // TaskManagement.tsx - Updated with subtask-level statistics
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import Pagination from '../components/Pagination';
+import EmptyState from '../components/EmptyState';
 import { 
   Search, 
   Calendar, 
@@ -2352,24 +2353,25 @@ const TaskManagement: React.FC = () => {
             />
           </>
           ) : (
-            <div className="text-center py-12 md:py-16 px-4">
-              <div className="w-16 h-16 md:w-24 md:h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">
-                <Calendar className="w-8 h-8 md:w-12 md:h-12 text-gray-400" />
-              </div>
-              <h3 className="text-lg md:text-xl font-semibold text-gray-900 mb-2">No tasks found</h3>
-              <p className="text-sm md:text-base text-gray-600 mb-4 md:mb-6">
-                {searchTerm || filterStatus !== 'all' || filterPriority !== 'all' 
+            <EmptyState
+              icon={<Calendar className="w-7 h-7 text-[#7889F5]" />}
+              title="No tasks found"
+              description={
+                searchTerm || filterStatus !== 'all' || filterPriority !== 'all' 
                   ? 'Try changing your search or filter criteria' 
                   : canAssignTask() 
                     ? 'Start by creating a new task' 
-                    : 'No tasks have been assigned to you yet'}
-              </p>
-              {canAssignTask() && !searchTerm && filterStatus === 'all' && filterPriority === 'all' && (
-                <button onClick={() => setIsAddModalOpen(true)} className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all text-sm md:text-base">
-                  {user.role === 'staff' ? 'Create Your First Task' : 'Assign The First Task'}
-                </button>
-              )}
-            </div>
+                    : 'No tasks have been assigned to you yet'
+              }
+              action={
+                canAssignTask() && !searchTerm && filterStatus === 'all' && filterPriority === 'all'
+                  ? {
+                      label: user.role === 'staff' ? 'Create Your First Task' : 'Assign The First Task',
+                      onClick: () => setIsAddModalOpen(true),
+                    }
+                  : undefined
+              }
+            />
           )}
         </div>
       </div>

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import Pagination from "../components/Pagination";
+import KPICard from "../components/KPICard";
 import {
   Users,
   IndianRupee,
@@ -1028,53 +1029,46 @@ const Reports: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-xl text-[#7889F5]">
-            <Users className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Clients</p>
-            <h3 className="text-2xl font-bold text-gray-800 mt-1">{totalMetrics.totalClients}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">{totalMetrics.totalPurchasingClients} with completed purchases</p>
-          </div>
-        </div>
+        <KPICard
+          layout="horizontal"
+          title="Total Clients"
+          value={totalMetrics.totalClients}
+          icon={<Users className="w-6 h-6" />}
+          iconBg="bg-blue-50"
+          iconColor="text-[#7889F5]"
+          subtitle={`${totalMetrics.totalPurchasingClients} with completed purchases`}
+        />
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
-          <div className="p-3 bg-emerald-50 rounded-xl text-emerald-600">
-            <IndianRupee className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Client Revenue</p>
-            <h3 className="text-2xl font-bold text-emerald-600 mt-1">
-              ₹{totalMetrics.totalRevenue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">Across all client purchases</p>
-          </div>
-        </div>
+        <KPICard
+          layout="horizontal"
+          title="Total Client Revenue"
+          value={`₹${totalMetrics.totalRevenue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          icon={<IndianRupee className="w-6 h-6" />}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
+          valueColor="text-emerald-600"
+          subtitle="Across all client purchases"
+        />
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
-          <div className="p-3 bg-blue-50 rounded-xl text-blue-600">
-            <ShoppingCart className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Purchases</p>
-            <h3 className="text-2xl font-bold text-gray-800 mt-1">{totalMetrics.totalOrders}</h3>
-            <p className="text-xs text-gray-400 mt-0.5">Completed client orders</p>
-          </div>
-        </div>
+        <KPICard
+          layout="horizontal"
+          title="Total Purchases"
+          value={totalMetrics.totalOrders}
+          icon={<ShoppingCart className="w-6 h-6" />}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-600"
+          subtitle="Completed client orders"
+        />
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5 flex items-center gap-4">
-          <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
-            <TrendingUp className="w-6 h-6" />
-          </div>
-          <div>
-            <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Order Value</p>
-            <h3 className="text-2xl font-bold text-gray-800 mt-1">
-              ₹{totalMetrics.avgOrderValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}
-            </h3>
-            <p className="text-xs text-gray-400 mt-0.5">Per client transaction</p>
-          </div>
-        </div>
+        <KPICard
+          layout="horizontal"
+          title="Avg Order Value"
+          value={`₹${totalMetrics.avgOrderValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`}
+          icon={<TrendingUp className="w-6 h-6" />}
+          iconBg="bg-amber-50"
+          iconColor="text-amber-600"
+          subtitle="Per client transaction"
+        />
       </div>
 
       {/* MOM and YOY Values & Volume Comparison Analytics (Collapsible) */}

@@ -23,6 +23,7 @@ import { billService } from "../services/billService";
 import type { Bill } from "../services/billService";
 import * as XLSX from "xlsx-js-style";
 import Pagination from "./Pagination";
+import KPICard from "./KPICard";
 import {
   FileText,
   Eye,
@@ -3018,80 +3019,54 @@ const BillTransactions: React.FC = () => {
 
         {/* Top Summary Statistics Cards (Purchase Values, Sale Values, Net Margin, Refund / Dropped Values) */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
-          {/* 1. Purchase Values */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Purchase Values</span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className="text-xl font-bold text-gray-900 tracking-tight truncate">
-                ₹{statistics.purchaseValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-[11px] text-gray-400 mt-0.5 truncate">
-                {statistics.purchaseItemsCount > 0 ? `${statistics.purchaseItemsCount} items billed` : "Cost of goods"} &bull; Billed Purchase
-              </p>
-            </div>
-          </div>
+          <KPICard
+            title="Purchase Values"
+            value={`₹${statistics.purchaseValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={<ShoppingBag className="w-4 h-4" />}
+            iconBg="bg-indigo-50"
+            iconColor="text-indigo-600"
+            subtitle={`${statistics.purchaseItemsCount > 0 ? `${statistics.purchaseItemsCount} items billed` : "Cost of goods"} • Billed Purchase`}
+          />
 
-          {/* 2. Sale Values */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">Sale Values</span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
-                <TrendingUp className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className="text-xl font-bold text-blue-700 tracking-tight truncate">
-                ₹{statistics.sellValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-[11px] text-blue-600 mt-0.5 truncate">
-                {statistics.activeBillsCount} Active {statistics.activeBillsCount === 1 ? "Bill" : "Bills"} &bull; ₹{statistics.paidSellValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Paid
-              </p>
-            </div>
-          </div>
+          <KPICard
+            title="Sale Values"
+            value={`₹${statistics.sellValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={<TrendingUp className="w-4 h-4" />}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-600"
+            valueColor="text-blue-700"
+            titleColor="text-blue-700"
+            subtitle={`${statistics.activeBillsCount} Active ${statistics.activeBillsCount === 1 ? "Bill" : "Bills"} • ₹${statistics.paidSellValue.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Paid`}
+          />
 
-          {/* 3. Net Margin */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-emerald-700 uppercase tracking-wider">Net Margin</span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
-                <IndianRupee className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className={`text-xl font-bold tracking-tight truncate ${statistics.netMargin >= 0 ? "text-emerald-700" : "text-rose-600"}`}>
-                ₹{statistics.netMargin.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-[11px] mt-0.5 truncate">
+          <KPICard
+            title="Net Margin"
+            value={`₹${statistics.netMargin.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={<IndianRupee className="w-4 h-4" />}
+            iconBg="bg-emerald-50"
+            iconColor="text-emerald-600"
+            valueColor={statistics.netMargin >= 0 ? "text-emerald-700" : "text-rose-600"}
+            titleColor="text-emerald-700"
+            subtitle={
+              <span>
                 <span className={statistics.marginPercentage >= 0 ? "text-emerald-700 font-semibold" : "text-rose-600 font-semibold"}>
                   {statistics.marginPercentage >= 0 ? "+" : ""}{statistics.marginPercentage.toFixed(1)}% margin
                 </span>{" "}
-                &bull; Sale - Purchase
-              </p>
-            </div>
-          </div>
+                • Sale - Purchase
+              </span>
+            }
+          />
 
-          {/* 4. Refund / Dropped Values */}
-          <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider">Refund / Dropped Values</span>
-              <div className="w-8 h-8 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-                <RotateCcw className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-2.5">
-              <p className="text-xl font-bold text-amber-700 tracking-tight truncate">
-                ₹{statistics.refundValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </p>
-              <p className="text-[11px] text-amber-600 mt-0.5 truncate">
-                {statistics.refundCount} Dropped / Cancelled {statistics.refundCount === 1 ? "Bill" : "Bills"}
-              </p>
-            </div>
-          </div>
+          <KPICard
+            title="Refund / Dropped Values"
+            value={`₹${statistics.refundValue.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+            icon={<RotateCcw className="w-4 h-4" />}
+            iconBg="bg-amber-50"
+            iconColor="text-amber-600"
+            valueColor="text-amber-700"
+            titleColor="text-amber-700"
+            subtitle={`${statistics.refundCount} Dropped / Cancelled ${statistics.refundCount === 1 ? "Bill" : "Bills"}`}
+          />
         </div>
 
         {/* Quick Filter Pill Tabs with Counts */}

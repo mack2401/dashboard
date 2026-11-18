@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Pagination from '../components/Pagination';
+import KPICard from '../components/KPICard';
 import { 
   Search, 
   Filter, 
@@ -3707,171 +3708,90 @@ const InventoryManagement: React.FC = () => {
 
         {/* Statistics */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 mb-6">
-          {/* Total SKUs (Item-wise Count) */}
-          <div 
+          {/* Total SKUs */}
+          <KPICard
+            title="Total SKUs"
+            value={stats.totalProducts.toLocaleString('en-IN')}
+            icon={<Box className="w-4 h-4" />}
+            iconBg="bg-indigo-50"
+            iconColor="text-indigo-600"
+            isActive={filterStock === 'all' && activeTab === 'all'}
+            activeRingColor="border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/20"
             onClick={() => {
               setActiveTab('all');
               setFilterStock('all');
             }}
-            className={`bg-white p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
-              filterStock === 'all' && activeTab === 'all'
-                ? 'border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/20' 
-                : 'border-gray-200/80 hover:border-indigo-300'
-            }`}
-            title="Total unique items in catalog (Stock Keeping Units - Item-wise count)"
-          >
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 tracking-wider truncate normal-case">
-                Total SKUs
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center shrink-0 border border-indigo-100/70 group-hover:scale-105 transition-transform">
-                <Box className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate tabular-nums">
-                {stats.totalProducts.toLocaleString('en-IN')}
-              </p>
-            </div>
-          </div>
+            tooltip="Total unique items in catalog (Stock Keeping Units - Item-wise count)"
+          />
 
           {/* Total SOH */}
-          <div 
+          <KPICard
+            title="Total SOH"
+            value={stats.totalSOH.toLocaleString('en-IN')}
+            icon={<Layers className="w-4 h-4" />}
+            iconBg="bg-blue-50"
+            iconColor="text-blue-600"
+            subtitle="units"
+            isActive={filterStock === 'all'}
+            activeRingColor="border-blue-400 ring-2 ring-blue-500/20 bg-blue-50/20"
             onClick={() => {
               setActiveTab('all');
               setFilterStock('all');
             }}
-            className={`bg-white p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
-              filterStock === 'all' 
-                ? 'border-blue-400 ring-2 ring-blue-500/20 bg-blue-50/20' 
-                : 'border-gray-200/80 hover:border-blue-300'
-            }`}
-            title="Click to view all stock"
-          >
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Total SOH
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100/70 group-hover:scale-105 transition-transform">
-                <Layers className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <p className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight truncate tabular-nums">
-                {stats.totalSOH.toLocaleString('en-IN')}
-              </p>
-              <span className="text-[11px] font-medium text-gray-500">units</span>
-            </div>
-          </div>
-          
+            tooltip="Click to view all stock"
+          />
+
           {/* Total Purchase Price */}
-          <div 
+          <KPICard
+            title="Total Purchase Price"
+            value={formatCurrency(stats.totalPurchasePrice)}
+            icon={<IndianRupee className="w-4 h-4" />}
+            iconBg="bg-emerald-50"
+            iconColor="text-emerald-600"
             onClick={() => {
               setActiveTab('all');
               setFilterStock('all');
             }}
-            className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/80 hover:shadow-md hover:border-emerald-300 transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer"
-            title="Click to view all products"
-          >
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Total Purchase Price
-              </span>
-              <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0 border border-emerald-100/70 group-hover:scale-105 transition-transform">
-                <IndianRupee className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3">
-              <p 
-                className="text-lg sm:text-xl font-bold text-gray-900 tracking-tight truncate tabular-nums"
-                title={formatCurrency(stats.totalPurchasePrice)}
-              >
-                {formatCurrency(stats.totalPurchasePrice)}
-              </p>
-            </div>
-          </div>
+            tooltip="Click to view all products"
+          />
 
           {/* Low Stock */}
-          <div 
+          <KPICard
+            title="Low Stock"
+            value={stats.lowStock}
+            icon={<AlertCircle className="w-4 h-4" />}
+            iconBg={filterStock === 'low' ? 'bg-orange-500' : 'bg-orange-50'}
+            iconColor={filterStock === 'low' ? 'text-white' : 'text-orange-600'}
+            valueColor="text-orange-600"
+            badge={filterStock === 'low' ? { text: "Filtered", variant: "warning" } : undefined}
+            subtitle={filterStock !== 'low' ? <span className="group-hover:text-orange-600 transition-colors">Filter &rarr;</span> : undefined}
+            isActive={filterStock === 'low'}
+            activeRingColor="bg-orange-50/70 border-orange-400 ring-2 ring-orange-500 shadow-sm"
             onClick={() => {
               setActiveTab('all');
               setFilterStock(filterStock === 'low' ? 'all' : 'low');
             }}
-            className={`p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
-              filterStock === 'low'
-                ? 'bg-orange-50/70 border-orange-400 ring-2 ring-orange-500 shadow-sm'
-                : 'bg-white border-gray-200/80 hover:border-orange-300'
-            }`}
-            title={filterStock === 'low' ? 'Click to show all products' : 'Click to filter low stock items only'}
-          >
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Low Stock
-              </span>
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border group-hover:scale-105 transition-transform ${
-                filterStock === 'low'
-                  ? 'bg-orange-500 text-white border-orange-600'
-                  : 'bg-orange-50 text-orange-600 border-orange-100/70'
-              }`}>
-                <AlertCircle className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <p className="text-xl sm:text-2xl font-bold text-orange-600 tracking-tight truncate tabular-nums">
-                {stats.lowStock}
-              </p>
-              {filterStock === 'low' ? (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-orange-200 text-orange-800 uppercase">
-                  Filtered
-                </span>
-              ) : (
-                <span className="text-[11px] text-gray-400 group-hover:text-orange-600 transition-colors">
-                  Filter &rarr;
-                </span>
-              )}
-            </div>
-          </div>
-          
+            tooltip={filterStock === 'low' ? 'Click to show all products' : 'Click to filter low stock items only'}
+          />
+
           {/* Out of Stock */}
-          <div 
+          <KPICard
+            title="Out of Stock"
+            value={stats.outOfStock}
+            icon={<XCircle className="w-4 h-4" />}
+            iconBg={filterStock === 'out' ? 'bg-rose-500' : 'bg-rose-50'}
+            iconColor={filterStock === 'out' ? 'text-white' : 'text-rose-600'}
+            valueColor="text-rose-600"
+            badge={filterStock === 'out' ? { text: "Filtered", variant: "danger" } : undefined}
+            subtitle={filterStock !== 'out' ? <span className="group-hover:text-rose-600 transition-colors">Filter &rarr;</span> : undefined}
+            isActive={filterStock === 'out'}
+            activeRingColor="bg-rose-50/70 border-rose-400 ring-2 ring-rose-500 shadow-sm"
             onClick={() => {
               setActiveTab('all');
               setFilterStock(filterStock === 'out' ? 'all' : 'out');
             }}
-            className={`p-4 rounded-2xl shadow-xs border transition-all duration-200 flex flex-col justify-between min-w-0 group cursor-pointer hover:shadow-md ${
-              filterStock === 'out'
-                ? 'bg-rose-50/70 border-rose-400 ring-2 ring-rose-500 shadow-sm'
-                : 'bg-white border-gray-200/80 hover:border-rose-300'
-            }`}
-            title={filterStock === 'out' ? 'Click to show all products' : 'Click to filter out-of-stock items only'}
-          >
-            <div className="flex items-center justify-between gap-1.5">
-              <span className="text-[11px] sm:text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                Out of Stock
-              </span>
-              <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border group-hover:scale-105 transition-transform ${
-                filterStock === 'out'
-                  ? 'bg-rose-500 text-white border-rose-600'
-                  : 'bg-rose-50 text-rose-600 border-rose-100/70'
-              }`}>
-                <XCircle className="w-4 h-4" />
-              </div>
-            </div>
-            <div className="mt-3 flex items-baseline justify-between">
-              <p className="text-xl sm:text-2xl font-bold text-rose-600 tracking-tight truncate tabular-nums">
-                {stats.outOfStock}
-              </p>
-              {filterStock === 'out' ? (
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-200 text-rose-800 uppercase">
-                  Filtered
-                </span>
-              ) : (
-                <span className="text-[11px] text-gray-400 group-hover:text-rose-600 transition-colors">
-                  Filter &rarr;
-                </span>
-              )}
-            </div>
-          </div>
+            tooltip={filterStock === 'out' ? 'Click to show all products' : 'Click to filter out-of-stock items only'}
+          />
         </div>
 
         {/* Tabs and Actions Row below statistics */}
