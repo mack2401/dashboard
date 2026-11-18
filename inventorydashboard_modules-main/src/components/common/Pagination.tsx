@@ -117,11 +117,11 @@ export const Pagination: React.FC<PaginationProps> = ({
 
         {pageSizeOptions && onPageSizeChange && (
           <div className="flex items-center gap-1.5 ml-0 sm:ml-2">
-            <span className="text-xs text-[#78839A]">Rows per page:</span>
+            <span className="text-xs text-slate-500">Rows per page:</span>
             <select
               value={itemsPerPage}
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
-              className="text-xs font-semibold text-[#25324A] bg-[#F5F6FC] border border-[#E1E5F0] rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-[#7889F5] transition cursor-pointer"
+              className="text-xs font-medium text-slate-800 bg-white border border-slate-200 rounded-lg px-2 py-1 outline-none focus:ring-1 focus:ring-slate-300 transition cursor-pointer"
             >
               {pageSizeOptions.map((opt) => (
                 <option key={opt} value={opt}>
@@ -141,7 +141,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             type="button"
             onClick={() => handlePageClick(1)}
             disabled={validCurrentPage === 1}
-            className="p-1.5 sm:p-2 rounded-xl border border-[#E1E5F0] text-[#78839A] bg-white hover:bg-[#F0F0FF] hover:text-[#1E315B] hover:border-[#7889F5]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#78839A] transition cursor-pointer shadow-2xs"
+            className="p-1.5 sm:p-2 rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-400 transition cursor-pointer shadow-2xs"
             title="First Page"
             aria-label="First Page"
           >
@@ -154,7 +154,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           type="button"
           onClick={() => handlePageClick(validCurrentPage - 1)}
           disabled={validCurrentPage === 1}
-          className="p-1.5 sm:p-2 rounded-xl border border-[#E1E5F0] text-[#78839A] bg-white hover:bg-[#F0F0FF] hover:text-[#1E315B] hover:border-[#7889F5]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#78839A] transition cursor-pointer shadow-2xs"
+          className="p-1.5 sm:p-2 rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-400 transition cursor-pointer shadow-2xs"
           title="Previous Page"
           aria-label="Previous Page"
         >
@@ -169,7 +169,7 @@ export const Pagination: React.FC<PaginationProps> = ({
                 return (
                   <span
                     key={`ellipsis-${idx}`}
-                    className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs text-[#78839A] select-none"
+                    className="w-7 h-7 sm:w-8 sm:h-8 flex items-center justify-center text-xs text-slate-400 select-none"
                   >
                     ...
                   </span>
@@ -183,10 +183,10 @@ export const Pagination: React.FC<PaginationProps> = ({
                   key={page}
                   type="button"
                   onClick={() => handlePageClick(page)}
-                  className={`min-w-[28px] h-7 sm:min-w-[34px] sm:h-8 px-2 rounded-xl text-xs font-bold transition-all duration-150 cursor-pointer flex items-center justify-center ${
+                  className={`min-w-[28px] h-7 sm:min-w-[34px] sm:h-8 px-2 rounded-lg text-xs font-semibold transition-all duration-150 cursor-pointer flex items-center justify-center ${
                     isActive
-                      ? "bg-gradient-to-r from-[#7889F5] to-[#293F70] text-white shadow-xs shadow-[#7889F5]/30 border border-transparent"
-                      : "text-[#25324A] bg-white border border-[#E1E5F0] hover:bg-[#F0F0FF] hover:border-[#7889F5]/40 hover:text-[#1E315B]"
+                      ? "bg-slate-900 text-white shadow-2xs border border-slate-900"
+                      : "text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 hover:text-slate-900"
                   }`}
                   aria-current={isActive ? "page" : undefined}
                 >
@@ -196,7 +196,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             })}
           </div>
         ) : (
-          <span className="text-xs font-semibold text-[#25324A] px-2 whitespace-nowrap">
+          <span className="text-xs font-semibold text-slate-800 px-2 whitespace-nowrap">
             Page {validCurrentPage} of {validTotalPages}
           </span>
         )}
@@ -206,7 +206,7 @@ export const Pagination: React.FC<PaginationProps> = ({
           type="button"
           onClick={() => handlePageClick(validCurrentPage + 1)}
           disabled={validCurrentPage >= validTotalPages}
-          className="p-1.5 sm:p-2 rounded-xl border border-[#E1E5F0] text-[#78839A] bg-white hover:bg-[#F0F0FF] hover:text-[#1E315B] hover:border-[#7889F5]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#78839A] transition cursor-pointer shadow-2xs"
+          className="p-1.5 sm:p-2 rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-400 transition cursor-pointer shadow-2xs"
           title="Next Page"
           aria-label="Next Page"
         >
@@ -219,7 +219,7 @@ export const Pagination: React.FC<PaginationProps> = ({
             type="button"
             onClick={() => handlePageClick(validTotalPages)}
             disabled={validCurrentPage >= validTotalPages}
-            className="p-1.5 sm:p-2 rounded-xl border border-[#E1E5F0] text-[#78839A] bg-white hover:bg-[#F0F0FF] hover:text-[#1E315B] hover:border-[#7889F5]/40 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#78839A] transition cursor-pointer shadow-2xs"
+            className="p-1.5 sm:p-2 rounded-lg border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 hover:text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-slate-400 transition cursor-pointer shadow-2xs"
             title="Last Page"
             aria-label="Last Page"
           >

@@ -33,18 +33,18 @@ import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
 
-// Navy & Lavender Palette: Primary (#7889F5), Secondary (#A5AEFF), Royal Navy (#293F70)
+// Clean professional slate & subtle accent palette
 const PIE_COLORS = [
-  "#7889F5", // Lavender – Primary
-  "#A5AEFF", // Soft Purple – Secondary
-  "#293F70", // Royal Navy – Active/Hover
-  "#1E315B", // Deep Navy – Sidebar
-  "#6272E5", // Deep Lavender
-  "#8E9BF7", // Muted Lavender
-  "#B7BEFB", // Soft Periwinkle
-  "#4E5ECB", // Royal Indigo
-  "#3C4962", // Slate Navy
-  "#78839A", // Secondary Text
+  "#0f172a", // Slate 900
+  "#334155", // Slate 700
+  "#475569", // Slate 600
+  "#64748b", // Slate 500
+  "#94a3b8", // Slate 400
+  "#cbd5e1", // Slate 300
+  "#2563eb", // Blue 600
+  "#3b82f6", // Blue 500
+  "#60a5fa", // Blue 400
+  "#0284c7", // Sky 600
 ];
 
 type TimeFilterMode = "yesterday" | "today" | "past";
@@ -461,19 +461,19 @@ const Dashboard: React.FC = () => {
               />
             </div>
             <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
-              <span className="w-2 sm:w-2.5 h-7 sm:h-9 bg-sky-500 rounded-full inline-block shrink-0"></span>
+              <span className="w-2 sm:w-2.5 h-7 sm:h-9 bg-slate-900 rounded-full inline-block shrink-0"></span>
               Dashboard
             </h1>
           </div>
 
           {/* Top Right Header Controls: Timeframe pill selector */}
-          <div className="flex items-center gap-1.5 bg-gray-50 p-1 rounded-xl border border-gray-200/80 self-start sm:self-auto shrink-0">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto shrink-0">
             <button
               onClick={() => setTimeFilter("yesterday")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 timeFilter === "yesterday"
-                  ? "bg-sky-500 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                  ? "bg-slate-900 text-white shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
               Yesterday
@@ -482,8 +482,8 @@ const Dashboard: React.FC = () => {
               onClick={() => setTimeFilter("today")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                 timeFilter === "today"
-                  ? "bg-sky-500 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                  ? "bg-slate-900 text-white shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
               Today
@@ -492,8 +492,8 @@ const Dashboard: React.FC = () => {
               onClick={() => setTimeFilter("past")}
               className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
                 timeFilter === "past"
-                  ? "bg-sky-500 text-white shadow-xs"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
+                  ? "bg-slate-900 text-white shadow-2xs"
+                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
               }`}
             >
               <History className="w-3.5 h-3.5" />
@@ -504,18 +504,18 @@ const Dashboard: React.FC = () => {
 
         {/* Sub-selector for Past Dates */}
         {timeFilter === "past" && (
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-sky-50/70 p-3 rounded-xl border border-sky-100 text-xs animate-in fade-in duration-200">
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs animate-in fade-in duration-200">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-sky-900 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-sky-600" />
+              <span className="font-bold text-slate-800 flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5 text-slate-600" />
                 Past Range:
               </span>
               <button
                 onClick={() => setPastMode("past7")}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   pastMode === "past7"
-                    ? "bg-sky-600 text-white shadow-2xs"
-                    : "bg-white text-sky-800 hover:bg-sky-100/70 border border-sky-200/60"
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 Past 7 Days
@@ -524,8 +524,8 @@ const Dashboard: React.FC = () => {
                 onClick={() => setPastMode("past30")}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   pastMode === "past30"
-                    ? "bg-sky-600 text-white shadow-2xs"
-                    : "bg-white text-sky-800 hover:bg-sky-100/70 border border-sky-200/60"
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 Past 30 Days
@@ -534,8 +534,8 @@ const Dashboard: React.FC = () => {
                 onClick={() => setPastMode("allPast")}
                 className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
                   pastMode === "allPast"
-                    ? "bg-sky-600 text-white shadow-2xs"
-                    : "bg-white text-sky-800 hover:bg-sky-100/70 border border-sky-200/60"
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
                 }`}
               >
                 All Past
@@ -543,7 +543,7 @@ const Dashboard: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-gray-600 text-[11px] font-medium">
+              <span className="text-slate-600 text-[11px] font-medium">
                 Or pick specific date:
               </span>
               <input
@@ -558,8 +558,8 @@ const Dashboard: React.FC = () => {
                 }}
                 className={`px-2 py-1 text-xs rounded-md border transition-all ${
                   pastMode === "specific"
-                    ? "border-sky-500 ring-2 ring-sky-500/20 bg-white text-sky-900 font-semibold"
-                    : "border-gray-200 bg-white text-gray-700"
+                    ? "border-slate-800 ring-2 ring-slate-800/20 bg-white text-slate-900 font-semibold"
+                    : "border-slate-200 bg-white text-slate-700"
                 }`}
               />
             </div>
@@ -570,35 +570,34 @@ const Dashboard: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* PART 1 (LEFT, 7 COLS): Total Sales & Components + Qty sold */}
           <div className="lg:col-span-7 flex flex-col space-y-4">
-            {/* Period Total Sales Highlight Card - Navy & Lavender Theme */}
-            <div className="bg-gradient-to-br from-[#7889F5] via-[#6272E5] to-[#293F70] rounded-2xl p-5 sm:p-6 text-white shadow-md relative overflow-hidden">
-              <div className="absolute right-0 top-0 translate-x-4 -translate-y-4 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none"></div>
+            {/* Period Total Sales Highlight Card - Executive Slate Theme */}
+            <div className="bg-slate-900 rounded-2xl p-5 sm:p-6 text-white shadow-sm border border-slate-800 relative overflow-hidden">
               <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                  <div className="flex items-center gap-2 text-sky-100 text-xs sm:text-sm font-medium tracking-wide uppercase">
+                  <div className="flex items-center gap-2 text-slate-400 text-xs sm:text-sm font-medium tracking-wide uppercase">
                     <Clock className="w-4 h-4" />
                     <span>{timeFilterCardLabel}</span>
                   </div>
-                  <div className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1">
+                  <div className="text-3xl sm:text-4xl font-extrabold tracking-tight mt-1 text-white">
                     {formatCurrency(periodSales)}
                   </div>
-                  <p className="text-xs text-sky-100/90 mt-1">
+                  <p className="text-xs text-slate-400 mt-1">
                     Generated across{" "}
-                    <strong className="text-white font-bold">
+                    <strong className="text-slate-200 font-bold">
                       {filteredBills.length}
                     </strong>{" "}
                     {filteredBills.length === 1 ? "bill" : "bills"}
                   </p>
                 </div>
 
-                <div className="bg-white/15 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-white/20 flex flex-col items-start sm:items-end">
-                  <span className="text-[11px] font-semibold text-sky-100 uppercase tracking-wider">
+                <div className="bg-slate-800/90 backdrop-blur-md rounded-xl p-3 sm:p-4 border border-slate-700/80 flex flex-col items-start sm:items-end">
+                  <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
                     Units Sold
                   </span>
                   <span className="text-2xl font-black text-white mt-0.5">
                     {componentsSold.reduce((sum, c) => sum + c.quantity, 0)}
                   </span>
-                  <span className="text-[11px] text-sky-200">
+                  <span className="text-[11px] text-slate-400">
                     {componentsSold.length} unique component
                     {componentsSold.length === 1 ? "" : "s"}
                   </span>
@@ -610,7 +609,7 @@ const Dashboard: React.FC = () => {
             <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs flex-1 flex flex-col overflow-hidden">
               <div className="p-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-gray-50/50">
                 <div className="flex items-center gap-2">
-                  <Layers className="w-4 h-4 text-sky-600" />
+                  <Layers className="w-4 h-4 text-slate-700" />
                   <h3 className="font-bold text-gray-900 text-sm sm:text-base">
                     Components & Quantity Sold (
                     {timeFilter === "yesterday"
@@ -620,7 +619,7 @@ const Dashboard: React.FC = () => {
                       : "Past Dates"}
                     )
                   </h3>
-                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-sky-100 text-sky-700">
+                  <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                     {displayComponents.length}
                   </span>
                 </div>
@@ -633,7 +632,7 @@ const Dashboard: React.FC = () => {
                     value={componentSearch}
                     onChange={(e) => setComponentSearch(e.target.value)}
                     placeholder="Search component..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-sky-500/20 focus:border-sky-500"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-300 focus:border-slate-400"
                   />
                 </div>
               </div>
@@ -652,7 +651,7 @@ const Dashboard: React.FC = () => {
                     {timeFilter === "today" && bills.length > 0 && (
                       <button
                         onClick={() => setTimeFilter("past")}
-                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-sky-600 hover:text-sky-700"
+                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900"
                       >
                         <span>View past component sales</span>
                         <ChevronRight className="w-3.5 h-3.5" />
@@ -678,7 +677,7 @@ const Dashboard: React.FC = () => {
                         return (
                         <tr
                           key={`${item.name}-${idx}`}
-                          className="hover:bg-sky-50/40 transition-colors"
+                          className="hover:bg-slate-50 transition-colors"
                         >
                           <td className="py-2.5 px-4 font-medium text-gray-900">
                             <div className="flex items-center gap-2">
@@ -698,7 +697,7 @@ const Dashboard: React.FC = () => {
                             </div>
                           </td>
                           <td className="py-2.5 px-4 text-center">
-                            <span className="inline-block px-2 py-0.5 rounded-full font-bold bg-sky-50 text-sky-700 border border-sky-200/60">
+                            <span className="inline-block px-2 py-0.5 rounded-full font-bold bg-slate-100 text-slate-700 border border-slate-200">
                               {item.quantity}
                             </span>
                           </td>
@@ -742,7 +741,7 @@ const Dashboard: React.FC = () => {
           <div className="lg:col-span-5 bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-5 flex flex-col">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div className="flex items-center gap-2">
-                <PieIcon className="w-4 h-4 text-sky-600" />
+                <PieIcon className="w-4 h-4 text-slate-700" />
                 <h3 className="font-bold text-gray-900 text-sm sm:text-base">
                   Component Share Pie Chart
                 </h3>
@@ -825,11 +824,11 @@ const Dashboard: React.FC = () => {
       </section>
 
       {/* ========================================================================= */}
-      {/* 2. MIDDLE SECTION: INVENTORY, BILLING, PNL (HORIZONTAL NAVIGATION CARDS) */}
+      {/* 2. MIDDLE SECTION: INVENTORY, BILLING, ENQUIRY (HORIZONTAL NAVIGATION CARDS) */}
       {/* ========================================================================= */}
       <section className="space-y-3 pt-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-sky-600" />
+          <Sparkles className="w-4 h-4 text-slate-700" />
           <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
             Quick Navigation Modules
           </h2>
@@ -842,17 +841,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/inventory")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-sky-50/50 hover:to-white border border-gray-200/90 hover:border-sky-500 rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-slate-50/80 border border-gray-200 hover:border-slate-400 rounded-xl p-5 shadow-2xs hover:shadow-xs transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Package className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-sky-600 transition-colors">
+              <h3 className="text-base font-bold text-gray-900 group-hover:text-slate-900 transition-colors">
                 Inventory
               </h3>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-sky-500 group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-slate-100 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-slate-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -863,17 +862,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/bills")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#7889F5] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-slate-50/80 border border-gray-200 hover:border-slate-400 rounded-xl p-5 shadow-2xs hover:shadow-xs transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#7889F5] group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Receipt className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#7889F5] transition-colors">
+              <h3 className="text-base font-bold text-gray-900 group-hover:text-slate-900 transition-colors">
                 Billing
               </h3>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-slate-100 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-slate-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -884,17 +883,17 @@ const Dashboard: React.FC = () => {
             role="button"
             tabIndex={0}
             onKeyDown={(e) => e.key === "Enter" && navigate("/enquiries")}
-            className="group cursor-pointer bg-white hover:bg-gradient-to-br hover:from-blue-50/50 hover:to-white border border-gray-200/90 hover:border-[#7889F5] rounded-2xl p-5 shadow-2xs hover:shadow-md transition-all duration-200 flex items-center justify-between"
+            className="group cursor-pointer bg-white hover:bg-slate-50/80 border border-gray-200 hover:border-slate-400 rounded-xl p-5 shadow-2xs hover:shadow-xs transition-all duration-200 flex items-center justify-between"
           >
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 text-[#7889F5] group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
+              <div className="w-12 h-12 rounded-xl bg-slate-100 text-slate-700 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center transition-colors shadow-2xs">
                 <Calculator className="w-6 h-6" />
               </div>
-              <h3 className="text-lg font-extrabold text-gray-900 group-hover:text-[#7889F5] transition-colors">
+              <h3 className="text-base font-bold text-gray-900 group-hover:text-slate-900 transition-colors">
                 Enquiry
               </h3>
             </div>
-            <div className="w-9 h-9 rounded-full bg-gray-100 group-hover:bg-[#7889F5] group-hover:text-white flex items-center justify-center text-gray-400 transition-all">
+            <div className="w-9 h-9 rounded-full bg-slate-100 group-hover:bg-slate-900 group-hover:text-white flex items-center justify-center text-slate-400 transition-all">
               <ArrowRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
             </div>
           </div>
@@ -914,10 +913,10 @@ const Dashboard: React.FC = () => {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
           {/* Total Sales Card */}
-          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-6 flex items-center justify-between hover:border-sky-300 transition-all">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-6 flex items-center justify-between hover:border-slate-300 transition-all">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                <IndianRupee className="w-4 h-4 text-sky-600" />
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                <IndianRupee className="w-4 h-4 text-slate-700" />
                 <span>Total Sales</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -925,16 +924,16 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 shadow-2xs border border-sky-100">
+            <div className="w-14 h-14 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center flex-shrink-0 shadow-2xs border border-slate-200">
               <IndianRupee className="w-7 h-7" />
             </div>
           </div>
 
           {/* No of Bills Card (Today's) */}
-          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-6 flex items-center justify-between hover:border-sky-300 transition-all">
+          <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-6 flex items-center justify-between hover:border-slate-300 transition-all">
             <div className="space-y-1">
-              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500">
-                <FileText className="w-4 h-4 text-sky-600" />
+              <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
+                <FileText className="w-4 h-4 text-slate-700" />
                 <span>No. of Bills</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
@@ -952,7 +951,7 @@ const Dashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="w-14 h-14 rounded-2xl bg-sky-50 text-sky-600 flex items-center justify-center flex-shrink-0 shadow-2xs border border-sky-100">
+            <div className="w-14 h-14 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center flex-shrink-0 shadow-2xs border border-slate-200">
               <FileText className="w-7 h-7" />
             </div>
           </div>
