@@ -586,9 +586,9 @@ const BillTransactions: React.FC = () => {
 
       // Batch load enquiries map to avoid slow N+1 individual queries
       let enquiriesMap = new Map<string, any>();
+      const allEnquiriesList: any[] = [];
       try {
         const enquiriesSnap = await getDocs(collection(db, "enquiries"));
-        const allEnquiriesList: any[] = [];
         enquiriesSnap.forEach((docSnap) => {
           allEnquiriesList.push({ id: docSnap.id, ...docSnap.data() });
         });
