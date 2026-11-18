@@ -2226,11 +2226,6 @@ const TaskManagement: React.FC = () => {
                                 <p className="text-gray-800 line-clamp-2 max-w-[200px] md:max-w-md capitalize text-sm md:text-base font-medium">
                                   {task.task}
                                 </p>
-                                {isRowMatch && (
-                                  <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs animate-pulse">
-                                    🎯 Match
-                                  </span>
-                                )}
                               </div>
                               {task.subTasks && task.subTasks.length > 0 && (
                                 <div className="text-xs space-y-1">

@@ -3348,11 +3348,6 @@ const BillTransactions: React.FC = () => {
                     <td className="px-2.5 py-2.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <span className="text-xs font-semibold text-gray-900">{bill.invoiceNumber}</span>
-                        {isRowMatch && (
-                          <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs animate-pulse">
-                            🎯 Match
-                          </span>
-                        )}
                       </div>
                       <div className="text-[10px] text-gray-400 font-mono">ID: {bill.billId?.slice(-6) || bill.id?.slice(-6)}</div>
                     </td>

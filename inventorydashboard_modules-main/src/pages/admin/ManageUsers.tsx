@@ -670,11 +670,6 @@ export default function ManageUsers({ defaultRole, role: propRole, title }: Mana
                                 <div>
                                   <div className="font-bold text-gray-900 flex items-center gap-1.5">
                                     <span>{emp.employeeName || emp.name}</span>
-                                    {isRowMatch && (
-                                      <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs animate-pulse">
-                                        🎯 Match
-                                      </span>
-                                    )}
                                   </div>
                                   <div className="text-[11px] text-gray-400 font-mono">
                                     ID: {emp.employeeId || emp.id.substring(0, 8)}

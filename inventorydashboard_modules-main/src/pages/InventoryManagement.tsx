@@ -4781,11 +4781,6 @@ const InventoryManagement: React.FC = () => {
                           <td className="py-2.5 px-2.5 max-w-[220px] text-center">
                             <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate text-center flex items-center justify-center gap-1.5" title={product.name}>
                               <span>{product.name}</span>
-                              {isRowMatch && (
-                                <span className="inline-flex items-center px-1.5 py-0.2 rounded-full text-[10px] font-bold bg-[#7889F5] text-white shadow-2xs shrink-0 animate-pulse">
-                                  🎯 Match
-                                </span>
-                              )}
                             </div>
                             <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 mt-0.5 flex-wrap">
                               {product.sku && <span className="font-mono">SKU: {product.sku}</span>}
