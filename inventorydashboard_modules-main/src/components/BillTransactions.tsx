@@ -22,6 +22,7 @@ import { db } from "../firebase";
 import { billService } from "../services/billService";
 import type { Bill } from "../services/billService";
 import * as XLSX from "xlsx-js-style";
+import Pagination from "./Pagination";
 import {
   FileText,
   Eye,
@@ -3492,30 +3493,14 @@ const BillTransactions: React.FC = () => {
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <div className="px-5 py-3.5 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-gray-50/50">
-          <div className="text-xs font-medium text-gray-500">
-            Showing <span className="font-bold text-gray-800">{indexOfFirstItem + 1}</span> to <span className="font-bold text-gray-800">{Math.min(indexOfLastItem, filteredTransactions.length)}</span> of <span className="font-bold text-gray-800">{filteredTransactions.length}</span> entries
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={currentPage === 1}
-              className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <span className="text-xs font-semibold text-gray-700 px-2">Page {currentPage} of {totalPages}</span>
-            <button
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={currentPage === totalPages}
-              className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        totalItems={filteredTransactions.length}
+        itemsPerPage={itemsPerPage}
+        hideOnSinglePage={true}
+      />
     </div>
   </div>
 

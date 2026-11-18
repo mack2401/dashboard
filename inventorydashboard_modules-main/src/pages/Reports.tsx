@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useMemo } from "react";
+import Pagination from "../components/Pagination";
 import {
   Users,
   IndianRupee,
@@ -1378,36 +1379,15 @@ const Reports: React.FC = () => {
             </div>
 
             {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="px-5 py-3.5 border-t border-gray-100 flex flex-col sm:flex-row justify-between items-center gap-3 bg-gray-50/50">
-                <div className="text-xs font-medium text-gray-500">
-                  Showing <span className="font-bold text-gray-800">{indexOfFirstItem + 1}</span> to{" "}
-                  <span className="font-bold text-gray-800">{Math.min(indexOfLastItem, filteredAndSortedClients.length)}</span> of{" "}
-                  <span className="font-bold text-gray-800">{filteredAndSortedClients.length}</span> clients
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                    disabled={currentPage === 1}
-                    className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs cursor-pointer"
-                    title="Previous Page"
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs font-semibold text-gray-700 px-2">Page {currentPage} of {totalPages}</span>
-                  <button
-                    type="button"
-                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                    disabled={currentPage === totalPages}
-                    className="p-1.5 border border-gray-200/80 rounded-xl disabled:opacity-40 disabled:cursor-not-allowed hover:bg-white text-gray-700 transition shadow-xs cursor-pointer"
-                    title="Next Page"
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            )}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredAndSortedClients.length}
+              itemsPerPage={itemsPerPage}
+              itemLabel="clients"
+              hideOnSinglePage={true}
+            />
           </div>
         )}
       </div>

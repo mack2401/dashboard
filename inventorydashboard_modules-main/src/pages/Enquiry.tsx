@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { type ColumnDef } from "@tanstack/react-table";
 import DataTable from "../components/Table/DataTable";
+import Pagination from "../components/Pagination";
 import type { Enquiry } from "../types/enquiry";
 import AddEditModal from "../components/modals/AddEditModal";
 import {
@@ -717,29 +718,6 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
   const endIndex = startIndex + itemsPerPage;
   const currentData = filteredEnquiries.slice(startIndex, endIndex);
 
-  // Get the range of pages to show (max 5 pages at a time)
-  const getPageNumbers = () => {
-    const pageNumbers = [];
-    const maxPagesToShow = 5;
-
-    if (totalPages <= maxPagesToShow) {
-      for (let i = 1; i <= totalPages; i++) {
-        pageNumbers.push(i);
-      }
-    } else {
-      const startPage = Math.max(1, currentPage - Math.floor(maxPagesToShow / 2));
-      const endPage = Math.min(totalPages, startPage + maxPagesToShow - 1);
-
-      for (let i = startPage; i <= endPage; i++) {
-        pageNumbers.push(i);
-      }
-    }
-
-    return pageNumbers;
-  };
-
-  const pageNumbers = getPageNumbers();
-
   // Column definitions with "Sr." column for continuous numbering
   const columns = useMemo<ColumnDef<Enquiry, any>[]>(() => {
     return [
@@ -1414,66 +1392,15 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
 
                                   {/* Clean Modern Pagination Footer */}
                                   {!isLoading && filteredEnquiries.length > 0 && (
-                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-4 p-4 bg-white rounded-2xl border border-gray-200/90 shadow-xs">
-                                      <div className="text-xs sm:text-sm text-gray-600 font-medium">
-                                        Showing <span className="font-semibold text-gray-900">{startEntry}</span> to{" "}
-                                        <span className="font-semibold text-gray-900">{endEntry}</span> of{" "}
-                                        <span className="font-semibold text-gray-900">{filteredEnquiries.length}</span> entries
-                                        {filteredEnquiries.length !== enquiries.length && (
-                                          <span className="text-xs text-gray-400 ml-1.5 font-normal">
-                                            (filtered from {enquiries.length} total)
-                                          </span>
-                                        )}
-                                      </div>
-
-                                      <div className="flex items-center gap-1.5">
-                                        <button
-                                          onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-                                          disabled={currentPage === 1}
-                                          className={`
-                  p-2 rounded-xl border transition-all duration-200 cursor-pointer
-                  ${currentPage === 1
-                                              ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
-                                              : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
-                                            }
-                `}
-                                          title="Previous Page"
-                                        >
-                                          <ChevronLeft className="w-4 h-4" />
-                                        </button>
-
-                                        {pageNumbers.map((pageNum) => (
-                                          <button
-                                            key={pageNum}
-                                            onClick={() => setCurrentPage(pageNum)}
-                                            className={`
-                    min-w-[36px] h-9 px-3 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer
-                    ${currentPage === pageNum
-                                                ? "bg-gradient-to-r from-[#7889F5] to-[#293F70] text-white shadow-xs shadow-[#7889F5]/25"
-                                                : "text-gray-700 bg-white border border-gray-200 hover:bg-gray-50"
-                                              }
-                  `}
-                                          >
-                                            {pageNum}
-                                          </button>
-                                        ))}
-
-                                        <button
-                                          onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-                                          disabled={currentPage === totalPages || totalPages === 0}
-                                          className={`
-                  p-2 rounded-xl border transition-all duration-200 cursor-pointer
-                  ${currentPage === totalPages || totalPages === 0
-                                              ? "text-gray-300 border-gray-100 cursor-not-allowed bg-gray-50"
-                                              : "text-gray-700 border-gray-200 hover:bg-gray-100 hover:text-gray-900 bg-white"
-                                            }
-                `}
-                                          title="Next Page"
-                                        >
-                                          <ChevronRight className="w-4 h-4" />
-                                        </button>
-                                      </div>
-                                    </div>
+                                    <Pagination
+                                      currentPage={currentPage}
+                                      totalPages={totalPages}
+                                      onPageChange={setCurrentPage}
+                                      totalItems={filteredEnquiries.length}
+                                      itemsPerPage={itemsPerPage}
+                                      filteredFromTotal={enquiries.length}
+                                      className="rounded-2xl border border-gray-200/90 shadow-xs"
+                                    />
                                   )}
                                 </div>
 

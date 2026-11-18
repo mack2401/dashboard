@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import Pagination from '../components/Pagination';
 import { 
   Search, 
   Filter, 
@@ -3638,57 +3639,15 @@ const InventoryManagement: React.FC = () => {
     if (totalPages <= 1) return null;
 
     return (
-      <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
-        <div className="text-sm text-gray-600">
-          Showing {indexOfFirstItem + 1} to {Math.min(indexOfLastItem, filteredProducts.length)} of {filteredProducts.length} products
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={() => goToPage(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            Previous
-          </button>
-          
-          <div className="flex space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              let pageNum;
-              if (totalPages <= 5) {
-                pageNum = i + 1;
-              } else if (currentPage <= 3) {
-                pageNum = i + 1;
-              } else if (currentPage >= totalPages - 2) {
-                pageNum = totalPages - 4 + i;
-              } else {
-                pageNum = currentPage - 2 + i;
-              }
-              
-              return (
-                <button
-                  key={pageNum}
-                  onClick={() => goToPage(pageNum)}
-                  className={`px-3 py-1 rounded-lg text-sm ${
-                    currentPage === pageNum
-                      ? 'bg-blue-600 text-white'
-                      : 'border border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {pageNum}
-                </button>
-              );
-            })}
-          </div>
-          
-          <button
-            onClick={() => goToPage(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-3 py-1 border border-gray-300 rounded-lg text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
-          >
-            Next
-          </button>
-        </div>
-      </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={goToPage}
+        totalItems={filteredProducts.length}
+        itemsPerPage={itemsPerPage}
+        itemLabel="products"
+        className="mt-6 border border-[#E1E5F0] rounded-2xl"
+      />
     );
   };
 
@@ -4647,64 +4606,15 @@ const InventoryManagement: React.FC = () => {
                 </div>
                 
                 {filteredTransactions.length > 0 && (
-                  <div className="mt-4 p-4 border border-gray-200 rounded-xl bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
-                    <div className="text-gray-500 font-medium">
-                      Showing <span className="font-semibold text-gray-900">{txStartIndex + 1}</span> to{" "}
-                      <span className="font-semibold text-gray-900">{txEndIndex}</span> of{" "}
-                      <span className="font-semibold text-gray-900">{filteredTransactions.length}</span> transactions
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      <button
-                        onClick={() => setTransactionPage((p) => Math.max(p - 1, 1))}
-                        disabled={transactionPage === 1}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
-                      >
-                        <ChevronLeft className="w-3.5 h-3.5" />
-                        <span>Prev</span>
-                      </button>
-
-                      <div className="flex items-center gap-1">
-                        {Array.from({ length: totalTxPages }, (_, i) => i + 1)
-                          .filter((page) => {
-                            if (totalTxPages <= 5) return true;
-                            if (page === 1 || page === totalTxPages) return true;
-                            return Math.abs(page - transactionPage) <= 1;
-                          })
-                          .map((page, idx, arr) => {
-                            const prevPage = arr[idx - 1];
-                            const showEllipsis = prevPage && page - prevPage > 1;
-
-                            return (
-                              <React.Fragment key={page}>
-                                {showEllipsis && (
-                                  <span className="px-1 text-gray-400 font-bold">...</span>
-                                )}
-                                <button
-                                  onClick={() => setTransactionPage(page)}
-                                  className={`w-7 h-7 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
-                                    transactionPage === page
-                                      ? "bg-blue-600 text-white shadow-xs"
-                                      : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
-                                  }`}
-                                >
-                                  {page}
-                                </button>
-                              </React.Fragment>
-                            );
-                          })}
-                      </div>
-
-                      <button
-                        onClick={() => setTransactionPage((p) => Math.min(p + 1, totalTxPages))}
-                        disabled={transactionPage === totalTxPages}
-                        className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
-                      >
-                        <span>Next</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
+                  <Pagination
+                    currentPage={transactionPage}
+                    totalPages={totalTxPages}
+                    onPageChange={setTransactionPage}
+                    totalItems={filteredTransactions.length}
+                    itemsPerPage={transactionItemsPerPage}
+                    itemLabel="transactions"
+                    className="mt-4 border border-[#E1E5F0] rounded-xl"
+                  />
                 )}
               </>
             )}

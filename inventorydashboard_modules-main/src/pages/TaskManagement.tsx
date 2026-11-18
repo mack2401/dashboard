@@ -1,5 +1,6 @@
 // TaskManagement.tsx - Updated with subtask-level statistics
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import Pagination from '../components/Pagination';
 import { 
   Search, 
   Calendar, 
@@ -2338,64 +2339,17 @@ const TaskManagement: React.FC = () => {
             </div>
 
             {/* Table Pagination Controls */}
-            <div className="p-4 border-t border-gray-150 bg-gray-50/50 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs sm:text-sm">
-              <div className="text-gray-500 font-medium">
-                Showing <span className="font-semibold text-gray-900">{startIndex + 1}</span> to{" "}
-                <span className="font-semibold text-gray-900">{endIndex}</span> of{" "}
-                <span className="font-semibold text-gray-900">{filteredTasks.length}</span> tasks
-              </div>
-
-              <div className="flex items-center gap-1.5">
-                <button
-                  onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
-                  disabled={currentPage === 1}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  <span>Prev</span>
-                </button>
-
-                <div className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((page) => {
-                      if (totalPages <= 5) return true;
-                      if (page === 1 || page === totalPages) return true;
-                      return Math.abs(page - currentPage) <= 1;
-                    })
-                    .map((page, idx, arr) => {
-                      const prevPage = arr[idx - 1];
-                      const showEllipsis = prevPage && page - prevPage > 1;
-
-                      return (
-                        <React.Fragment key={page}>
-                          {showEllipsis && (
-                            <span className="px-1 text-gray-400 font-bold">...</span>
-                          )}
-                          <button
-                            onClick={() => setCurrentPage(page)}
-                            className={`w-8 h-8 rounded-xl text-xs font-bold transition cursor-pointer flex items-center justify-center ${
-                              currentPage === page
-                                ? "bg-blue-600 text-white shadow-xs"
-                                : "text-gray-700 hover:bg-gray-100 bg-white border border-gray-200"
-                            }`}
-                          >
-                            {page}
-                          </button>
-                        </React.Fragment>
-                      );
-                    })}
-                </div>
-
-                <button
-                  onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
-                  disabled={currentPage === totalPages}
-                  className="inline-flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-xl text-gray-700 bg-white hover:bg-gray-50 transition cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed text-xs font-semibold shadow-2xs"
-                >
-                  <span>Next</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
-                </button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={filteredTasks.length}
+              itemsPerPage={itemsPerPage}
+              pageSizeOptions={[5, 10, 20, 50]}
+              onPageSizeChange={setItemsPerPage}
+              itemLabel="tasks"
+              className="border-t border-[#E1E5F0]"
+            />
           </>
           ) : (
             <div className="text-center py-12 md:py-16 px-4">
