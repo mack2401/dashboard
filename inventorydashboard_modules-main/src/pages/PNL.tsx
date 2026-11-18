@@ -500,43 +500,6 @@ export default function PNL() {
       });
   }, [deduplicatedBills, enquiriesMap, datePreset, customStartDate, customEndDate]);
 
-  // Helper to extract unit purchase cost
-  const getProductUnitCost = (p: InventoryProduct | null | undefined, fallbackItem?: any): number => {
-    if (fallbackItem) {
-      const explicit =
-        fallbackItem.purchasePrice ??
-        fallbackItem.costPrice ??
-        fallbackItem.cost ??
-        fallbackItem.buyingPrice;
-      if (explicit !== undefined && explicit !== null && !isNaN(Number(explicit)) && Number(explicit) > 0) {
-        return Number(explicit);
-      }
-    }
-    if (!p) return 0;
-    if (p.currentPrice !== undefined && p.currentPrice !== null && !isNaN(Number(p.currentPrice)) && Number(p.currentPrice) > 0) {
-      return Number(p.currentPrice);
-    }
-    if (p.purchasePrice !== undefined && p.purchasePrice !== null && !isNaN(Number(p.purchasePrice)) && Number(p.purchasePrice) > 0) {
-      return Number(p.purchasePrice);
-    }
-    const stockEntries = (p as any).stockEntries || [];
-    if (Array.isArray(stockEntries) && stockEntries.length > 0) {
-      const addEntries = stockEntries.filter((e: any) => e.type !== "deliver");
-      if (addEntries.length > 0) {
-        const totalCost = addEntries.reduce(
-          (sum: number, e: any) => sum + (Number(e.totalPrice) || ((Number(e.quantity) || 0) * (Number(e.unitPrice) || 0))),
-          0
-        );
-        const totalQty = addEntries.reduce((sum: number, e: any) => sum + (Number(e.quantity) || 0), 0);
-        if (totalQty > 0) return totalCost / totalQty;
-        if (addEntries[addEntries.length - 1]?.unitPrice) {
-          return Number(addEntries[addEntries.length - 1].unitPrice);
-        }
-      }
-    }
-    return Number(p.price || 0);
-  };
-
   // 3. Remaining Products in Inventory (Valued as Wastage @ Cost)
   // Wastage @ Cost is strictly the purchase cost valuation of unsold products remaining in inventory:
   // Wastage Cost = Remaining Products × Unit Cost Price

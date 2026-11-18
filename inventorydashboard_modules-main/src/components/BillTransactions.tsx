@@ -127,17 +127,6 @@ const formatContactNumber = (contact?: string | number): string => {
   const cleaned = str.replace(/[\s\-\.]+/g, "");
   return cleaned || "-";
 };
-// Safe date resolver matching PNL.tsx
-const getBillDate = (b: any): Date => {
-  const raw = b?.billDate || b?.createdAt || b?.updatedAt;
-  if (raw?.toDate && typeof raw.toDate === "function") return raw.toDate();
-  if (raw instanceof Date) return raw;
-  if (typeof raw === "string" || typeof raw === "number") {
-    const parsed = new Date(raw);
-    if (!isNaN(parsed.getTime())) return parsed;
-  }
-  return new Date(0);
-};
 // Unified date range filter matching PNL.tsx
 const isDateInFilterRange = (d: Date, preset: string, customStart?: string, customEnd?: string): boolean => {
   return isDateInPresetRange(d, preset, customStart, customEnd);
