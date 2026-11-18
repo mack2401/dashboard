@@ -2422,12 +2422,12 @@ const TaskManagement: React.FC = () => {
               pageSizeOptions={[5, 10, 20, 50]}
               onPageSizeChange={setItemsPerPage}
               itemLabel="tasks"
-              className="border-t border-[#E1E5F0]"
+              className="border-t border-slate-200"
             />
           </>
           ) : (
             <EmptyState
-              icon={<Calendar className="w-7 h-7 text-[#7889F5]" />}
+              icon={<Calendar className="w-7 h-7 text-slate-700" />}
               title="No tasks found"
               description={
                 searchTerm || filterStatus !== 'all' || filterPriority !== 'all' 

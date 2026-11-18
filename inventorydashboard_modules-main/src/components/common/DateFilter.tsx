@@ -188,7 +188,7 @@ export const DateFilter: React.FC<DateFilterProps> = ({
   if (variant === "pills") {
     return (
       <div className={`space-y-2.5 ${className}`}>
-        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-[#F5F6FC] rounded-xl border border-[#E1E5F0]">
+        <div className="flex flex-wrap items-center gap-1.5 p-1 bg-slate-100 rounded-xl border border-slate-200">
           {presets.map((p) => {
             const isActive = preset === p.value;
             return (
@@ -196,10 +196,10 @@ export const DateFilter: React.FC<DateFilterProps> = ({
                 key={p.value}
                 type="button"
                 onClick={() => onPresetChange(p.value)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
                   isActive
-                    ? "bg-gradient-to-r from-[#7889F5] to-[#293F70] text-white shadow-xs"
-                    : "text-[#78839A] hover:text-[#1E315B] hover:bg-white/80"
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-white/80"
                 }`}
               >
                 {p.label}
@@ -211,25 +211,25 @@ export const DateFilter: React.FC<DateFilterProps> = ({
         {/* Custom Date Range Row */}
         {isCustom && onStartDateChange && onEndDateChange && (
           <div className="flex flex-wrap items-center gap-2 pt-1 text-xs animate-in fade-in duration-150">
-            <span className="text-[#78839A] font-medium">From:</span>
+            <span className="text-slate-500 font-medium">From:</span>
             <input
               type="date"
               value={startDate}
               onChange={(e) => onStartDateChange(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-[#E1E5F0] rounded-lg bg-white text-[#25324A] focus:outline-none focus:ring-1 focus:ring-[#7889F5]"
+              className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-300"
             />
-            <span className="text-[#78839A] font-medium">To:</span>
+            <span className="text-slate-500 font-medium">To:</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => onEndDateChange(e.target.value)}
-              className="px-2.5 py-1 text-xs border border-[#E1E5F0] rounded-lg bg-white text-[#25324A] focus:outline-none focus:ring-1 focus:ring-[#7889F5]"
+              className="px-2.5 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-300"
             />
             {onClear && hasActiveFilter && (
               <button
                 type="button"
                 onClick={onClear}
-                className="text-xs text-[#7889F5] hover:text-[#1E315B] font-semibold underline ml-1 cursor-pointer"
+                className="text-xs text-slate-700 hover:text-slate-900 font-semibold underline ml-1 cursor-pointer"
               >
                 Reset
               </button>
@@ -246,14 +246,14 @@ export const DateFilter: React.FC<DateFilterProps> = ({
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative flex items-center">
           {showIcon && (
-            <Calendar className="w-3.5 h-3.5 text-[#78839A] absolute left-2.5 pointer-events-none" />
+            <Calendar className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 pointer-events-none" />
           )}
           <select
             value={preset}
             onChange={(e) => onPresetChange(e.target.value)}
-            className={`text-xs font-semibold rounded-xl border border-[#E1E5F0] bg-white text-[#25324A] py-1.5 pr-8 focus:outline-none focus:ring-1 focus:ring-[#7889F5] cursor-pointer shadow-2xs transition ${
+            className={`text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800 py-1.5 pr-8 focus:outline-none focus:ring-1 focus:ring-slate-300 cursor-pointer shadow-2xs transition ${
               showIcon ? "pl-8" : "pl-3"
-            } ${hasActiveFilter ? "border-[#7889F5]/60 bg-[#F0F0FF]/30" : ""}`}
+            } ${hasActiveFilter ? "border-slate-400 bg-slate-50" : ""}`}
             aria-label={label}
           >
             {presets.map((p) => (
@@ -280,7 +280,7 @@ export const DateFilter: React.FC<DateFilterProps> = ({
           <button
             type="button"
             onClick={onClear}
-            className="p-1 rounded-lg text-[#78839A] hover:text-[#1E315B] hover:bg-[#F0F0FF] transition cursor-pointer"
+            className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition cursor-pointer"
             title="Clear date filter"
             aria-label="Clear date filter"
           >
@@ -292,20 +292,20 @@ export const DateFilter: React.FC<DateFilterProps> = ({
       {/* Inline Custom Date Inputs when 'custom' is active */}
       {isCustom && onStartDateChange && onEndDateChange && (
         <div className="flex flex-wrap items-center gap-2 text-xs pt-1 animate-in fade-in duration-150">
-          <span className="text-[#78839A] text-[11px] font-medium">Range:</span>
+          <span className="text-slate-500 text-[11px] font-medium">Range:</span>
           <div className="flex items-center gap-1.5">
             <input
               type="date"
               value={startDate}
               onChange={(e) => onStartDateChange(e.target.value)}
-              className="px-2 py-1 text-xs border border-[#E1E5F0] rounded-lg bg-white text-[#25324A] focus:outline-none focus:ring-1 focus:ring-[#7889F5]"
+              className="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-300"
             />
-            <span className="text-[#78839A] text-xs">to</span>
+            <span className="text-slate-400 text-xs">to</span>
             <input
               type="date"
               value={endDate}
               onChange={(e) => onEndDateChange(e.target.value)}
-              className="px-2 py-1 text-xs border border-[#E1E5F0] rounded-lg bg-white text-[#25324A] focus:outline-none focus:ring-1 focus:ring-[#7889F5]"
+              className="px-2 py-1 text-xs border border-slate-200 rounded-lg bg-white text-slate-800 focus:outline-none focus:ring-1 focus:ring-slate-300"
             />
           </div>
         </div>
@@ -315,4 +315,3 @@ export const DateFilter: React.FC<DateFilterProps> = ({
 };
 
 export default DateFilter;
-
