@@ -40,7 +40,7 @@ export function useGlobalFind(searchQuery: string) {
   const findInPageOccurrences = useCallback((query: string) => {
     // Clear old active highlight
     document.querySelectorAll(".active-find-match").forEach((el) => {
-      el.classList.remove("active-find-match", "ring-4", "ring-[#7889F5]", "bg-amber-200/90", "rounded-md");
+      el.classList.remove("active-find-match", "ring-4", "ring-blue-600", "bg-amber-200/90", "rounded-md");
     });
 
     if (!query || query.trim().length < 2) {
@@ -112,9 +112,9 @@ export function useGlobalFind(searchQuery: string) {
 
   const highlightElement = (el: HTMLElement) => {
     document.querySelectorAll(".active-find-match").forEach((elem) => {
-      elem.classList.remove("active-find-match", "ring-4", "ring-[#7889F5]", "bg-amber-200/90", "rounded-md");
+      elem.classList.remove("active-find-match", "ring-4", "ring-blue-600", "bg-amber-200/90", "rounded-md");
     });
-    el.classList.add("active-find-match", "ring-4", "ring-[#7889F5]", "bg-amber-200/90", "rounded-md");
+    el.classList.add("active-find-match", "ring-4", "ring-blue-600", "bg-amber-200/90", "rounded-md");
     el.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
@@ -144,7 +144,7 @@ export function useGlobalFind(searchQuery: string) {
 
   const clearHighlights = useCallback(() => {
     document.querySelectorAll(".active-find-match").forEach((el) => {
-      el.classList.remove("active-find-match", "ring-4", "ring-[#7889F5]", "bg-amber-200/90", "rounded-md");
+      el.classList.remove("active-find-match", "ring-4", "ring-blue-600", "bg-amber-200/90", "rounded-md");
     });
     setInPageMatches([]);
     setActiveMatchIndex(-1);
@@ -342,7 +342,7 @@ export function useGlobalFind(searchQuery: string) {
   useEffect(() => {
     return () => {
       document.querySelectorAll(".active-find-match").forEach((el) => {
-        el.classList.remove("active-find-match", "ring-4", "ring-[#7889F5]", "bg-amber-200/90", "rounded-md");
+        el.classList.remove("active-find-match", "ring-4", "ring-blue-600", "bg-amber-200/90", "rounded-md");
       });
     };
   }, []);

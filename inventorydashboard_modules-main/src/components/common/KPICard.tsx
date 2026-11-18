@@ -33,13 +33,13 @@ export const KPICard: React.FC<KPICardProps> = ({
   subtitle,
   badge,
   trend,
-  iconBg = "bg-[#F0F0FF]",
-  iconColor = "text-[#7889F5]",
+  iconBg = "bg-slate-100",
+  iconColor = "text-slate-700",
   valueColor = "text-gray-900",
   titleColor = "text-gray-500",
   layout = "compact",
   isActive = false,
-  activeRingColor = "border-[#7889F5] ring-2 ring-[#7889F5]/20 bg-[#F0F0FF]/30",
+  activeRingColor = "border-slate-800 ring-2 ring-slate-800/20 bg-slate-50",
   onClick,
   className = "",
   tooltip,
@@ -73,7 +73,7 @@ export const KPICard: React.FC<KPICardProps> = ({
         tabIndex={isClickable ? 0 : undefined}
         onKeyDown={isClickable ? (e) => e.key === "Enter" && onClick?.() : undefined}
         className={`bg-white rounded-2xl border border-gray-200/90 shadow-2xs p-4 sm:p-5 flex items-center justify-between gap-4 transition-all duration-200 ${
-          isClickable ? "cursor-pointer hover:shadow-md hover:border-[#7889F5]/50 group" : ""
+          isClickable ? "cursor-pointer hover:shadow-md hover:border-slate-400 group" : ""
         } ${isActive ? activeRingColor : ""} ${className}`}
       >
         <div className="space-y-1 min-w-0 flex-1">
@@ -119,7 +119,7 @@ export const KPICard: React.FC<KPICardProps> = ({
       tabIndex={isClickable ? 0 : undefined}
       onKeyDown={isClickable ? (e) => e.key === "Enter" && onClick?.() : undefined}
       className={`bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90 flex flex-col justify-between transition-all duration-200 min-w-0 ${
-        isClickable ? "cursor-pointer hover:shadow-md hover:border-[#7889F5]/40 group" : ""
+        isClickable ? "cursor-pointer hover:shadow-md hover:border-slate-400 group" : ""
       } ${isActive ? activeRingColor : ""} ${className}`}
     >
       {/* Top row: Title and Icon */}

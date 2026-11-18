@@ -1312,7 +1312,7 @@ const TaskManagement: React.FC = () => {
                           return (
                             <div key={staff.id} className={`flex items-center justify-between rounded-lg p-2 ${isCurrentUser ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'}`}>
                               <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-[#7889F5] to-[#A5AEFF] flex items-center justify-center text-white font-semibold text-xs">
+                                <div className="w-6 h-6 rounded-full bg-slate-800 flex items-center justify-center text-white font-semibold text-xs">
                                   {getInitials(staff.name)}
                                 </div>
                                 <div>
@@ -1867,7 +1867,7 @@ const TaskManagement: React.FC = () => {
   // ============ MAIN RENDER ============
   if (!user) {
     return (
-      <div className="min-h-screen bg-[#F5F6FC] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center p-4">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading user data...</p>
@@ -1878,7 +1878,7 @@ const TaskManagement: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-[#F5F6FC] flex items-center justify-center">
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
         <div className="text-center p-4">
           <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
           <p className="text-gray-600">Loading tasks...</p>
@@ -1902,7 +1902,7 @@ const TaskManagement: React.FC = () => {
   const createdByMeCount = tasks.filter(t => t.createdBy === user.uid).length;
 
   return (
-    <div className="min-h-screen bg-[#F5F6FC] p-3 md:p-6 lg:p-8">
+    <div className="min-h-screen bg-slate-50 p-3 md:p-6 lg:p-8">
       <TaskDashboard />
       <div className="max-w-7xl mx-auto">
         {/* Header */}
@@ -2134,7 +2134,7 @@ const TaskManagement: React.FC = () => {
                         >
                           <td className="py-3 md:py-4 px-3 md:px-4">
                             <div className="flex items-center">
-                              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-gradient-to-tr from-[#7889F5] to-[#A5AEFF] flex items-center justify-center text-white font-semibold mr-2 md:mr-3 text-xs md:text-sm">
+                              <div className="w-6 h-6 md:w-8 md:h-8 rounded-full bg-slate-800 flex items-center justify-center text-white font-semibold mr-2 md:mr-3 text-xs md:text-sm">
                                 {getInitials(task.employeeName)}
                               </div>
                               <div className="min-w-0">
@@ -2317,7 +2317,7 @@ const TaskManagement: React.FC = () => {
                                 </div>
                                 <div>
                                   <div className="flex items-center mb-4">
-                                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#7889F5] to-[#A5AEFF] flex items-center justify-center text-white font-semibold mr-3 flex-shrink-0">
+                                    <div className="w-10 h-10 rounded-full bg-slate-800 flex items-center justify-center text-white font-semibold mr-3 flex-shrink-0">
                                       {getInitials(task.employeeName)}
                                     </div>
                                     <div>
