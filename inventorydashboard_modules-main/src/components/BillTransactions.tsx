@@ -39,6 +39,7 @@ import {
   getBillDate,
   calculateBillPurchaseCost,
 } from "../utils/billUtils";
+import { generateBillPrintHTML, numberToWords as formatNumberToWords } from "../utils/billPrintTemplate";
 import {
   FileText,
   Eye,
@@ -1301,31 +1302,8 @@ const BillTransactions: React.FC = () => {
     setEditTerms(Array.isArray(billTerms) ? billTerms : defaultTerms);
   };
 
-  // Number to words conversion
-  const numberToWords = (num: number) => {
-    if (num === 0) return 'Zero';
-    
-    const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    
-    const convert = (n: number): string => {
-      if (n < 20) return units[n];
-      if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? ' ' + units[n % 10] : '');
-      if (n < 1000) return units[Math.floor(n / 100)] + ' Hundred' + (n % 100 ? ' ' + convert(n % 100) : '');
-      if (n < 100000) return convert(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 ? ' ' + convert(n % 1000) : '');
-      if (n < 10000000) return convert(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 ? ' ' + convert(n % 100000) : '');
-      return convert(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 ? ' ' + convert(n % 10000000) : '');
-    };
-    
-    const rupees = Math.floor(num);
-    const paise = Math.round((num - rupees) * 100);
-    
-    let words = convert(rupees) + ' Rupees';
-    if (paise > 0) {
-      words += ' and ' + convert(paise) + ' Paise';
-    }
-    return words + ' Only';
-  };
+  // Number to words conversion (delegated to universal helper)
+  const numberToWords = (num: number) => formatNumberToWords(num);
 
   const printHtmlDocument = (htmlContent: string) => {
     // Open via isolated Blob URL with rel="noopener noreferrer"
@@ -1368,857 +1346,103 @@ const BillTransactions: React.FC = () => {
     const termsToPrint = (bill as any).terms || defaultTerms;
     const shouldIncludeSignature = editIncludeSignature !== undefined ? editIncludeSignature : ((bill as any).includeSignature !== false);
     
-    const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>Proforma Invoice - ${bill.invoiceNumber}</title>
-            <script>
-              window.addEventListener('load', function() {
-                setTimeout(function() {
-                  try {
-                    window.focus();
-                    window.print();
-                  } catch (e) {
-                    console.warn("Auto-print error:", e);
-                  }
-                }, 400);
-              });
-            </script>
-            <style>
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-              body { font-family: 'Arial', sans-serif; padding: 30px 40px; background: white; color: #1a1a1a; font-size: 13px; }
-              .document-container { max-width: 1000px; margin: 0 auto; background: white; }
-              .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e9ecef; }
-              .letterhead-logo { flex-shrink: 0; text-align: center; }
-              .letterhead-logo img { width: 160px; height: auto; }
-              .letterhead-logo .tagline { font-size: 11px; color: #666; margin-top: 2px; }
-              .letterhead-company { text-align: right; flex: 1; }
-              .letterhead-company .company-name { font-size: 18px; font-weight: bold; color: #1a1a1a; margin-bottom: 4px; }
-              .letterhead-company .company-info { font-size: 11px; color: #555; line-height: 1.6; }
-              .doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e9ecef; }
-              .doc-type { font-size: 24px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
-              .doc-meta { text-align: right; font-size: 12px; color: #333; line-height: 1.6; }
-              .billing-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 15px; }
-              .billing-label { font-weight: bold; font-size: 12px; color: #333; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-              .billing-content { font-size: 12px; color: #555; line-height: 1.6; }
-              .billing-content strong { color: #1a1a1a; }
-              .supply-bar { margin: 12px 0 18px 0; padding: 8px 15px; background: #f8f9fa; border-radius: 3px; font-size: 12px; border-left: 3px solid #007bff; }
-              .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-              .items-table th { background: #f8f9fa; padding: 8px 10px; text-align: left; border: 1px solid #dee2e6; font-size: 12px; font-weight: 600; color: #333; }
-              .items-table td { padding: 8px 10px; border: 1px solid #dee2e6; font-size: 12px; color: #555; }
-              .items-table .text-center { text-align: center; }
-              .items-table .text-right { text-align: right; }
-              .bottom-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px; }
-              .bank-details { padding: 12px 15px; background: #f8f9fa; border-radius: 4px; font-size: 11px; line-height: 1.8; color: #555; }
-              .bank-details .bank-title { font-weight: bold; color: #333; margin-bottom: 5px; font-size: 12px; }
-              .totals-box { width: 100%; }
-              .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
-              .total-row .label { color: #666; }
-              .total-row .value { color: #333; font-weight: 500; }
-              .discount-row .label, .discount-row .value { color: #28a745; }
-              .grand-total-row { display: flex; justify-content: space-between; padding: 10px 0; margin-top: 6px; border-top: 2px solid #333; font-size: 16px; font-weight: bold; }
-              .grand-total-row .value { color: #007bff; }
-              .amount-words { margin: 15px 0; padding: 8px 15px; background: #f8f9fa; border-radius: 3px; font-size: 12px; }
-              .amount-words strong { color: #333; }
-              .terms-section { margin: 15px 0; padding: 8px 15px; background: #fff3cd; border-radius: 3px; font-size: 12px; border-left: 3px solid #ffc107; }
-              .terms-section .terms-title { font-weight: bold; color: #333; margin-bottom: 4px; }
-              .terms-section ul { list-style: none; padding: 0; margin: 0; }
-              .terms-section ul li { padding: 1px 0; }
-              .notes-section { margin: 15px 0; padding: 8px 15px; background: #d4edda; border-radius: 3px; font-size: 12px; border-left: 3px solid #28a745; }
-              .description-content { margin: 10px 0; padding: 10px 15px; background: #f3e8ff; border-radius: 3px; font-size: 12px; border-left: 3px solid #8b5cf6; color: #4a1a7a; }
-              .footer-section { padding-top: 12px; margin-top: 20px; border-top: 1px solid #e9ecef; display: flex; justify-content: flex-end; align-items: flex-end; }
-              .footer-left { flex: 1; }
-              .footer-right { text-align: right; }
-              .footer-company { font-weight: bold; color: #1a1a1a; font-size: 13px; margin-bottom: 8px; }
-              .signature-container { margin-top: 8px; display: flex; justify-content: flex-end; }
-              .signature-image { max-width: 150px; max-height: 60px; object-fit: contain; }
-              .footer-signatory { font-size: 11px; color: #666; margin-top: 5px; }
-              .status-badge { display: inline-block; padding: 3px 10px; border-radius: 3px; font-weight: bold; font-size: 10px; letter-spacing: 1px; background: #fff3cd; color: #856404; }
-              @media print { body { padding: 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; } .no-print { display: none; } }
-            </style>
-          </head>
-          <body>
-            <div class="document-container">
-              <div class="letterhead">
-                <div class="letterhead-logo">
-                  <img src="${LOGO_URL}" alt="iBots" onerror="this.style.display='none'">
-                  <div class="tagline">Unleash the power of Electronics</div>
-                </div>
-                <div class="letterhead-company">
-                  <div class="company-name">Protowiz Private Limited</div>
-                  <div class="company-info">
-                    Office : 34/17A, First floor, Ramalingam nagar,<br>
-                    4th cross street, Saibaba colony, Coimbatore - 641011, Tamil Nadu<br>
-                    E-mail : info@ibots.in  PH No : 80152 98233<br>
-                    Visit us : www.ibots.in<br>
-                    GST No : 33AAKCP9459K1ZO / PAN : AAMCP9459K
-                  </div>
-                </div>
-              </div>
-
-              <div class="doc-header">
-                <div class="doc-type">PROFORMA INVOICE</div>
-                <div class="doc-meta">
-                  <div>Proforma No: ${bill.invoiceNumber}</div>
-                  <div>Date: ${getBillDate(bill)?.toLocaleDateString('en-IN') || new Date().toLocaleDateString('en-IN')}</div>
-                  <div>PO Date: ${getBillDate(bill)?.toLocaleDateString('en-IN') || new Date().toLocaleDateString('en-IN')}</div>
-                  <div style="margin-top: 4px;"><span class="status-badge">PROFORMA</span></div>
-                </div>
-              </div>
-
-              <div class="billing-section">
-                <div>
-                  <div class="billing-label">Billed by</div>
-                  <div class="billing-content">
-                    <strong>Protowiz Private Limited</strong><br>
-                    ${(() => {
-                      const rawAddr = bill.billedBy?.address || '34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011';
-                      return rawAddr.replace(/^Protowiz Private Limited[, -]*/i, '').trim();
-                    })()}
-                    ${bill.billedBy?.gstin ? `<br>GSTIN: ${bill.billedBy.gstin}` : '<br>GSTIN: 33AAKCP9459K1ZO'}
-                  </div>
-                </div>
-                <div>
-                  <div class="billing-label">Billed to</div>
-                  <div class="billing-content">
-                    <strong>${bill.billedTo?.name || bill.customerName}</strong><br>
-                    ${bill.billedTo?.address || bill.customerAddress ? `Address: ${bill.billedTo?.address || bill.customerAddress}<br>` : ''}
-                    Contact: ${bill.billedTo?.contactNumber || bill.customerContact}<br>
-                    State: ${bill.billedTo?.state || 'Tamil Nadu'}
-                    ${bill.billedTo?.gstin ? `<br>GSTIN: ${bill.billedTo.gstin}` : ''}
-                  </div>
-                </div>
-              </div>
-
-              <div class="supply-bar">
-                <strong>Place of Supply:</strong> ${bill.placeOfSupply || bill.billedTo?.state || 'Tamil Nadu'} &nbsp;&nbsp;|&nbsp;&nbsp; 
-                <strong>Tax Type:</strong> ${bill.taxType === 'cgst_sgst' ? 'CGST + SGST' : 'IGST'}
-              </div>
-
-              ${bill.description ? `
-                <div class="description-content">
-                  ${bill.description}
-                </div>
-              ` : ''}
-
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    <th>SI No</th>
-                    <th>Description of Goods</th>
-                    <th>HSN Code</th>
-                    <th class="text-center">Qty</th>
-                    <th class="text-right">Rate</th>
-                    <th class="text-center">Tax (%)</th>
-                    <th class="text-right">Amount</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${bill.items?.map((item, index) => `
-                    <tr>
-                      <td>${index + 1}</td>
-                      <td>${item.productName}</td>
-                      <td>${item.hsn || '00'}</td>
-                      <td class="text-center">${item.quantity}</td>
-                      <td class="text-right">₹${item.price.toFixed(2)}</td>
-                      <td class="text-center">${bill.taxRate || 0}%</td>
-                      <td class="text-right">₹${item.total.toFixed(2)}</td>
-                    </tr>
-                  `).join('')}
-                </tbody>
-              </table>
-
-              <div class="bottom-section">
-                <div class="bank-details">
-                  <div class="bank-title">Bank Details</div>
-                  <div>
-                    <strong>Beneficiary Name:</strong> ${bankDetailsToPrint.beneficiaryName}<br>
-                    <strong>Bank Name:</strong> ${bankDetailsToPrint.bankName}<br>
-                    <strong>Account No:</strong> ${bankDetailsToPrint.accountNo}<br>
-                    <strong>IFSC Code:</strong> ${bankDetailsToPrint.ifscCode}<br>
-                    <strong>Branch:</strong> ${bankDetailsToPrint.branch}
-                  </div>
-                </div>
-
-                <div class="totals-box">
-                  <div class="total-row">
-                    <span class="label">Sub Total</span>
-                    <span class="value">₹${bill.subtotal?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  ${bill.discountAmount && bill.discountAmount > 0 ? `
-                  <div class="total-row discount-row">
-                    <span class="label">Discount (${bill.discountPercentage || 0}%)</span>
-                    <span class="value">-₹${bill.discountAmount.toFixed(2)}</span>
-                  </div>
-                  ` : ''}
-                  ${bill.taxType === 'cgst_sgst' ? `
-                  <div class="total-row">
-                    <span class="label">CGST (${(bill.taxRate || 0)/2}%)</span>
-                    <span class="value">₹${bill.cgst?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  <div class="total-row">
-                    <span class="label">SGST (${(bill.taxRate || 0)/2}%)</span>
-                    <span class="value">₹${bill.sgst?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  ` : `
-                  <div class="total-row">
-                    <span class="label">IGST (${bill.taxRate || 0}%)</span>
-                    <span class="value">₹${bill.igst?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  `}
-                  ${bill.cessAmount && bill.cessAmount > 0 ? `
-                  <div class="total-row">
-                    <span class="label">Cess Amount</span>
-                    <span class="value">₹${bill.cessAmount.toFixed(2)}</span>
-                  </div>
-                  ` : ''}
-                  <div class="grand-total-row">
-                    <span>Grand Total</span>
-                    <span class="value">₹${bill.totalAmount?.toFixed(2) || '0.00'}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="amount-words">
-                <strong>Amount Chargeable (In Words) :</strong> ${numberToWords(bill.totalAmount || 0)}
-              </div>
-
-              <!-- Terms & Conditions Section -->
-              <div class="terms-section">
-                <div class="terms-title">Terms & Conditions:</div>
-                <ul>
-                  ${termsToPrint && termsToPrint.length > 0 ? 
-                    termsToPrint.map((term: any, index: number) => `<li>${index + 1}. ${term.text}</li>`).join('') 
-                    : `
-                      <li>1. Payment: 100% advance</li>
-                      <li>2. Delivery: 10-12 days maximum from advance initiation</li>
-                      <li>3. Quote Validity: 2 days</li>
-                    `
-                  }
-                </ul>
-              </div>
-
-              <div class="footer-section">
-                <div class="footer-left"></div>
-                <div class="footer-right">
-                  <div class="footer-company">For Protowiz Private Limited</div>
-                  ${shouldIncludeSignature ? `
-                    <div class="signature-container">
-                      <img src="${SIGNATURE_URL}" alt="Authorized Signature" class="signature-image" onerror="this.style.display='none'" />
-                    </div>
-                  ` : `
-                    <div style="height: 50px;"></div>
-                  `}
-                  <div class="footer-signatory">Authorised Signatory</div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="no-print" style="text-align: center; margin-top: 25px;">
-              <button onclick="window.print();" style="padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 5px; margin: 8px; cursor: pointer; font-size: 14px;">🖨 Print</button>
-              <button onclick="window.close();" style="padding: 10px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">✕ Close</button>
-            </div>
-          </body>
-        </html>
-      `;
+    const htmlContent = generateBillPrintHTML({
+      documentType: "PROFORMA INVOICE",
+      documentLabel: "Proforma Invoice #",
+      invoiceNumber: bill.invoiceNumber,
+      billDate: bill.billDate,
+      dueDate: bill.dueDate,
+      status: "proforma",
+      paymentStatus: bill.paymentStatus,
+      paymentType: bill.paymentType,
+      paymentSubStatus: bill.paymentSubStatus,
+      isPaid: bill.paymentStatus === "completed",
+      isQuotation: false,
+      billedTo: bill.billedTo,
+      customerName: bill.customerName,
+      customerContact: bill.customerContact,
+      customerCity: bill.customerCity,
+      customerState: bill.customerState,
+      placeOfSupply: bill.placeOfSupply,
+      taxType: bill.taxType,
+      taxRate: bill.taxRate,
+      subtotal: bill.subtotal,
+      discountPercentage: bill.discountPercentage,
+      discountAmount: bill.discountAmount,
+      cgst: bill.cgst,
+      sgst: bill.sgst,
+      igst: bill.igst,
+      taxAmount: bill.taxAmount,
+      cessAmount: bill.cessAmount,
+      shippingCharges: bill.shippingCharges,
+      totalAmount: bill.totalAmount,
+      items: bill.items,
+      bankDetails: bankDetailsToPrint,
+      terms: termsToPrint,
+      notes: bill.notes,
+      includeSignature: shouldIncludeSignature,
+    });
 
     printHtmlDocument(htmlContent);
   };
 
-  // Print bill format (existing)
+  // Print bill format (Tax Invoice or Quotation)
   const handlePrintBill = () => {
     if (!selectedBill) return;
     
-    const isQuotation = selectedBill.status === "quotation";
+    const isQuotation = selectedBill.status === "quotation" || isQuotationBill(selectedBill);
     const isPaid = selectedBill.paymentStatus === "completed";
     const isApprovedAndPaid = !isQuotation && isPaid;
     
-    const bankDetailsToPrint = editingBankDetails ? editBankDetails : (selectedBill as any).bankDetails || defaultBankDetails;
-    const termsToPrint = editingTerms ? editTerms : (selectedBill as any).terms || defaultTerms;
+    const bankDetailsToPrint = editingBankDetails ? editBankDetails : ((selectedBill as any).bankDetails || defaultBankDetails);
+    const termsToPrint = editingTerms ? editTerms : ((selectedBill as any).terms || defaultTerms);
     const shouldIncludeSignature = editIncludeSignature !== undefined ? editIncludeSignature : ((selectedBill as any).includeSignature !== false);
-    const displayPaymentType = selectedBill.paymentType || "N/A";
-    const displayPaymentSubStatus = selectedBill.paymentSubStatus || "N/A";
-    
-    let documentType = "QUOTATION";
-    let documentLabel = "Quote No";
-    let displayStatus = "";
-    let statusClass = "";
-    
-    if (isApprovedAndPaid) {
-      documentType = "TAX INVOICE";
-      documentLabel = "Invoice #";
-      displayStatus = "PAID";
-      statusClass = "status-paid";
-    } else if (isQuotation) {
-      documentType = "QUOTATION";
-      documentLabel = "Quote No";
-      displayStatus = "";
-      statusClass = "";
-    } else {
-      documentType = "INVOICE";
-      documentLabel = "Invoice #";
-      displayStatus = isPaid ? "PAID" : "NOT PAID";
-      statusClass = isPaid ? "status-paid" : "status-not-paid";
-    }
 
-    const getTableHeaders = () => {
-      if (isApprovedAndPaid) {
-        return `
-          <th>SI No</th>
-          <th>Description of Goods</th>
-          <th>HSN Code</th>
-          <th class="text-center">Qty</th>
-          <th class="text-right">Unit Price</th>
-          <th class="text-right">Amount</th>
-        `;
-      } else {
-        return `
-          <th>SI No</th>
-          <th>Description of Goods</th>
-          <th>HSN Code</th>
-          <th class="text-center">Qty</th>
-          <th class="text-center">UOM</th>
-          <th class="text-right">Unit Price</th>
-          <th class="text-center">Tax (%)</th>
-          <th class="text-right">Amount</th>
-          <th class="text-right">Tax Amt</th>
-        `;
-      }
-    };
+    const documentType = isQuotation ? "QUOTATION" : (isApprovedAndPaid ? "TAX INVOICE" : "INVOICE");
+    const documentLabel = isQuotation ? "Quote No" : "Invoice #";
 
-    const getTableRows = () => {
-      if (isApprovedAndPaid) {
-        return selectedBill.items?.map((item, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${item.productName}</td>
-            <td>${item.hsn || '00'}</td>
-            <td class="text-center">${item.quantity}</td>
-            <td class="text-right">₹${item.price.toFixed(2)}</td>
-            <td class="text-right">₹${item.total.toFixed(2)}</td>
-          </tr>
-        `).join('');
-      } else {
-        return selectedBill.items?.map((item, index) => {
-          const itemTotal = (item as any).total || (item.price * item.quantity);
-          const taxAmt = (item as any).taxAmount || 0;
-          const taxPct = (item as any).taxRate !== undefined ? (item as any).taxRate : (selectedBill.taxRate || 0);
-          return `
-            <tr>
-              <td>${index + 1}</td>
-              <td>${item.productName}</td>
-              <td>${item.hsn || '00'}</td>
-              <td class="text-center">${item.quantity}</td>
-              <td class="text-right">₹${item.price.toFixed(2)}</td>
-              <td class="text-center">Nos</td>
-              <td class="text-center">${taxPct}%</td>
-              <td class="text-right">₹${Number(itemTotal).toFixed(2)}</td>
-              <td class="text-right">₹${Number(taxAmt).toFixed(2)}</td>
-            </tr>
-          `;
-        }).join('');
-      }
-    };
-
-    const htmlContent = `
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <title>${documentType} - ${selectedBill.invoiceNumber}</title>
-            <script>
-              window.addEventListener('load', function() {
-                setTimeout(function() {
-                  try {
-                    window.focus();
-                    window.print();
-                  } catch (e) {
-                    console.warn("Auto-print error:", e);
-                  }
-                }, 400);
-              });
-            </script>
-            <style>
-              * { margin: 0; padding: 0; box-sizing: border-box; }
-              body { 
-                font-family: 'Arial', sans-serif; 
-                padding: 30px 40px; 
-                background: white;
-                color: #1a1a1a;
-                font-size: 13px;
-              }
-              .document-container { 
-                max-width: 1000px; 
-                margin: 0 auto; 
-                background: white;
-              }
-              
-              .letterhead {
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 20px;
-                padding-bottom: 15px;
-                border-bottom: 2px solid #e9ecef;
-              }
-              .letterhead-logo {
-                flex-shrink: 0;
-                text-align: center;
-              }
-              .letterhead-logo img {
-                width: 160px;
-                height: auto;
-              }
-              .letterhead-logo .tagline {
-                font-size: 11px;
-                color: #666;
-                margin-top: 2px;
-              }
-              .letterhead-company {
-                text-align: right;
-                flex: 1;
-              }
-              .letterhead-company .company-name {
-                font-size: 18px;
-                font-weight: bold;
-                color: #1a1a1a;
-                margin-bottom: 4px;
-              }
-              .letterhead-company .company-info {
-                font-size: 11px;
-                color: #555;
-                line-height: 1.6;
-              }
-              
-              .doc-header {
-                display: flex;
-                justify-content: space-between;
-                align-items: flex-start;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-                border-bottom: 1px solid #e9ecef;
-              }
-              .doc-type {
-                font-size: 24px;
-                font-weight: bold;
-                color: #1a1a1a;
-                letter-spacing: 2px;
-              }
-              .doc-meta {
-                text-align: right;
-                font-size: 12px;
-                color: #333;
-                line-height: 1.6;
-              }
-              .status-badge {
-                display: inline-block;
-                padding: 3px 10px;
-                border-radius: 3px;
-                font-weight: bold;
-                font-size: 10px;
-                letter-spacing: 1px;
-              }
-              .status-paid {
-                background: #d4edda;
-                color: #155724;
-              }
-              .status-not-paid {
-                background: #f8d7da;
-                color: #721c24;
-              }
-              .payment-type-label {
-                font-size: 10px;
-                color: #666;
-                margin-top: 2px;
-              }
-              .payment-substatus-label {
-                font-size: 10px;
-                color: #666;
-                margin-top: 2px;
-                font-weight: 500;
-              }
-              .invoice-info {
-                font-size: 11px;
-                color: #555;
-                margin-top: 3px;
-                padding: 3px 8px;
-                background: #f8f9fa;
-                border-radius: 3px;
-              }
-              
-              .billing-section {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 30px;
-                margin-bottom: 15px;
-              }
-              .billing-label {
-                font-weight: bold;
-                font-size: 12px;
-                color: #333;
-                margin-bottom: 4px;
-                text-transform: uppercase;
-                letter-spacing: 0.5px;
-              }
-              .billing-content {
-                font-size: 12px;
-                color: #555;
-                line-height: 1.6;
-              }
-              .billing-content strong {
-                color: #1a1a1a;
-              }
-              
-              .supply-bar {
-                margin: 12px 0 18px 0;
-                padding: 8px 15px;
-                background: #f8f9fa;
-                border-radius: 3px;
-                font-size: 12px;
-                border-left: 3px solid #007bff;
-              }
-              
-              .items-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin-bottom: 15px;
-              }
-              .items-table th {
-                background: #f8f9fa;
-                padding: 8px 10px;
-                text-align: left;
-                border: 1px solid #dee2e6;
-                font-size: 12px;
-                font-weight: 600;
-                color: #333;
-              }
-              .items-table td {
-                padding: 8px 10px;
-                border: 1px solid #dee2e6;
-                font-size: 12px;
-                color: #555;
-              }
-              .items-table .text-center { text-align: center; }
-              .items-table .text-right { text-align: right; }
-              
-              .bottom-section {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 30px;
-                margin-bottom: 20px;
-              }
-              
-              .bank-details {
-                padding: 12px 15px;
-                background: #f8f9fa;
-                border-radius: 4px;
-                font-size: 11px;
-                line-height: 1.8;
-                color: #555;
-              }
-              .bank-details .bank-title {
-                font-weight: bold;
-                color: #333;
-                margin-bottom: 5px;
-                font-size: 12px;
-              }
-              
-              .totals-box {
-                width: 100%;
-              }
-              .total-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 5px 0;
-                font-size: 12px;
-              }
-              .total-row .label { color: #666; }
-              .total-row .value { color: #333; font-weight: 500; }
-              .discount-row .label, .discount-row .value { color: #28a745; }
-              .grand-total-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 10px 0;
-                margin-top: 6px;
-                border-top: 2px solid #333;
-                font-size: 16px;
-                font-weight: bold;
-              }
-              .grand-total-row .value { color: #007bff; }
-              
-              .terms-section {
-                margin-bottom: 25px;
-                font-size: 11px;
-                color: #555;
-              }
-              .terms-title {
-                font-weight: bold;
-                color: #333;
-                margin-bottom: 4px;
-                font-size: 12px;
-              }
-              .terms-list {
-                list-style: none;
-                padding: 0;
-              }
-              .terms-list li {
-                padding: 1px 0;
-              }
-              
-              .footer-section { 
-                padding-top: 12px; 
-                margin-top: 20px;
-                border-top: 1px solid #e9ecef; 
-                display: flex;
-                justify-content: flex-end;
-                align-items: flex-end;
-              }
-              .footer-left { flex: 1; }
-              .footer-right { text-align: right; }
-              .footer-company { 
-                font-weight: bold; 
-                color: #1a1a1a; 
-                font-size: 13px; 
-                margin-bottom: 8px; 
-              }
-              .signature-container { 
-                margin-top: 8px; 
-                display: flex; 
-                justify-content: flex-end; 
-              }
-              .signature-image { 
-                max-width: 150px; 
-                max-height: 60px; 
-                object-fit: contain; 
-              }
-              .footer-signatory { 
-                font-size: 11px; 
-                color: #666; 
-                margin-top: 5px; 
-              }
-              
-              @media print { 
-                body { 
-                  padding: 20px; 
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                } 
-                .no-print { display: none; }
-                .status-paid {
-                  background: #d4edda !important;
-                  color: #155724 !important;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                .status-not-paid {
-                  background: #f8d7da !important;
-                  color: #721c24 !important;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                .items-table th {
-                  background: #f8f9fa !important;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                .bank-details {
-                  background: #f8f9fa !important;
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-                .signature-image {
-                  max-width: 150px;
-                  max-height: 60px;
-                }
-                .payment-type-label, .payment-substatus-label, .invoice-info {
-                  -webkit-print-color-adjust: exact;
-                  print-color-adjust: exact;
-                }
-              }
-            </style>
-          </head>
-          <body>
-            <div class="document-container">
-              
-              <div class="letterhead">
-                <div class="letterhead-logo">
-                  <img src="${LOGO_URL}" alt="iBots" onerror="this.style.display='none'">
-                  <div class="tagline">Unleash the power of Electronics</div>
-                </div>
-                <div class="letterhead-company">
-                  <div class="company-name">Protowiz Private Limited</div>
-                  <div class="company-info">
-                    Office : 34/17A, First floor, Ramalingam nagar,<br>
-                    4th cross street, Saibaba colony, Coimbatore - 641011, Tamil Nadu<br>
-                    E-mail : info@ibots.in  PH No : 80152 98233<br>
-                    Visit us : www.ibots.in<br>
-                    GST No : 33AAKCP9459K1ZO / PAN : AAMCP9459K
-                  </div>
-                </div>
-              </div>
-
-              <div class="doc-header">
-                <div class="doc-type">${documentType}</div>
-                <div class="doc-meta">
-                  <div>${documentLabel}: ${selectedBill.invoiceNumber}</div>
-                  <div>Date: ${getBillDate(selectedBill)?.toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' }) || new Date().toLocaleDateString('en-IN')}</div>
-                  ${!isQuotation && displayStatus ? `
-                    <div><span class="status-badge ${statusClass}">${displayStatus}</span></div>
-                  ` : ''}
-                  ${displayPaymentType && !isQuotation ? `
-                    <div class="payment-type-label">Payment Type: ${displayPaymentType}</div>
-                  ` : ''}
-                  ${displayPaymentSubStatus && !isQuotation ? `
-                    <div class="invoice-info">Payment Status: ${displayPaymentSubStatus}</div>
-                  ` : ''}
-                </div>
-              </div>
-
-              <div class="billing-section">
-                <div>
-                  <div class="billing-label">Billed by</div>
-                  <div class="billing-content">
-                    <strong>Protowiz Private Limited</strong><br>
-                    ${(() => {
-                      const rawAddr = selectedBill.billedBy?.address || '34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011';
-                      return rawAddr.replace(/^Protowiz Private Limited[, -]*/i, '').trim();
-                    })()}
-                    ${selectedBill.billedBy?.gstin ? `<br>GSTIN: ${selectedBill.billedBy.gstin}` : '<br>GSTIN: 33AAKCP9459K1ZO'}
-                    ${selectedBill.billedBy?.pan ? `<br>PAN: ${selectedBill.billedBy.pan}` : '<br>PAN: AAMCP9459K'}
-                  </div>
-                </div>
-                <div>
-                  <div class="billing-label">Billed to</div>
-                  <div class="billing-content">
-                    <strong>${selectedBill.billedTo?.name || selectedBill.customerName}</strong><br>
-                    Enquiry ID: ${selectedBill.billedTo?.enqId || selectedBill.enquiryEnqId || 'N/A'}<br>
-                    Contact: ${selectedBill.billedTo?.contactNumber || selectedBill.customerContact}<br>
-                    City: ${selectedBill.billedTo?.city || selectedBill.customerCity}<br>
-                    State: ${selectedBill.billedTo?.state || 'Tamil Nadu'}
-                    ${selectedBill.billedTo?.gstin ? `<br>GSTIN: ${selectedBill.billedTo.gstin}` : ''}
-                    ${!isQuotation && displayPaymentType ? `<br>Payment Type: ${displayPaymentType}` : ''}
-                    ${!isQuotation && displayPaymentSubStatus ? `<br>Payment Status: ${displayPaymentSubStatus}` : ''}
-                  </div>
-                </div>
-              </div>
-
-              <div class="supply-bar">
-                <strong>Place of Supply:</strong> ${selectedBill.placeOfSupply || selectedBill.billedTo?.state || 'Tamil Nadu'} &nbsp;&nbsp;|&nbsp;&nbsp; <strong>Tax Type:</strong> ${selectedBill.taxType === 'cgst_sgst' ? 'CGST + SGST' : 'IGST'}
-              </div>
-
-              <table class="items-table">
-                <thead>
-                  <tr>
-                    ${getTableHeaders()}
-                  </tr>
-                </thead>
-                <tbody>
-                  ${getTableRows()}
-                </tbody>
-              </table>
-
-              <div class="bottom-section">
-                <div class="bank-details">
-                  <div class="bank-title">Bank Details</div>
-                  <div>
-                    <strong>Beneficiary Name:</strong> ${bankDetailsToPrint.beneficiaryName}<br>
-                    <strong>Bank Name:</strong> ${bankDetailsToPrint.bankName}<br>
-                    <strong>Account No:</strong> ${bankDetailsToPrint.accountNo}<br>
-                    <strong>IFSC Code:</strong> ${bankDetailsToPrint.ifscCode}<br>
-                    <strong>Branch:</strong> ${bankDetailsToPrint.branch}
-                  </div>
-                </div>
-
-                <div class="totals-box">
-                  <div class="total-row">
-                    <span class="label">Sub Total</span>
-                    <span class="value">₹${selectedBill.subtotal?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  ${selectedBill.discountAmount && selectedBill.discountAmount > 0 ? `
-                  <div class="total-row discount-row">
-                    <span class="label">Discount (${selectedBill.discountPercentage || 0}%)</span>
-                    <span class="value">-₹${selectedBill.discountAmount.toFixed(2)}</span>
-                  </div>
-                  ` : ''}
-                  ${selectedBill.taxType === 'cgst_sgst' ? `
-                  <div class="total-row">
-                    <span class="label">CGST (${(selectedBill.taxRate || 0)/2}%)</span>
-                    <span class="value">₹${selectedBill.cgst?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  <div class="total-row">
-                    <span class="label">SGST (${(selectedBill.taxRate || 0)/2}%)</span>
-                    <span class="value">₹${selectedBill.sgst?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  ` : `
-                  <div class="total-row">
-                    <span class="label">IGST (${selectedBill.taxRate || 0}%)</span>
-                    <span class="value">₹${selectedBill.igst?.toFixed(2) || '0.00'}</span>
-                  </div>
-                  `}
-                  <div class="grand-total-row">
-                    <span>Grand Total</span>
-                    <span class="value">₹${selectedBill.totalAmount?.toFixed(2) || '0.00'}</span>
-                  </div>
-                </div>
-              </div>
-
-              ${selectedBill.notes ? `
-              <div class="notes-section">
-                <strong>Notes:</strong><br>
-                ${selectedBill.notes.replace(/\n/g, '<br>')}
-              </div>
-              ` : ''}
-
-              <div class="terms-section">
-                <div class="terms-title">Terms & Conditions:</div>
-                <ul class="terms-list">
-                  ${termsToPrint && termsToPrint.length > 0 ? 
-                    termsToPrint.map((term: any, index: number) => `
-                      <li>${index + 1}. ${term.text}</li>
-                    `).join('') 
-                    : `
-                      <li>1. Payment: 100% advance</li>
-                      <li>2. Delivery: 10-12 days maximum from advance initiation</li>
-                      <li>3. Quote Validity: 2 days</li>
-                    `
-                  }
-                </ul>
-              </div>
-
-              <div class="footer-section">
-                <div class="footer-left"></div>
-                <div class="footer-right">
-                  <div class="footer-company">For Protowiz Private Limited</div>
-                  ${shouldIncludeSignature ? `
-                    <div class="signature-container">
-                      <img 
-                        src="${SIGNATURE_URL}" 
-                        alt="Authorized Signature" 
-                        class="signature-image"
-                        onerror="this.style.display='none'"
-                      />
-                    </div>
-                  ` : `
-                    <div style="height: 50px;"></div>
-                  `}
-                  <div class="footer-signatory">Authorised Signatory</div>
-                </div>
-              </div>
-
-            </div>
-            
-            <div class="no-print" style="text-align: center; margin-top: 25px;">
-              <button onclick="window.print();" style="padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 5px; margin: 8px; cursor: pointer; font-size: 14px;">🖨 Print ${documentType}</button>
-              <button onclick="window.close();" style="padding: 10px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">✕ Close</button>
-            </div>
-          </body>
-        </html>
-      `;
+    const htmlContent = generateBillPrintHTML({
+      documentType,
+      documentLabel,
+      invoiceNumber: selectedBill.invoiceNumber,
+      billDate: selectedBill.billDate,
+      dueDate: selectedBill.dueDate,
+      status: selectedBill.status,
+      paymentStatus: selectedBill.paymentStatus,
+      paymentType: selectedBill.paymentType,
+      paymentSubStatus: selectedBill.paymentSubStatus,
+      isPaid,
+      isQuotation,
+      isApprovedAndPaid,
+      billedTo: selectedBill.billedTo,
+      customerName: selectedBill.customerName,
+      customerContact: selectedBill.customerContact,
+      customerCity: selectedBill.customerCity,
+      customerState: selectedBill.customerState,
+      placeOfSupply: selectedBill.placeOfSupply,
+      taxType: selectedBill.taxType,
+      taxRate: selectedBill.taxRate,
+      subtotal: selectedBill.subtotal,
+      discountPercentage: selectedBill.discountPercentage,
+      discountAmount: selectedBill.discountAmount,
+      cgst: selectedBill.cgst,
+      sgst: selectedBill.sgst,
+      igst: selectedBill.igst,
+      taxAmount: selectedBill.taxAmount,
+      cessAmount: selectedBill.cessAmount,
+      shippingCharges: selectedBill.shippingCharges,
+      totalAmount: selectedBill.totalAmount,
+      items: selectedBill.items,
+      bankDetails: bankDetailsToPrint,
+      terms: termsToPrint,
+      notes: selectedBill.notes,
+      includeSignature: shouldIncludeSignature,
+    });
 
     printHtmlDocument(htmlContent);
   };
 
-  // Downloadable Excel Report Generation (Fully Styled, Bordered & Themed via xlsx-js-style matching PNL)
+    // Downloadable Excel Report Generation (Fully Styled, Bordered & Themed via xlsx-js-style matching PNL)
   const handleDownloadExcel = () => {
     try {
       const workbook = XLSX.utils.book_new();
@@ -3532,7 +2756,15 @@ const BillTransactions: React.FC = () => {
   </div>
 
       {/* Modern Bill Details Modal */}
-      {selectedBill && (
+      {selectedBill && (() => {
+        const isSelectedQuotation = selectedBill.status === "quotation" || isQuotationBill(selectedBill);
+        const isSelectedPaid = selectedBill.paymentStatus === "completed";
+        const docTitle = isSelectedQuotation ? "Quotation Details" : "Tax Invoice Details";
+        const docBadge = isSelectedQuotation ? "QUOTATION" : (isSelectedPaid ? "TAX INVOICE" : "INVOICE");
+        const docDate = getBillDate(selectedBill)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) || "N/A";
+        const taxableVal = Math.max(0, (selectedBill.subtotal || 0) - (selectedBill.discountAmount || 0));
+
+        return (
         <div 
           onClick={() => setSelectedBill(null)}
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
@@ -3543,16 +2775,27 @@ const BillTransactions: React.FC = () => {
             className="bg-white rounded-3xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden my-6 animate-fade-in flex flex-col border border-gray-100 overscroll-contain"
           >
             {/* Modal Header */}
-            <div className="sticky top-0 z-10 bg-slate-50/80 backdrop-blur-xs border-b border-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+            <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-xs border-b border-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <div className={`w-10 h-10 rounded-2xl flex items-center justify-center shadow-xs text-white ${
+                  isSelectedQuotation
+                    ? "bg-gradient-to-tr from-sky-600 to-blue-600"
+                    : (isSelectedPaid ? "bg-gradient-to-tr from-emerald-600 to-teal-700" : "bg-gradient-to-tr from-amber-600 to-orange-600")
+                }`}>
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-gray-900">Bill Details</h3>
+                    <h3 className="text-base font-bold text-gray-900">{docTitle}</h3>
                     <span className="font-mono text-xs font-semibold text-gray-700 bg-gray-100 px-2.5 py-0.5 rounded-full border border-gray-200">
                       {selectedBill.invoiceNumber}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
+                      isSelectedQuotation
+                        ? "bg-sky-100 text-sky-800 border border-sky-200"
+                        : (isSelectedPaid ? "bg-emerald-100 text-emerald-800 border border-emerald-200" : "bg-amber-100 text-amber-800 border border-amber-200")
+                    }`}>
+                      {docBadge}
                     </span>
                     <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-bold ${
                       selectedBill.billType === "B2B"
@@ -3586,7 +2829,9 @@ const BillTransactions: React.FC = () => {
               {/* Info Cards Grid */}
               <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                 <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Invoice Number</p>
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                    {isSelectedQuotation ? "Quote Number" : "Invoice Number"}
+                  </p>
                   <p className="text-xs font-bold text-gray-900 font-mono truncate">{selectedBill.invoiceNumber}</p>
                 </div>
                 <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
@@ -3607,7 +2852,7 @@ const BillTransactions: React.FC = () => {
                 </div>
                 <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Date</p>
-                  <p className="text-xs font-semibold text-gray-800">{getBillDate(selectedBill)?.toLocaleDateString('en-IN') || "N/A"}</p>
+                  <p className="text-xs font-semibold text-gray-800">{docDate}</p>
                 </div>
                 <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100">
                   <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Total Amount</p>
@@ -3615,53 +2860,118 @@ const BillTransactions: React.FC = () => {
                 </div>
               </div>
 
-              {/* Payment Status Card */}
-              <div className={`p-4 rounded-2xl border ${
-                selectedBill.paymentStatus === "completed"
-                  ? "bg-emerald-50/80 border-emerald-200/80"
-                  : "bg-amber-50/80 border-amber-200/80"
-              }`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {selectedBill.paymentStatus === "completed" ? (
-                      <CheckCircle className="w-4 h-4 text-emerald-600" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-amber-600" />
-                    )}
-                    <span className={`text-xs font-bold uppercase tracking-wider ${
-                      selectedBill.paymentStatus === "completed" ? "text-emerald-800" : "text-amber-800"
-                    }`}>
-                      Payment Status
+              {/* Party Information (Supplier & Recipient in Modern Light Cards) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">Supplier / Issued By</p>
+                  <p className="text-sm font-bold text-gray-900">Protowiz Private Limited</p>
+                  <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                    34/17A, Ramalingam Nagar, Saibaba Colony, Coimbatore - 641011, Tamil Nadu
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2 text-[11px] font-mono">
+                    <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
+                      GSTIN: <strong className="text-slate-900">33AAKCP9459K1ZO</strong>
+                    </span>
+                    <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
+                      PAN: <strong className="text-slate-900">AAMCP9459K</strong>
                     </span>
                   </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
-                    selectedBill.paymentStatus === "completed"
-                      ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
-                      : "bg-amber-100 text-amber-800 border border-amber-200"
-                  }`}>
-                    {selectedBill.paymentStatus === "completed" ? "PAID" : "NOT PAID"}
-                  </span>
                 </div>
-                <div className="mt-2.5 flex flex-wrap items-center gap-4 text-xs">
-                  <div>
-                    <span className="text-gray-500 font-medium">Payment Type: </span>
-                    <span className="font-semibold text-gray-800">{selectedBill.paymentType || "N/A"}</span>
+
+                <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                    {isSelectedQuotation ? "Quotation For / Client" : "Billed To / Recipient"}
+                  </p>
+                  <p className="text-sm font-bold text-gray-900">{selectedBill.customerName || "Customer"}</p>
+                  <p className="text-xs text-gray-600 mt-1">
+                    Contact: <span className="font-semibold text-gray-800">{selectedBill.customerContact || "-"}</span>
+                    &nbsp;|&nbsp; Location: <span className="font-semibold text-gray-800">{[selectedBill.customerCity, selectedBill.customerState].filter(Boolean).join(", ") || "-"}</span>
+                  </p>
+                  <div className="mt-2.5 flex flex-wrap gap-2 text-[11px] font-mono">
+                    {selectedBill.billedTo?.gstin ? (
+                      <span className="bg-white px-2 py-0.5 rounded-lg border border-purple-200 text-purple-700 font-semibold">
+                        GSTIN: {selectedBill.billedTo.gstin}
+                      </span>
+                    ) : (
+                      <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-500">
+                        Consumer / Unregistered
+                      </span>
+                    )}
+                    <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
+                      Place of Supply: <strong className="text-slate-900">{selectedBill.placeOfSupply || "Tamil Nadu (33)"}</strong>
+                    </span>
                   </div>
-                  {selectedBill.paymentSubStatus && (
-                    <div>
-                      <span className="text-gray-500 font-medium">Payment Sub Status: </span>
-                      <span className="font-semibold text-gray-800">{selectedBill.paymentSubStatus}</span>
-                    </div>
-                  )}
                 </div>
               </div>
+
+              {/* Payment or Quotation Status Card */}
+              {isSelectedQuotation ? (
+                <div className="p-4 rounded-2xl border bg-blue-50/80 border-blue-200/80">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-blue-600" />
+                      <span className="text-xs font-bold uppercase tracking-wider text-blue-800">
+                        Quotation Estimate Status
+                      </span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-blue-100 text-blue-800 border border-blue-200">
+                      COMMERCIAL ESTIMATE
+                    </span>
+                  </div>
+                  <p className="mt-1.5 text-xs text-blue-900/80">
+                    This document is a formal price quote. Upon client acceptance and payment confirmation, it converts directly into a Tax Invoice.
+                  </p>
+                </div>
+              ) : (
+                <div className={`p-4 rounded-2xl border ${
+                  isSelectedPaid
+                    ? "bg-emerald-50/80 border-emerald-200/80"
+                    : "bg-amber-50/80 border-amber-200/80"
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      {isSelectedPaid ? (
+                        <CheckCircle className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <AlertCircle className="w-4 h-4 text-amber-600" />
+                      )}
+                      <span className={`text-xs font-bold uppercase tracking-wider ${
+                        isSelectedPaid ? "text-emerald-800" : "text-amber-800"
+                      }`}>
+                        Payment Status
+                      </span>
+                    </div>
+                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
+                      isSelectedPaid
+                        ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                        : "bg-amber-100 text-amber-800 border border-amber-200"
+                    }`}>
+                      {isSelectedPaid ? "PAID" : "NOT PAID"}
+                    </span>
+                  </div>
+                  <div className="mt-2.5 flex flex-wrap items-center gap-4 text-xs">
+                    <div>
+                      <span className="text-gray-500 font-medium">Payment Type: </span>
+                      <span className="font-semibold text-gray-800">{selectedBill.paymentType || "N/A"}</span>
+                    </div>
+                    {selectedBill.paymentSubStatus && (
+                      <div>
+                        <span className="text-gray-500 font-medium">Payment Sub Status: </span>
+                        <span className="font-semibold text-gray-800">{selectedBill.paymentSubStatus}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Items Table Section */}
               <div className="bg-white rounded-2xl border border-gray-200/90 overflow-hidden shadow-xs">
                 <div className="bg-slate-50/90 px-4 py-3 border-b border-gray-200/80 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Package className="w-4 h-4 text-blue-600" />
-                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Items & Products</h4>
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">
+                      {isSelectedQuotation ? "Quoted Items & Services" : "Billed Items & Products"}
+                    </h4>
                   </div>
                   <span className="text-[11px] font-semibold text-gray-500 bg-white px-2 py-0.5 rounded-full border border-gray-200">
                     {selectedBill.items?.length || 0} {selectedBill.items?.length === 1 ? "item" : "items"}
@@ -3669,42 +2979,68 @@ const BillTransactions: React.FC = () => {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
-                    <thead className="bg-gray-50/50 text-[11px] font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                    <thead className="bg-gray-50/70 text-[11px] font-bold text-gray-600 uppercase tracking-wider border-b border-gray-200">
                       <tr>
-                        <th className="px-4 py-2.5 text-left w-12">#</th>
-                        <th className="px-4 py-2.5 text-left">Product Name</th>
-                        <th className="px-4 py-2.5 text-center w-24">Quantity</th>
-                        <th className="px-4 py-2.5 text-right w-28">Price</th>
+                        <th className="px-4 py-2.5 text-center w-12">#</th>
+                        <th className="px-4 py-2.5 text-left">Item Description</th>
+                        <th className="px-4 py-2.5 text-center w-24">HSN/SAC</th>
+                        <th className="px-4 py-2.5 text-center w-20">Qty</th>
+                        <th className="px-4 py-2.5 text-right w-24">Unit Rate</th>
+                        <th className="px-4 py-2.5 text-center w-20">GST %</th>
+                        <th className="px-4 py-2.5 text-right w-24">GST Amt</th>
                         <th className="px-4 py-2.5 text-right w-28">Total</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       {selectedBill.items && selectedBill.items.length > 0 ? (
-                        selectedBill.items.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
-                            <td className="px-4 py-2.5 text-gray-400 font-mono text-[11px] font-medium">
-                              {idx + 1}
-                            </td>
-                            <td className="px-4 py-2.5 font-semibold text-gray-900">
-                              {item.productName}
-                            </td>
-                            <td className="px-4 py-2.5 text-center">
-                              <span className="inline-flex items-center justify-center px-2.5 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 font-mono">
-                                {item.quantity}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2.5 text-right text-gray-700 font-mono">
-                              ₹{item.price?.toFixed(2)}
-                            </td>
-                            <td className="px-4 py-2.5 text-right font-bold text-gray-900 font-mono">
-                              ₹{item.total?.toFixed(2)}
-                            </td>
-                          </tr>
-                        ))
+                        selectedBill.items.map((item, idx) => {
+                          const itemQty = Number(item.quantity) || 1;
+                          const itemPrice = Number(item.price) || 0;
+                          const itemTaxRate = (item as any).taxRate !== undefined && (item as any).taxRate !== null ? Number((item as any).taxRate) : (selectedBill.taxRate || 18);
+                          const itemTotal = Number(item.total) || (itemPrice * itemQty);
+                          const itemTaxAmt = (item as any).taxAmount !== undefined && (item as any).taxAmount !== null
+                            ? Number((item as any).taxAmount)
+                            : (itemTotal * itemTaxRate) / 100;
+                          const lineTotal = itemTotal + itemTaxAmt;
+
+                          return (
+                            <tr key={idx} className="hover:bg-gray-50/60 transition-colors">
+                              <td className="px-4 py-2.5 text-gray-400 font-mono text-[11px] font-medium text-center">
+                                {idx + 1}
+                              </td>
+                              <td className="px-4 py-2.5">
+                                <div className="font-semibold text-gray-900">{item.productName}</div>
+                                {(item as any).sku && (item as any).sku !== '-' && (
+                                  <div className="text-[10px] text-gray-500 font-mono">SKU: {(item as any).sku}</div>
+                                )}
+                              </td>
+                              <td className="px-4 py-2.5 text-center font-mono text-[11px] text-gray-600">
+                                {(item as any).hsn || "0000"}
+                              </td>
+                              <td className="px-4 py-2.5 text-center">
+                                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-lg text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 font-mono">
+                                  {itemQty}
+                                </span>
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-gray-700 font-mono">
+                                ₹{itemPrice.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-2.5 text-center text-gray-600 font-mono">
+                                {itemTaxRate}%
+                              </td>
+                              <td className="px-4 py-2.5 text-right text-gray-700 font-mono">
+                                ₹{itemTaxAmt.toFixed(2)}
+                              </td>
+                              <td className="px-4 py-2.5 text-right font-bold text-gray-900 font-mono">
+                                ₹{lineTotal.toFixed(2)}
+                              </td>
+                            </tr>
+                          );
+                        })
                       ) : (
                         <tr>
-                          <td colSpan={5} className="py-6 text-center text-gray-400">
-                            No items found in this bill
+                          <td colSpan={8} className="py-6 text-center text-gray-400">
+                            No items found in this {isSelectedQuotation ? "quotation" : "bill"}
                           </td>
                         </tr>
                       )}
@@ -3922,56 +3258,72 @@ const BillTransactions: React.FC = () => {
                 )}
               </div>
 
-              {/* Tax Summary Card */}
+              {/* Tax Summary & Amount in Words Card */}
               <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2.5">Tax Summary</h4>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 font-medium">Subtotal:</span>
-                    <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.subtotal?.toFixed(2) || "0.00"}</span>
-                  </div>
-                  {selectedBill.discountAmount && selectedBill.discountAmount > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 font-medium">Discount ({selectedBill.discountPercentage || 0}%):</span>
-                      <span className="text-emerald-600 font-semibold font-mono">-₹{selectedBill.discountAmount.toFixed(2)}</span>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Amount Chargeable in Words</h4>
+                    <div className="p-3 bg-white rounded-xl border border-slate-200 text-xs font-semibold text-slate-800 leading-relaxed">
+                      {formatNumberToWords(selectedBill.totalAmount || 0)}
                     </div>
-                  )}
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 font-medium">Taxable Amount:</span>
-                    <span className="font-semibold text-gray-900 font-mono">₹{((selectedBill.subtotal || 0) - (selectedBill.discountAmount || 0)).toFixed(2)}</span>
+                    <div className="text-[11px] text-gray-500 space-y-0.5 pt-1">
+                      <p>• Place of Supply: <strong className="text-gray-700">{selectedBill.placeOfSupply || "Tamil Nadu (33)"}</strong></p>
+                      <p>• GST Classification: <strong className="text-gray-700">{selectedBill.taxType === "cgst_sgst" ? "Intrastate (CGST + SGST)" : "Interstate (IGST)"}</strong></p>
+                      <p>• Reverse Charge: <strong className="text-gray-700">No</strong></p>
+                    </div>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500 font-medium">Tax Type:</span>
-                    <span className="font-semibold text-gray-900 capitalize">
-                      {selectedBill.taxType === "cgst_sgst" ? "CGST + SGST" : "IGST"} ({selectedBill.taxRate || 0}%)
-                    </span>
-                  </div>
-                  {selectedBill.taxType === "cgst_sgst" ? (
-                    <>
+
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider mb-2">Calculation Breakdown</h4>
+                    <div className="space-y-1.5 text-xs bg-white p-3 rounded-xl border border-slate-200">
                       <div className="flex justify-between">
-                        <span className="text-gray-500 font-medium">CGST ({(selectedBill.taxRate || 0) / 2}%):</span>
-                        <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.cgst?.toFixed(2) || "0.00"}</span>
+                        <span className="text-gray-500 font-medium">Subtotal:</span>
+                        <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.subtotal?.toFixed(2) || "0.00"}</span>
+                      </div>
+                      {selectedBill.discountAmount && selectedBill.discountAmount > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 font-medium">Discount ({selectedBill.discountPercentage || 0}%):</span>
+                          <span className="text-emerald-600 font-semibold font-mono">-₹{selectedBill.discountAmount.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between">
+                        <span className="text-gray-500 font-medium">Taxable Amount:</span>
+                        <span className="font-semibold text-gray-900 font-mono">₹{taxableVal.toFixed(2)}</span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-gray-500 font-medium">SGST ({(selectedBill.taxRate || 0) / 2}%):</span>
-                        <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.sgst?.toFixed(2) || "0.00"}</span>
+                        <span className="text-gray-500 font-medium">Tax Type:</span>
+                        <span className="font-semibold text-gray-900 capitalize">
+                          {selectedBill.taxType === "cgst_sgst" ? "CGST + SGST" : "IGST"} ({selectedBill.taxRate || 0}%)
+                        </span>
                       </div>
-                    </>
-                  ) : (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 font-medium">IGST ({selectedBill.taxRate || 0}%):</span>
-                      <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.igst?.toFixed(2) || "0.00"}</span>
+                      {selectedBill.taxType === "cgst_sgst" ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 font-medium">CGST ({(selectedBill.taxRate || 0) / 2}%):</span>
+                            <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.cgst?.toFixed(2) || "0.00"}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 font-medium">SGST ({(selectedBill.taxRate || 0) / 2}%):</span>
+                            <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.sgst?.toFixed(2) || "0.00"}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 font-medium">IGST ({selectedBill.taxRate || 0}%):</span>
+                          <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.igst?.toFixed(2) || "0.00"}</span>
+                        </div>
+                      )}
+                      {selectedBill.shippingCharges && selectedBill.shippingCharges > 0 && (
+                        <div className="flex justify-between">
+                          <span className="text-gray-500 font-medium">Shipping / Courier:</span>
+                          <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.shippingCharges.toFixed(2)}</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-200">
+                        <span className="text-gray-900">Total Amount:</span>
+                        <span className="text-emerald-700 font-mono">₹{selectedBill.totalAmount?.toFixed(2) || "0.00"}</span>
+                      </div>
                     </div>
-                  )}
-                  {selectedBill.cessAmount && selectedBill.cessAmount > 0 && (
-                    <div className="flex justify-between">
-                      <span className="text-gray-500 font-medium">Cess Amount:</span>
-                      <span className="font-semibold text-gray-900 font-mono">₹{selectedBill.cessAmount.toFixed(2)}</span>
-                    </div>
-                  )}
-                  <div className="flex justify-between text-sm font-bold pt-2 border-t border-gray-200">
-                    <span className="text-gray-900">Total Amount:</span>
-                    <span className="text-emerald-700 font-mono">₹{selectedBill.totalAmount?.toFixed(2) || "0.00"}</span>
                   </div>
                 </div>
               </div>
@@ -4005,12 +3357,12 @@ const BillTransactions: React.FC = () => {
               <div className="flex items-center gap-2">
                 <button
                   onClick={handlePrintBill}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs font-semibold flex items-center gap-2 text-xs transition cursor-pointer"
+                  className={`px-4 py-2 text-white rounded-xl shadow-xs font-semibold flex items-center gap-2 text-xs transition cursor-pointer ${
+                    isSelectedQuotation ? "bg-blue-600 hover:bg-blue-700" : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  {selectedBill.status === "quotation" || isQuotationBill(selectedBill)
-                    ? "Print / Download Quotation"
-                    : "Print Bill"}
+                  {isSelectedQuotation ? "Print / Download Quotation" : "Print / Download Tax Invoice"}
                 </button>
                 <button
                   onClick={() => setSelectedBill(null)}
@@ -4022,9 +3374,10 @@ const BillTransactions: React.FC = () => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
 
-      {/* Delete Confirmation Modal with Admin Password Verification */}
+            {/* Delete Confirmation Modal with Admin Password Verification */}
       {showDeleteConfirm && billToDelete && (
         <div 
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"

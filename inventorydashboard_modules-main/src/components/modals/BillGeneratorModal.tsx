@@ -5,6 +5,7 @@ import { X, Printer, Save, AlertCircle, Edit3, Check, RotateCcw, RefreshCw, Plus
 import { Timestamp, doc, updateDoc, addDoc, collection, serverTimestamp, getDoc, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
 import { billService } from "../../services/billService";
+import { generateBillPrintHTML } from "../../utils/billPrintTemplate";
 
 interface MaterialItem {
   id: string;
@@ -1098,412 +1099,103 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
     const displayPaymentType = paymentType || enquiryData?.paymentType || "";
     const displayPaymentSubStatus = paymentSubStatus || enquiryData?.paymentSubStatus || "";
 
-    // Calculate values matching AddEditModal - use individual item tax rates
-    const subtotal = calculateSubtotal(); // Sum of (price * quantity)
+    const subtotal = calculateSubtotal();
     const discountAmount = calculateDiscount();
-    const taxAmount = calculateTaxAmount(); // Sum of all tax amounts (using each item's tax rate)
+    const taxAmount = calculateTaxAmount();
     const cgst = calculateCGST();
     const sgst = calculateSGST();
     const igst = calculateIGST();
     const selectedBillDate = invoiceDate ? new Date(invoiceDate) : new Date();
-    const billTimestamp = Timestamp.fromDate(selectedBillDate);
 
-    const bill = {
+    const htmlContent = generateBillPrintHTML({
+      documentType: docType.documentType,
+      documentLabel: docType.documentLabel,
       invoiceNumber: billNumber,
-      billDate: billTimestamp,
+      billDate: selectedBillDate,
       billedBy: billedBy,
       billedTo: billedTo,
       placeOfSupply: placeOfSupply,
       taxType: taxType,
       items: editableMaterials.map(item => ({
         productName: item.productName,
-        hsn: item.hsn || "00",
+        sku: (item as any).sku,
+        hsn: item.hsn || "0000",
         quantity: item.quantity,
         price: item.price,
-        total: item.totalAmount, // price * quantity + tax (using item's tax rate)
-        taxableValue: item.taxableValue || (item.price * item.quantity), // price * quantity
-        taxAmount: item.taxAmount || 0, // tax amount for this item (using item's tax rate)
+        total: item.totalAmount || (item.price * item.quantity),
+        taxableValue: item.taxableValue || (item.price * item.quantity),
+        taxAmount: item.taxAmount || 0,
         taxRate: (item.taxRate !== undefined && item.taxRate !== null) ? item.taxRate : 18,
+        uom: (item as any).uom || "Nos",
       })),
-      subtotal: subtotal, // Sum of (price * quantity)
+      subtotal: subtotal,
       discountAmount: discountAmount,
       discountPercentage: discountPercentage,
       shippingCharges: Number(shippingCharges) || 0,
       taxRate: taxRate,
-      taxAmount: taxAmount, // Total GST (sum of all item tax amounts)
+      taxAmount: taxAmount,
       cgst: cgst,
       sgst: sgst,
       igst: igst,
-      totalAmount: calculateTotal(), // Subtotal + GST
+      totalAmount: calculateTotal(),
       customerName: billedTo.name,
       customerContact: billedTo.contactNumber,
       customerCity: billedTo.city,
       customerState: billedTo.state,
-      enquiryEnqId: enquiryData.enqId,
-      documentType: docType.documentType,
-      documentLabel: docType.documentLabel,
+      enquiryEnqId: enquiryData?.enqId,
+      status: docType.isQuotation ? "quotation" : (docType.isPaid ? "paid" : "unpaid"),
+      paymentStatus: docType.isPaid ? "completed" : "pending",
+      paymentType: displayPaymentType,
+      paymentSubStatus: displayPaymentSubStatus,
       isPaid: docType.isPaid,
-      displayStatus: docType.isQuotation ? "" : docType.displayStatus,
-      statusClass: docType.isQuotation ? "" : docType.statusClass,
+      isQuotation: docType.isQuotation,
       isApprovedAndPaid: docType.isApprovedAndPaid,
       logoUrl: LOGO_URL,
       signatureUrl: SIGNATURE_URL,
       includeSignature: includeSignature,
       bankDetails: bankDetails,
       terms: terms,
-      isUpdate: existingBillId ? true : false,
-      paymentType: displayPaymentType,
-      paymentSubStatus: displayPaymentSubStatus,
-    };
+    });
 
-    const getTableHeaders = () => {
-      if (bill.isApprovedAndPaid) {
-        return `
-          <th>SI No</th>
-          <th>Description of Goods</th>
-          <th>HSN Code</th>
-          <th class="text-center">Qty</th>
-          <th class="text-right">Unit Price</th>
-          <th class="text-right">Amount</th>
-        `;
-      } else {
-        return `
-          <th>SI No</th>
-          <th>Description of Goods</th>
-          <th>HSN Code</th>
-          <th class="text-center">Qty</th>
-          <th class="text-right">Unit Price</th>
-          <th class="text-center">UOM</th>
-          <th class="text-center">Tax (%)</th>
-          <th class="text-right">Amount</th>
-          <th class="text-right">Tax Amt</th>
-        `;
-      }
-    };
+    const iframe = document.createElement("iframe");
+    iframe.style.position = "fixed";
+    iframe.style.right = "0";
+    iframe.style.bottom = "0";
+    iframe.style.width = "0";
+    iframe.style.height = "0";
+    iframe.style.border = "none";
+    document.body.appendChild(iframe);
 
-    const getTableRows = () => {
-      if (bill.isApprovedAndPaid) {
-        return bill.items?.map((item, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${item.productName}</td>
-            <td>${item.hsn || '00'}</td>
-            <td class="text-center">${item.quantity}</td>
-            <td class="text-right">₹${item.price.toFixed(2)}</td>
-            <td class="text-right">₹${item.total.toFixed(2)}</td>
-          </tr>
-        `).join('');
-      } else {
-        return bill.items?.map((item, index) => `
-          <tr>
-            <td>${index + 1}</td>
-            <td>${item.productName}</td>
-            <td>${item.hsn || '00'}</td>
-            <td class="text-center">${item.quantity}</td>
-            <td class="text-right">₹${item.price.toFixed(2)}</td>
-            <td class="text-center">Nos</td>
-            <td class="text-center">${(item.taxRate !== undefined && item.taxRate !== null) ? item.taxRate : (bill.taxRate || 0)}%</td>
-            <td class="text-right">₹${item.total.toFixed(2)}</td>
-            <td class="text-right">₹${item.taxAmount.toFixed(2)}</td>
-          </tr>
-        `).join('');
-      }
-    };
-
-    const htmlContent = `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>${bill.documentType} - ${bill.invoiceNumber}</title>
-          <meta charset="utf-8">
-          <script>
-            window.addEventListener('load', function() {
-              setTimeout(function() {
-                try {
-                  window.focus();
-                  window.print();
-                } catch (e) {
-                  console.warn("Auto-print error:", e);
-                }
-              }, 400);
-            });
-          </script>
-          <style>
-            * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Arial', sans-serif; padding: 30px 40px; background: white; color: #1a1a1a; font-size: 13px; }
-            .document-container { max-width: 1000px; margin: 0 auto; background: white; }
-            .letterhead { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid #e9ecef; }
-            .letterhead-logo { flex-shrink: 0; text-align: center; }
-            .letterhead-logo img { width: 160px; height: auto; }
-            .letterhead-logo .tagline { font-size: 11px; color: #666; margin-top: 2px; }
-            .letterhead-company { text-align: right; flex: 1; }
-            .letterhead-company .company-name { font-size: 18px; font-weight: bold; color: #1a1a1a; margin-bottom: 4px; }
-            .letterhead-company .company-info { font-size: 11px; color: #555; line-height: 1.6; }
-            .doc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 10px; border-bottom: 1px solid #e9ecef; }
-            .doc-type { font-size: 24px; font-weight: bold; color: #1a1a1a; letter-spacing: 2px; }
-            .doc-meta { text-align: right; font-size: 12px; color: #333; line-height: 1.6; }
-            .status-badge { display: inline-block; padding: 3px 10px; border-radius: 3px; font-weight: bold; font-size: 10px; letter-spacing: 1px; }
-            .status-paid { background: #d4edda; color: #155724; }
-            .status-not-paid { background: #f8d7da; color: #721c24; }
-            .billing-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 15px; }
-            .billing-label { font-weight: bold; font-size: 12px; color: #333; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-            .billing-content { font-size: 12px; color: #555; line-height: 1.6; }
-            .billing-content strong { color: #1a1a1a; }
-            .supply-bar { margin: 12px 0 18px 0; padding: 8px 15px; background: #f8f9fa; border-radius: 3px; font-size: 12px; border-left: 3px solid #007bff; }
-            .items-table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            .items-table th { background: #f8f9fa; padding: 8px 10px; text-align: left; border: 1px solid #dee2e6; font-size: 12px; font-weight: 600; color: #333; }
-            .items-table td { padding: 8px 10px; border: 1px solid #dee2e6; font-size: 12px; color: #555; }
-            .items-table .text-center { text-align: center; }
-            .items-table .text-right { text-align: right; }
-            .bottom-section { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 20px; }
-            .bank-details { padding: 12px 15px; background: #f8f9fa; border-radius: 4px; font-size: 11px; line-height: 1.8; color: #555; }
-            .bank-details .bank-title { font-weight: bold; color: #333; margin-bottom: 5px; font-size: 12px; }
-            .totals-box { width: 100%; }
-            .total-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; }
-            .total-row .label { color: #666; }
-            .total-row .value { color: #333; font-weight: 500; }
-            .discount-row .label, .discount-row .value { color: #28a745; }
-            .grand-total-row { display: flex; justify-content: space-between; padding: 10px 0; margin-top: 6px; border-top: 2px solid #333; font-size: 16px; font-weight: bold; }
-            .grand-total-row .value { color: #007bff; }
-            .tax-summary-row { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12px; border-top: 1px dashed #ddd; margin-top: 4px; }
-            .tax-summary-row .label { font-weight: 600; color: #333; }
-            .tax-summary-row .value { font-weight: 600; color: #333; }
-            .terms-section { margin-bottom: 25px; font-size: 11px; color: #555; }
-            .terms-title { font-weight: bold; color: #333; margin-bottom: 4px; font-size: 12px; }
-            .terms-list { list-style: none; padding: 0; }
-            .terms-list li { padding: 1px 0; }
-            .footer-section { 
-              padding-top: 12px; 
-              margin-top: 20px;
-              border-top: 1px solid #e9ecef; 
-              display: flex;
-              justify-content: flex-end;
-              align-items: flex-end;
-            }
-            .footer-left { flex: 1; }
-            .footer-right { text-align: right; }
-            .footer-company { font-weight: bold; color: #1a1a1a; font-size: 13px; margin-bottom: 8px; }
-            .signature-container { margin-top: 8px; display: flex; justify-content: flex-end; }
-            .signature-image { max-width: 150px; max-height: 60px; object-fit: contain; }
-            .footer-signatory { font-size: 11px; color: #666; margin-top: 5px; }
-            .payment-type-label { font-size: 10px; color: #666; margin-top: 2px; }
-            .payment-substatus-label { font-size: 10px; color: #666; margin-top: 2px; font-weight: 500; }
-            .invoice-info { font-size: 11px; color: #555; margin-top: 3px; padding: 3px 8px; background: #f8f9fa; border-radius: 3px; }
-            @media print { 
-              body { padding: 20px; -webkit-print-color-adjust: exact; print-color-adjust: exact; } 
-              .no-print { display: none; }
-              .status-paid { background: #d4edda !important; color: #155724 !important; }
-              .status-not-paid { background: #f8d7da !important; color: #721c24 !important; }
-              .items-table th { background: #f8f9fa !important; }
-              .bank-details { background: #f8f9fa !important; }
-              .update-badge { display: none !important; }
-            }
-          </style>
-        </head>
-        <body>
-          <div class="document-container">
-            <div class="letterhead">
-              <div class="letterhead-logo">
-                <img src="${bill.logoUrl}" alt="iBots" onerror="this.style.display='none'">
-                <div class="tagline">Unleash the power of Electronics</div>
-              </div>
-              <div class="letterhead-company">
-                <div class="company-name">Protowiz Private Limited</div>
-                <div class="company-info">
-                  Office : 34/17A, First floor, Ramalingam nagar,<br>
-                  4th cross street, Saibaba colony, Coimbatore - 641011, Tamil Nadu<br>
-                  E-mail : info@ibots.in  PH No : 80152 98233<br>
-                  Visit us : www.ibots.in<br>
-                  GST No : 33AAKCP9459K1ZO / PAN : AAMCP9459K
-                </div>
-              </div>
-            </div>
-
-            <div class="doc-header">
-              <div class="doc-type">${bill.documentType}</div>
-              <div class="doc-meta">
-                <div>${bill.documentLabel}: ${bill.invoiceNumber}</div>
-                <div>Date: ${bill.billDate ? new Date(bill.billDate.toDate ? bill.billDate.toDate() : bill.billDate).toLocaleDateString('en-IN') : new Date().toLocaleDateString('en-IN')}</div>
-                ${!bill.isQuotation && bill.displayStatus ? `
-                  <div><span class="status-badge ${bill.statusClass}">${bill.displayStatus}</span></div>
-                ` : ''}
-                ${bill.paymentType && !bill.isQuotation ? `
-                  <div class="payment-type-label">Payment Type: ${bill.paymentType}</div>
-                ` : ''}
-                ${bill.paymentSubStatus && !bill.isQuotation ? `
-                  <div class="invoice-info">Payment Status: ${bill.paymentSubStatus}</div>
-                ` : ''}
-              </div>
-            </div>
-
-            <div class="billing-section">
-              <div>
-                <div class="billing-label">Billed by</div>
-                <div class="billing-content">
-                  <strong>Protowiz Private Limited</strong><br>
-                  ${(() => {
-                    const rawAddr = bill.billedBy?.address || '34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011';
-                    return rawAddr.replace(/^Protowiz Private Limited[, -]*/i, '').trim();
-                  })()}<br>
-                  ${bill.billedBy?.city || ''} ${bill.billedBy?.state ? ', ' + bill.billedBy?.state : ''} ${bill.billedBy?.pincode || ''}<br>
-                  ${bill.billedBy?.gstin ? `GSTIN: ${bill.billedBy.gstin}<br>` : '<br>GSTIN: 33AAKCP9459K1ZO'}
-                  ${bill.billedBy?.pan ? `PAN: ${bill.billedBy.pan}` : '<br>PAN: AAMCP9459K'}
-                </div>
-              </div>
-              <div>
-                <div class="billing-label">Billed to</div>
-                <div class="billing-content">
-                  <strong>${bill.billedTo?.name || bill.customerName}</strong><br>
-                  ${bill.billedTo?.companyName ? `Company: ${bill.billedTo.companyName}<br>` : ''}
-                  Enquiry ID: ${bill.billedTo?.enqId || bill.enquiryEnqId || 'N/A'}<br>
-                  Contact: ${bill.billedTo?.contactNumber || bill.customerContact}<br>
-                  State: ${bill.billedTo?.state || bill.customerState || 'Tamil Nadu'}
-                  ${bill.billedTo?.gstin ? `<br>GSTIN: ${bill.billedTo.gstin}` : ''}
-                </div>
-              </div>
-            </div>
-
-            <div class="supply-bar">
-              <strong>Place of Supply:</strong> ${bill.placeOfSupply || bill.billedTo?.state || 'Tamil Nadu'} &nbsp;&nbsp;|&nbsp;&nbsp; 
-              <strong>Tax Type:</strong> ${bill.taxType === 'cgst_sgst' ? 'CGST + SGST' : 'IGST'}
-            </div>
-
-            <table class="items-table">
-              <thead>
-                <tr>${getTableHeaders()}</tr>
-              </thead>
-              <tbody>
-                ${getTableRows()}
-              </tbody>
-            </table>
-
-            <div class="bottom-section">
-              <div class="bank-details">
-                <div class="bank-title">Bank Details</div>
-                <div>
-                  <strong>Beneficiary Name:</strong> ${bill.bankDetails.beneficiaryName}<br>
-                  <strong>Bank Name:</strong> ${bill.bankDetails.bankName}<br>
-                  <strong>Account No:</strong> ${bill.bankDetails.accountNo}<br>
-                  <strong>IFSC Code:</strong> ${bill.bankDetails.ifscCode}<br>
-                  <strong>Branch:</strong> ${bill.bankDetails.branch}
-                </div>
-              </div>
-
-              <div class="totals-box">
-                <div class="total-row">
-                  <span class="label">Subtotal</span>
-                  <span class="value">₹${bill.subtotal?.toFixed(2) || '0.00'}</span>
-                </div>
-                ${bill.discountAmount && bill.discountAmount > 0 ? `
-                <div class="total-row discount-row">
-                  <span class="label">Discount (${bill.discountPercentage || 0}%)</span>
-                  <span class="value">-₹${bill.discountAmount.toFixed(2)}</span>
-                </div>
-                ` : ''}
-                ${bill.taxType === 'cgst_sgst' ? `
-                <div class="total-row">
-                  <span class="label">CGST (${(bill.taxRate || 0)/2}%)</span>
-                  <span class="value">₹${bill.cgst?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div class="total-row">
-                  <span class="label">SGST (${(bill.taxRate || 0)/2}%)</span>
-                  <span class="value">₹${bill.sgst?.toFixed(2) || '0.00'}</span>
-                </div>
-                <div class="tax-summary-row">
-                  <span class="label">Total GST</span>
-                  <span class="value">₹${bill.taxAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-                ` : `
-                <div class="total-row">
-                  <span class="label">IGST (${bill.taxRate || 0}%)</span>
-                  <span class="value">₹${bill.igst?.toFixed(2) || '0.00'}</span>
-                </div>
-                `}
-                ${(bill.shippingCharges && bill.shippingCharges > 0) ? `
-                <div class="total-row">
-                  <span class="label">Shipping / Courier Charges</span>
-                  <span class="value">₹${bill.shippingCharges.toFixed(2)}</span>
-                </div>
-                ` : ''}
-                <div class="grand-total-row">
-                  <span>Grand Total</span>
-                  <span class="value">₹${bill.totalAmount?.toFixed(2) || '0.00'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="terms-section">
-              <div class="terms-title">Terms & Conditions:</div>
-              <ul class="terms-list">
-                ${bill.terms && bill.terms.length > 0 ? 
-                  bill.terms.map((term, index) => `<li>${index + 1}. ${term.text}</li>`).join('') 
-                  : `
-                    <li>1. Payment: 100% advance</li>
-                    <li>2. Delivery: 10-12 days maximum from advance initiation</li>
-                    <li>3. Quote Validity: 2 days</li>
-                  `
-                }
-              </ul>
-            </div>
-
-            <div class="footer-section">
-              <div class="footer-left"></div>
-              <div class="footer-right">
-                <div class="footer-company">For Protowiz Private Limited</div>
-                ${bill.includeSignature !== false ? `
-                  <div class="signature-container">
-                    <img src="${bill.signatureUrl}" alt="Authorized Signature" class="signature-image" onerror="this.style.display='none'" />
-                  </div>
-                ` : `
-                  <div style="height: 50px;"></div>
-                `}
-                <div class="footer-signatory">Authorised Signatory</div>
-              </div>
-            </div>
-          </div>
-          
-          <div class="no-print" style="text-align: center; margin-top: 25px;">
-            <button onclick="window.print();" style="padding: 10px 24px; background: #007bff; color: white; border: none; border-radius: 5px; margin: 8px; cursor: pointer; font-size: 14px;">🖨 Print ${bill.documentType}</button>
-            <button onclick="window.close();" style="padding: 10px 24px; background: #6c757d; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">✕ Close</button>
-          </div>
-        </body>
-      </html>
-    `;
-
-    // Open via isolated Blob URL with rel="noopener noreferrer"
-    // This detaches the document window from parent thread so the main dashboard tab never freezes
-    try {
-      const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
-      const blobUrl = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = blobUrl;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+    const doc = iframe.contentWindow?.document;
+    if (doc) {
+      doc.open();
+      doc.write(htmlContent);
+      doc.close();
+      iframe.contentWindow?.focus();
       setTimeout(() => {
         try {
-          URL.revokeObjectURL(blobUrl);
+          iframe.contentWindow?.print();
         } catch (_) {}
-      }, 120000);
-      return;
-    } catch (err) {
-      console.warn("Blob print open failed, falling back to window.open:", err);
-    }
-
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      try {
-        printWindow.opener = null;
-      } catch (_) {}
-      printWindow.document.open();
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+        setTimeout(() => {
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe);
+          }
+        }, 1500);
+      }, 500);
+    } else {
+      const printWindow = window.open("", "_blank");
+      if (printWindow) {
+        try {
+          printWindow.opener = null;
+        } catch (_) {}
+        printWindow.document.open();
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+      }
     }
   };
 
-  if (!open) return null;
+    if (!open) return null;
 
   const billedBy = getBilledByDetails();
   const billedTo = getBilledToDetails();
