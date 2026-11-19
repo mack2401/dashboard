@@ -3,7 +3,7 @@ import { useAuth } from "../App";
 import { useNavigate } from "react-router-dom";
 import { collection, getDocs, query, where } from "firebase/firestore";
 import { db } from "../firebase";
-import { Eye, EyeOff, Loader2, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Loader2, AlertCircle, X, ShieldCheck, FileText, HelpCircle, Phone, Mail, Building2 } from "lucide-react";
 
 export default function Login() {
   const emailRef = useRef<HTMLInputElement>(null);
@@ -11,8 +11,8 @@ export default function Login() {
   const { login, user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [keepSignedIn, setKeepSignedIn] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeModal, setActiveModal] = useState<"conditions" | "privacy" | "help" | null>(null);
   const navigate = useNavigate();
 
   const togglePasswordVisibility = () => setShowPassword(!showPassword);
@@ -78,6 +78,18 @@ export default function Login() {
     }
   }, [user, navigate]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setActiveModal(null);
+      }
+    };
+    if (activeModal) {
+      window.addEventListener("keydown", handleKeyDown);
+    }
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [activeModal]);
+
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-between py-6 px-4 font-sans text-[#0f1111]">
       {/* Top Header Logo */}
@@ -118,7 +130,7 @@ export default function Login() {
             <input
               type="text"
               ref={emailRef}
-              className="w-full h-8 px-2.5 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-[#007185] focus:ring-1 focus:ring-[#007185] focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
+              className="w-full h-8 px-2.5 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
               required
               disabled={loading}
               autoComplete="username"
@@ -133,7 +145,7 @@ export default function Login() {
               <input
                 type={showPassword ? "text" : "password"}
                 ref={passwordRef}
-                className="w-full h-8 pl-2.5 pr-8 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-[#007185] focus:ring-1 focus:ring-[#007185] focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
+                className="w-full h-8 pl-2.5 pr-8 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
                 required
                 disabled={loading}
                 autoComplete="current-password"
@@ -153,34 +165,17 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full h-8.5 bg-gradient-to-b from-[#f7dfa5] to-[#f0c14b] hover:from-[#f5d78e] hover:to-[#eeb933] active:from-[#f0c14b] active:to-[#eeb933] border border-[#a88734] border-t-[#a88734] border-b-[#846a29] text-[#111] rounded-[3px] text-[13px] font-normal shadow-[0_1px_0_rgba(255,255,255,0.4)_inset] cursor-pointer flex items-center justify-center gap-2 transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-3.5"
+            className="w-full h-8.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-[3px] text-[13px] font-medium shadow-xs cursor-pointer flex items-center justify-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-4"
           >
             {loading ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#111]" />
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
                 <span>Signing in...</span>
               </>
             ) : (
               <span>Sign in</span>
             )}
           </button>
-
-          <div className="pt-2">
-            <label className="flex items-center gap-2 text-[12px] text-[#0f1111] cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={keepSignedIn}
-                onChange={(e) => setKeepSignedIn(e.target.checked)}
-                className="rounded-[2px] border-[#888c8c] text-[#f0c14b] focus:ring-[#007185] h-3.5 w-3.5 cursor-pointer"
-              />
-              <span>
-                Keep me signed in.{" "}
-                <span className="text-[#0066c0] hover:text-[#c45500] hover:underline">
-                  Details <span className="text-[10px]">▼</span>
-                </span>
-              </span>
-            </label>
-          </div>
         </form>
       </div>
 
@@ -188,14 +183,169 @@ export default function Login() {
       <div className="w-full max-w-[800px] mt-8 pt-4 flex flex-col items-center">
         <div className="w-full h-px bg-gradient-to-r from-transparent via-[#e7e7e7] to-transparent mb-5" />
         <div className="flex items-center gap-6 text-[11px] text-[#0066c0] mb-2.5">
-          <span className="hover:text-[#c45500] hover:underline cursor-pointer">Conditions of Use</span>
-          <span className="hover:text-[#c45500] hover:underline cursor-pointer">Privacy Notice</span>
-          <span className="hover:text-[#c45500] hover:underline cursor-pointer">Help</span>
+          <button
+            type="button"
+            onClick={() => setActiveModal("conditions")}
+            className="text-[11px] text-[#0066c0] hover:text-[#c45500] hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
+          >
+            Conditions of Use
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveModal("privacy")}
+            className="text-[11px] text-[#0066c0] hover:text-[#c45500] hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
+          >
+            Privacy Notice
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveModal("help")}
+            className="text-[11px] text-[#0066c0] hover:text-[#c45500] hover:underline cursor-pointer bg-transparent border-none p-0 font-normal"
+          >
+            Help
+          </button>
         </div>
         <p className="text-[11px] text-[#555]">
           © {new Date().getFullYear()}, Protowiz Private Limited or its affiliates
         </p>
       </div>
+
+      {/* Footer Info Modal */}
+      {activeModal && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setActiveModal(null);
+          }}
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-150"
+        >
+          <div className="bg-white rounded-lg shadow-xl border border-gray-200 max-w-lg w-full overflow-hidden flex flex-col max-h-[85vh]">
+            {/* Modal Header */}
+            <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between bg-gray-50/70">
+              <div className="flex items-center gap-2">
+                {activeModal === "conditions" && (
+                  <>
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-base font-semibold text-gray-900">Conditions of Use</h3>
+                  </>
+                )}
+                {activeModal === "privacy" && (
+                  <>
+                    <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                    <h3 className="text-base font-semibold text-gray-900">Privacy Notice</h3>
+                  </>
+                )}
+                {activeModal === "help" && (
+                  <>
+                    <HelpCircle className="w-5 h-5 text-blue-600" />
+                    <h3 className="text-base font-semibold text-gray-900">Help & Support</h3>
+                  </>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-md hover:bg-gray-100 transition-colors cursor-pointer"
+                aria-label="Close dialog"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-5 overflow-y-auto text-sm text-gray-600 space-y-4 leading-relaxed">
+              {activeModal === "conditions" && (
+                <>
+                  <p className="text-gray-800 font-medium">
+                    Welcome to the Protowiz Enterprise Management Portal. By accessing this dashboard, you agree to comply with the following operational terms:
+                  </p>
+                  <div className="space-y-3 text-xs text-gray-600">
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <strong className="text-gray-900 block mb-1">1. Authorized Access Only</strong>
+                      Access is restricted exclusively to authenticated employees, administrators, and authorized representatives of Protowiz Private Limited.
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <strong className="text-gray-900 block mb-1">2. Confidentiality & Security</strong>
+                      Client data, quotation histories, bills, and inventory values are strictly confidential. Sharing login credentials or unauthorized exporting of records is prohibited.
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <strong className="text-gray-900 block mb-1">3. System Auditing</strong>
+                      All logins, data modifications, bill generation actions, and task updates are logged for security and accountability.
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeModal === "privacy" && (
+                <>
+                  <p className="text-gray-800 font-medium">
+                    Protowiz Private Limited is committed to maintaining the confidentiality and integrity of all internal operational data:
+                  </p>
+                  <div className="space-y-3 text-xs text-gray-600">
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <strong className="text-gray-900 block mb-1">Data We Process</strong>
+                      Employee email addresses, mobile numbers, login timestamps, and system change logs required for workflow and permission management.
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <strong className="text-gray-900 block mb-1">Security & Encryption</strong>
+                      Passwords and sensitive credentials are encrypted and stored securely via Firebase Authentication with role-based access rules.
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <strong className="text-gray-900 block mb-1">Compliance & Retention</strong>
+                      Business records, financial transactions, and invoice logs are preserved in accordance with standard statutory and accounting guidelines.
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {activeModal === "help" && (
+                <>
+                  <p className="text-gray-800 font-medium">
+                    Need assistance logging into your Protowiz dashboard account?
+                  </p>
+                  <div className="space-y-3 text-xs text-gray-600">
+                    <div className="p-3 bg-blue-50/50 rounded-md border border-blue-100 text-blue-950">
+                      <strong className="text-blue-900 block mb-1">Login Options</strong>
+                      You can log in using your official company email or your 10-digit registered mobile phone number.
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <strong className="text-gray-900 block mb-1">Forgot Password or Account Locked?</strong>
+                      Please contact your system Super Admin or HR administrator to reset your password or update your mobile number.
+                    </div>
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200 space-y-2">
+                      <strong className="text-gray-900 block">Contact Information:</strong>
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <Mail className="w-3.5 h-3.5 text-blue-600" />
+                        <span>admin@protowiz.in / support@protowiz.in</span>
+                      </div>
+                      <div className="flex items-center gap-2 text-gray-700">
+                        <Phone className="w-3.5 h-3.5 text-emerald-600" />
+                        <span>+91 89395 62624</span>
+                      </div>
+                      <div className="flex items-start gap-2 text-gray-700">
+                        <Building2 className="w-3.5 h-3.5 text-gray-500 mt-0.5 shrink-0" />
+                        <span>Protowiz Private Limited, 34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-5 py-3 border-t border-gray-200 bg-gray-50 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setActiveModal(null)}
+                className="px-4 py-1.5 bg-gray-800 hover:bg-gray-900 text-white rounded text-xs font-medium transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
