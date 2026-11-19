@@ -92,91 +92,94 @@ export default function Login() {
 
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-between py-6 px-4 font-sans text-[#0f1111]">
-      {/* Top Header Logo */}
-      <div className="w-full flex justify-center pt-2 pb-4">
-        <img
-          src="/ibots-logo.png"
-          alt="iBots"
-          className="h-9 sm:h-10 w-auto max-w-[130px] object-contain"
-        />
-      </div>
+      {/* Main Content: Logo + Sign In Box grouped together */}
+      <div className="w-full max-w-[350px] flex flex-col items-center my-auto pt-4 sm:pt-6">
+        {/* Logo positioned directly above the box */}
+        <div className="mb-4.5 flex justify-center">
+          <img
+            src="/ibots-logo.png"
+            alt="iBots"
+            className="h-10 sm:h-11 w-auto max-w-[140px] object-contain"
+          />
+        </div>
 
-      {/* Center Sign In Box (Amazon Style) */}
-      <div className="w-full max-w-[350px] bg-white border border-[#d5d9d9] rounded-[8px] p-6 sm:p-7 shadow-[0_1px_2px_rgba(15,17,17,0.05)] my-auto">
-        <h1 className="text-[28px] font-normal text-[#0f1111] leading-tight mb-4">
-          Sign in
-        </h1>
+        {/* Center Sign In Box (Amazon Style) */}
+        <div className="w-full bg-white border border-[#d5d9d9] rounded-[8px] p-6 sm:p-7 shadow-[0_1px_2px_rgba(15,17,17,0.05)]">
+          <h1 className="text-[28px] font-normal text-[#0f1111] leading-tight mb-4">
+            Sign in
+          </h1>
 
-        {/* Error message */}
-        {error && (
-          <div className="border border-red-300 bg-red-50 text-red-800 p-3 rounded text-xs mb-4 flex items-start gap-2">
-            <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
-            <div className="flex-1 leading-tight">{error}</div>
-            <button
-              type="button"
-              onClick={() => setError(null)}
-              className="text-red-500 hover:text-red-700 ml-1 font-bold cursor-pointer"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-3.5">
-          <div>
-            <label className="block text-[13px] font-bold text-[#0f1111] mb-1">
-              Email (phone for mobile accounts)
-            </label>
-            <input
-              type="text"
-              ref={emailRef}
-              className="w-full h-8 px-2.5 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
-              required
-              disabled={loading}
-              autoComplete="username"
-            />
-          </div>
-
-          <div>
-            <label className="block text-[13px] font-bold text-[#0f1111] mb-1">
-              Password
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? "text" : "password"}
-                ref={passwordRef}
-                className="w-full h-8 pl-2.5 pr-8 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
-                required
-                disabled={loading}
-                autoComplete="current-password"
-              />
+          {/* Error message */}
+          {error && (
+            <div className="border border-red-300 bg-red-50 text-red-800 p-3 rounded text-xs mb-4 flex items-start gap-2">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" />
+              <div className="flex-1 leading-tight">{error}</div>
               <button
                 type="button"
-                onClick={togglePasswordVisibility}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-0.5 cursor-pointer"
-                tabIndex={-1}
-                aria-label="Toggle password visibility"
+                onClick={() => setError(null)}
+                className="text-red-500 hover:text-red-700 ml-1 font-bold cursor-pointer"
               >
-                {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                ✕
               </button>
             </div>
-          </div>
+          )}
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-8.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-[3px] text-[13px] font-medium shadow-xs cursor-pointer flex items-center justify-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-4"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
-                <span>Signing in...</span>
-              </>
-            ) : (
-              <span>Sign in</span>
-            )}
-          </button>
-        </form>
+          <form onSubmit={handleSubmit} className="space-y-3.5">
+            <div>
+              <label className="block text-[13px] font-bold text-[#0f1111] mb-1">
+                Email (phone for mobile accounts)
+              </label>
+              <input
+                type="text"
+                ref={emailRef}
+                className="w-full h-8 px-2.5 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
+                required
+                disabled={loading}
+                autoComplete="username"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[13px] font-bold text-[#0f1111] mb-1">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? "text" : "password"}
+                  ref={passwordRef}
+                  className="w-full h-8 pl-2.5 pr-8 text-[13px] text-[#0f1111] bg-white border border-[#888c8c] rounded-[3px] focus:border-blue-600 focus:ring-1 focus:ring-blue-600 focus:outline-none transition shadow-[inset_0_1px_2px_rgba(0,0,0,0.08)]"
+                  required
+                  disabled={loading}
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={togglePasswordVisibility}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700 p-0.5 cursor-pointer"
+                  tabIndex={-1}
+                  aria-label="Toggle password visibility"
+                >
+                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full h-8.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-[3px] text-[13px] font-medium shadow-xs cursor-pointer flex items-center justify-center gap-2 transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-4"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-white" />
+                  <span>Signing in...</span>
+                </>
+              ) : (
+                <span>Sign in</span>
+              )}
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Bottom Divider & Footer */}
