@@ -1844,67 +1844,85 @@ export default function PNL() {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="overflow-x-auto p-3 sm:p-4 bg-slate-50/50">
+              <table className="w-full text-left border-separate border-spacing-y-2 text-xs">
                 <thead>
-                  <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
-                    <th className="py-3 px-4 cursor-pointer" onClick={() => handleSort("category")}>
-                      <div className="flex items-center gap-1">Category <ArrowUpDown className="w-3 h-3" /></div>
+                  <tr className="text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-2.5 px-3.5 cursor-pointer" onClick={() => handleSort("category")}>
+                      <div className="flex items-center gap-1">Category <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-center cursor-pointer" onClick={() => handleSort("unitsSold")}>
-                      <div className="flex items-center justify-center gap-1">Units Sold <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-center cursor-pointer" onClick={() => handleSort("unitsSold")}>
+                      <div className="flex items-center justify-center gap-1">Units Sold <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right cursor-pointer" onClick={() => handleSort("salesValue")}>
-                      <div className="flex items-center justify-end gap-1">Total Sales <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right cursor-pointer" onClick={() => handleSort("salesValue")}>
+                      <div className="flex items-center justify-end gap-1">Total Sales <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right text-teal-700">E-com Sales</th>
-                    <th className="py-3 px-3 text-right text-purple-700">Academic Sales</th>
-                    <th className="py-3 px-3 text-right cursor-pointer" onClick={() => handleSort("purchaseCost")}>
-                      <div className="flex items-center justify-end gap-1">Purchase Cost (COGS) <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right text-teal-700">E-com Sales</th>
+                    <th className="py-2.5 px-3 text-right text-purple-700">Academic Sales</th>
+                    <th className="py-2.5 px-3 text-right cursor-pointer" onClick={() => handleSort("purchaseCost")}>
+                      <div className="flex items-center justify-end gap-1">Purchase Cost (COGS) <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right text-rose-600 cursor-pointer" onClick={() => handleSort("wastageValue")}>
-                      <div className="flex items-center justify-end gap-1">Wastage @ Cost <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right text-rose-600 cursor-pointer" onClick={() => handleSort("wastageValue")}>
+                      <div className="flex items-center justify-end gap-1">Wastage @ Cost <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right cursor-pointer" onClick={() => handleSort("netMargin")}>
-                      <div className="flex items-center justify-end gap-1">Net Margin <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right cursor-pointer" onClick={() => handleSort("netMargin")}>
+                      <div className="flex items-center justify-end gap-1">Net Margin <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-4 text-center cursor-pointer" onClick={() => handleSort("marginPct")}>
-                      <div className="flex items-center justify-center gap-1">Margin % <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3.5 text-center cursor-pointer" onClick={() => handleSort("marginPct")}>
+                      <div className="flex items-center justify-center gap-1">Margin % <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {sortedCategoryData.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="py-12 text-center text-gray-400">
+                      <td colSpan={9} className="py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                         No category data found for the selected filters.
                       </td>
                     </tr>
                   ) : (
                     paginatedCategoryData.map((c) => (
-                      <tr key={c.category} className="hover:bg-gray-50/70 transition">
-                        <td className="py-3 px-4 font-bold text-gray-900 flex items-center gap-2">
-                          <Layers className="w-3.5 h-3.5 text-blue-500" />
-                          <span>{c.category}</span>
+                      <tr key={c.category} className="group transition-all duration-150">
+                        <td className="py-3 px-3.5 font-bold text-slate-900 bg-white group-hover:bg-slate-50/90 border-y border-l border-slate-200/80 rounded-l-xl shadow-2xs group-hover:shadow-xs transition-colors">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-lg bg-blue-50 text-blue-600 border border-blue-100 flex items-center justify-center">
+                              <Layers className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="font-bold text-slate-900">{c.category}</span>
+                          </div>
                         </td>
-                        <td className="py-3 px-3 text-center font-semibold text-gray-700">{c.unitsSold}</td>
-                        <td className="py-3 px-3 text-right font-bold text-gray-900">{formatCurrency(c.salesValue)}</td>
-                        <td className="py-3 px-3 text-right text-teal-700 font-medium">{formatCurrency(c.ecommerceSales)}</td>
-                        <td className="py-3 px-3 text-right text-purple-700 font-medium">{formatCurrency(c.academicSales)}</td>
-                        <td className="py-3 px-3 text-right text-gray-600">{formatCurrency(c.purchaseCost)}</td>
-                        <td className="py-3 px-3 text-right text-rose-600 font-medium">{formatCurrency(c.wastageValue)}</td>
-                        <td className="py-3 px-3 text-right font-bold">
+                        <td className="py-3 px-3 text-center font-bold text-slate-700 bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200/60">
+                            {c.unitsSold}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right font-extrabold text-slate-900 tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(c.salesValue)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-teal-700 font-semibold tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(c.ecommerceSales)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-purple-700 font-semibold tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(c.academicSales)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-slate-600 font-medium tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(c.purchaseCost)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-rose-600 font-semibold tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(c.wastageValue)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-extrabold tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
                           <span className={c.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}>
                             {formatCurrency(c.netMargin)}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3 px-3.5 text-center bg-white group-hover:bg-slate-50/90 border-y border-r border-slate-200/80 rounded-r-xl shadow-2xs group-hover:shadow-xs transition-colors">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${c.marginPct >= 20
-                              ? "bg-emerald-100 text-emerald-800"
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${c.marginPct >= 20
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                               : c.marginPct >= 0
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-rose-100 text-rose-800"
+                                ? "bg-blue-50 text-blue-800 border-blue-200"
+                                : "bg-rose-50 text-rose-800 border-rose-200"
                               }`}
                           >
                             {c.marginPct.toFixed(1)}%
@@ -1915,27 +1933,43 @@ export default function PNL() {
                   )}
                 </tbody>
                 {sortedCategoryData.length > 0 && (
-                  <tfoot className="bg-gray-50 font-bold border-t-2 border-gray-200 text-gray-900">
-                    <tr>
-                      <td className="py-3 px-4">TOTALS</td>
-                      <td className="py-3 px-3 text-center">{categoryTotals.unitsSold.toLocaleString()}</td>
-                      <td className="py-3 px-3 text-right">{formatCurrency(categoryTotals.salesValue)}</td>
-                      <td className="py-3 px-3 text-right text-teal-700">{formatCurrency(categoryTotals.ecommerceSales)}</td>
-                      <td className="py-3 px-3 text-right text-purple-700">{formatCurrency(categoryTotals.academicSales)}</td>
-                      <td className="py-3 px-3 text-right">{formatCurrency(categoryTotals.purchaseCost)}</td>
-                      <td className="py-3 px-3 text-right text-rose-600">{formatCurrency(categoryTotals.wastageValue)}</td>
-                      <td className="py-3 px-3 text-right">
-                        <span className={categoryTotals.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                  <tfoot>
+                    <tr className="font-bold text-slate-900">
+                      <td className="py-3.5 px-3.5 bg-slate-100/90 border-y border-l border-slate-200/90 rounded-l-xl uppercase text-slate-700 tracking-wider">
+                        TOTALS
+                      </td>
+                      <td className="py-3.5 px-3 text-center bg-slate-100/90 border-y border-slate-200/90">
+                        <span className="inline-block px-2.5 py-0.5 rounded-md bg-white text-slate-800 font-bold border border-slate-200">
+                          {categoryTotals.unitsSold.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-extrabold bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(categoryTotals.salesValue)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right text-teal-800 bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(categoryTotals.ecommerceSales)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right text-purple-800 bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(categoryTotals.academicSales)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(categoryTotals.purchaseCost)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right text-rose-700 bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(categoryTotals.wastageValue)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-extrabold bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        <span className={categoryTotals.netMargin >= 0 ? "text-emerald-700" : "text-rose-700"}>
                           {formatCurrency(categoryTotals.netMargin)}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-3.5 text-center bg-slate-100/90 border-y border-r border-slate-200/90 rounded-r-xl">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${categoryTotals.salesValue > 0 && (categoryTotals.netMargin / categoryTotals.salesValue) >= 0.2
-                            ? "bg-emerald-100 text-emerald-800"
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${categoryTotals.salesValue > 0 && (categoryTotals.netMargin / categoryTotals.salesValue) >= 0.2
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                             : categoryTotals.salesValue > 0 && (categoryTotals.netMargin / categoryTotals.salesValue) >= 0
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-rose-100 text-rose-800"
+                              ? "bg-blue-50 text-blue-800 border-blue-200"
+                              : "bg-rose-50 text-rose-800 border-rose-200"
                             }`}
                         >
                           {categoryTotals.salesValue > 0
@@ -2026,75 +2060,87 @@ export default function PNL() {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="overflow-x-auto p-3 sm:p-4 bg-slate-50/50">
+              <table className="w-full text-left border-separate border-spacing-y-2 text-xs">
                 <thead>
-                  <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
-                    <th className="py-3 px-4 cursor-pointer" onClick={() => handleSort("productName")}>
-                      <div className="flex items-center gap-1">Product <ArrowUpDown className="w-3 h-3" /></div>
+                  <tr className="text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-2.5 px-3.5 cursor-pointer" onClick={() => handleSort("productName")}>
+                      <div className="flex items-center gap-1">Product <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3">Category</th>
-                    <th className="py-3 px-3 text-center cursor-pointer" onClick={() => handleSort("unitsSold")}>
-                      <div className="flex items-center justify-center gap-1">Units Sold <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3">Category</th>
+                    <th className="py-2.5 px-3 text-center cursor-pointer" onClick={() => handleSort("unitsSold")}>
+                      <div className="flex items-center justify-center gap-1">Units Sold <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right">Avg Sale Price</th>
-                    <th className="py-3 px-3 text-right">Unit Cost Price</th>
-                    <th className="py-3 px-3 text-right cursor-pointer" onClick={() => handleSort("salesValue")}>
-                      <div className="flex items-center justify-end gap-1">Sales Value <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right">Avg Sale Price</th>
+                    <th className="py-2.5 px-3 text-right">Unit Cost Price</th>
+                    <th className="py-2.5 px-3 text-right cursor-pointer" onClick={() => handleSort("salesValue")}>
+                      <div className="flex items-center justify-end gap-1">Sales Value <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right cursor-pointer" onClick={() => handleSort("purchaseCost")}>
-                      <div className="flex items-center justify-end gap-1">Purchase Cost <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right cursor-pointer" onClick={() => handleSort("purchaseCost")}>
+                      <div className="flex items-center justify-end gap-1">Purchase Cost <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right text-rose-600 cursor-pointer" onClick={() => handleSort("wastageValue")}>
-                      <div className="flex items-center justify-end gap-1">Wastage @ Cost <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right text-rose-600 cursor-pointer" onClick={() => handleSort("wastageValue")}>
+                      <div className="flex items-center justify-end gap-1">Wastage @ Cost <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right cursor-pointer" onClick={() => handleSort("netMargin")}>
-                      <div className="flex items-center justify-end gap-1">Net Margin <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right cursor-pointer" onClick={() => handleSort("netMargin")}>
+                      <div className="flex items-center justify-end gap-1">Net Margin <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-4 text-center cursor-pointer" onClick={() => handleSort("marginPct")}>
-                      <div className="flex items-center justify-center gap-1">Margin % <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3.5 text-center cursor-pointer" onClick={() => handleSort("marginPct")}>
+                      <div className="flex items-center justify-center gap-1">Margin % <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {sortedProductData.length === 0 ? (
                     <tr>
-                      <td colSpan={10} className="py-12 text-center text-gray-400">
+                      <td colSpan={10} className="py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                         No product data found for the selected filters.
                       </td>
                     </tr>
                   ) : (
                     paginatedProductData.map((p) => (
-                      <tr key={p.productId} className="hover:bg-gray-50/70 transition">
-                        <td className="py-3 px-4">
-                          <p className="font-bold text-gray-900">{p.productName}</p>
-                          {p.sku && p.sku !== "-" && <p className="text-[10px] text-gray-400 font-mono">SKU: {p.sku}</p>}
+                      <tr key={p.productId} className="group transition-all duration-150">
+                        <td className="py-3 px-3.5 bg-white group-hover:bg-slate-50/90 border-y border-l border-slate-200/80 rounded-l-xl shadow-2xs group-hover:shadow-xs transition-colors">
+                          <p className="font-bold text-slate-900">{p.productName}</p>
+                          {p.sku && p.sku !== "-" && <p className="text-[10px] text-slate-400 font-mono">SKU: {p.sku}</p>}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-[11px] font-medium">
+                        <td className="py-3 px-3 bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-semibold border border-slate-200/60">
                             {p.category}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-center font-bold text-gray-800">{p.unitsSold}</td>
-                        <td className="py-3 px-3 text-right text-gray-700">{formatCurrency(p.avgSellingPrice)}</td>
-                        <td className="py-3 px-3 text-right text-gray-600">{formatCurrency(p.unitCost)}</td>
-                        <td className="py-3 px-3 text-right font-bold text-gray-900">{formatCurrency(p.salesValue)}</td>
-                        <td className="py-3 px-3 text-right text-gray-600">{formatCurrency(p.purchaseCost)}</td>
-                        <td className="py-3 px-3 text-right text-rose-600 font-medium">
+                        <td className="py-3 px-3 text-center bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          <span className="inline-block px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 font-bold text-xs border border-slate-200/60">
+                            {p.unitsSold}
+                          </span>
+                        </td>
+                        <td className="py-3 px-3 text-right text-slate-700 font-medium tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(p.avgSellingPrice)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-slate-600 font-medium tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(p.unitCost)}
+                        </td>
+                        <td className="py-3 px-3 text-right font-extrabold text-slate-900 tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(p.salesValue)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-slate-600 tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          {formatCurrency(p.purchaseCost)}
+                        </td>
+                        <td className="py-3 px-3 text-right text-rose-600 font-semibold tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
                           {p.wastageValue > 0 ? formatCurrency(p.wastageValue) : "-"}
                         </td>
-                        <td className="py-3 px-3 text-right font-bold">
+                        <td className="py-3 px-3 text-right font-extrabold tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
                           <span className={p.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}>
                             {formatCurrency(p.netMargin)}
                           </span>
                         </td>
-                        <td className="py-3 px-4 text-center">
+                        <td className="py-3 px-3.5 text-center bg-white group-hover:bg-slate-50/90 border-y border-r border-slate-200/80 rounded-r-xl shadow-2xs group-hover:shadow-xs transition-colors">
                           <span
-                            className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${p.marginPct >= 20
-                              ? "bg-emerald-100 text-emerald-800"
+                            className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${p.marginPct >= 20
+                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                               : p.marginPct >= 0
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-rose-100 text-rose-800"
+                                ? "bg-blue-50 text-blue-800 border-blue-200"
+                                : "bg-rose-50 text-rose-800 border-rose-200"
                               }`}
                           >
                             {p.marginPct.toFixed(1)}%
@@ -2105,28 +2151,40 @@ export default function PNL() {
                   )}
                 </tbody>
                 {sortedProductData.length > 0 && (
-                  <tfoot className="bg-gray-50 font-bold border-t-2 border-gray-200 text-gray-900">
-                    <tr>
-                      <td className="py-3 px-4">TOTALS ({sortedProductData.length})</td>
-                      <td className="py-3 px-3 text-gray-400">-</td>
-                      <td className="py-3 px-3 text-center">{productTotals.unitsSold.toLocaleString()}</td>
-                      <td className="py-3 px-3 text-right text-gray-400">-</td>
-                      <td className="py-3 px-3 text-right text-gray-400">-</td>
-                      <td className="py-3 px-3 text-right">{formatCurrency(productTotals.salesValue)}</td>
-                      <td className="py-3 px-3 text-right">{formatCurrency(productTotals.purchaseCost)}</td>
-                      <td className="py-3 px-3 text-right text-rose-600">{formatCurrency(productTotals.wastageValue)}</td>
-                      <td className="py-3 px-3 text-right">
-                        <span className={productTotals.netMargin >= 0 ? "text-emerald-600" : "text-rose-600"}>
+                  <tfoot>
+                    <tr className="font-bold text-slate-900">
+                      <td className="py-3.5 px-3.5 bg-slate-100/90 border-y border-l border-slate-200/90 rounded-l-xl uppercase text-slate-700 tracking-wider">
+                        TOTALS ({sortedProductData.length})
+                      </td>
+                      <td className="py-3.5 px-3 text-slate-400 bg-slate-100/90 border-y border-slate-200/90">-</td>
+                      <td className="py-3.5 px-3 text-center bg-slate-100/90 border-y border-slate-200/90">
+                        <span className="inline-block px-2.5 py-0.5 rounded-md bg-white text-slate-800 font-bold border border-slate-200">
+                          {productTotals.unitsSold.toLocaleString()}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-3 text-right text-slate-400 bg-slate-100/90 border-y border-slate-200/90">-</td>
+                      <td className="py-3.5 px-3 text-right text-slate-400 bg-slate-100/90 border-y border-slate-200/90">-</td>
+                      <td className="py-3.5 px-3 text-right font-extrabold bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(productTotals.salesValue)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(productTotals.purchaseCost)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right text-rose-700 bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        {formatCurrency(productTotals.wastageValue)}
+                      </td>
+                      <td className="py-3.5 px-3 text-right font-extrabold bg-slate-100/90 border-y border-slate-200/90 tabular-nums">
+                        <span className={productTotals.netMargin >= 0 ? "text-emerald-700" : "text-rose-700"}>
                           {formatCurrency(productTotals.netMargin)}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-center">
+                      <td className="py-3.5 px-3.5 text-center bg-slate-100/90 border-y border-r border-slate-200/90 rounded-r-xl">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${productTotals.salesValue > 0 && (productTotals.netMargin / productTotals.salesValue) >= 0.2
-                            ? "bg-emerald-100 text-emerald-800"
+                          className={`inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${productTotals.salesValue > 0 && (productTotals.netMargin / productTotals.salesValue) >= 0.2
+                            ? "bg-emerald-50 text-emerald-800 border-emerald-200"
                             : productTotals.salesValue > 0 && (productTotals.netMargin / productTotals.salesValue) >= 0
-                              ? "bg-blue-100 text-blue-800"
-                              : "bg-rose-100 text-rose-800"
+                              ? "bg-blue-50 text-blue-800 border-blue-200"
+                              : "bg-rose-50 text-rose-800 border-rose-200"
                             }`}
                         >
                           {productTotals.salesValue > 0
@@ -2219,55 +2277,55 @@ export default function PNL() {
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse text-xs">
+            <div className="overflow-x-auto p-3 sm:p-4 bg-slate-50/50">
+              <table className="w-full text-left border-separate border-spacing-y-2 text-xs">
                 <thead>
-                  <tr className="bg-gray-50/80 border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
-                    <th className="py-3 px-4 cursor-pointer" onClick={() => handleSort("name")}>
-                      <div className="flex items-center gap-1">Product Name <ArrowUpDown className="w-3 h-3" /></div>
+                  <tr className="text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                    <th className="py-2.5 px-3.5 cursor-pointer" onClick={() => handleSort("name")}>
+                      <div className="flex items-center gap-1">Product Name <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 cursor-pointer" onClick={() => handleSort("category")}>
-                      <div className="flex items-center gap-1">Category <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 cursor-pointer" onClick={() => handleSort("category")}>
+                      <div className="flex items-center gap-1">Category <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-center cursor-pointer" onClick={() => handleSort("remainingQty")}>
-                      <div className="flex items-center justify-center gap-1">Remaining Products (Units) <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-center cursor-pointer" onClick={() => handleSort("remainingQty")}>
+                      <div className="flex items-center justify-center gap-1">Remaining Products (Units) <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-3 text-right cursor-pointer" onClick={() => handleSort("unitCost")}>
-                      <div className="flex items-center justify-end gap-1">Unit Cost Price <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3 text-right cursor-pointer" onClick={() => handleSort("unitCost")}>
+                      <div className="flex items-center justify-end gap-1">Unit Cost Price <ArrowUpDown className="w-3 h-3 text-slate-400" /></div>
                     </th>
-                    <th className="py-3 px-4 text-right cursor-pointer" onClick={() => handleSort("totalWastageCost")}>
-                      <div className="flex items-center justify-end gap-1 text-rose-700">Wastage @ Cost <ArrowUpDown className="w-3 h-3" /></div>
+                    <th className="py-2.5 px-3.5 text-right cursor-pointer" onClick={() => handleSort("totalWastageCost")}>
+                      <div className="flex items-center justify-end gap-1 text-rose-700">Wastage @ Cost <ArrowUpDown className="w-3 h-3 text-rose-400" /></div>
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody>
                   {sortedRemainingProducts.length === 0 ? (
                     <tr>
-                      <td colSpan={5} className="py-12 text-center text-gray-400">
+                      <td colSpan={5} className="py-12 text-center text-slate-400 bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                         No remaining inventory products found matching your search.
                       </td>
                     </tr>
                   ) : (
                     paginatedRemainingProducts.map((p) => (
-                      <tr key={p.id} className="hover:bg-gray-50/70 transition">
-                        <td className="py-3 px-4">
-                          <p className="font-bold text-gray-900">{p.name}</p>
-                          {p.sku && p.sku !== "-" && <p className="text-[10px] text-gray-400 font-mono">SKU: {p.sku}</p>}
+                      <tr key={p.id} className="group transition-all duration-150">
+                        <td className="py-3 px-3.5 bg-white group-hover:bg-slate-50/90 border-y border-l border-slate-200/80 rounded-l-xl shadow-2xs group-hover:shadow-xs transition-colors">
+                          <p className="font-bold text-slate-900">{p.name}</p>
+                          {p.sku && p.sku !== "-" && <p className="text-[10px] text-slate-400 font-mono">SKU: {p.sku}</p>}
                         </td>
-                        <td className="py-3 px-3">
-                          <span className="px-2 py-0.5 bg-gray-100 text-gray-700 rounded-md text-[11px] font-medium">
+                        <td className="py-3 px-3 bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                          <span className="px-2.5 py-0.5 bg-slate-100 text-slate-700 rounded-md text-[11px] font-semibold border border-slate-200/60">
                             {p.category}
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-center font-bold text-gray-800">
+                        <td className="py-3 px-3 text-center bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
                           <span className="inline-block px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-800 border border-amber-200">
                             {p.remainingQty.toLocaleString()} units
                           </span>
                         </td>
-                        <td className="py-3 px-3 text-right text-gray-700 font-medium">
+                        <td className="py-3 px-3 text-right text-slate-700 font-medium tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
                           {formatCurrency(p.unitCost)}
                         </td>
-                        <td className="py-3 px-4 text-right font-bold text-rose-700">
+                        <td className="py-3 px-3.5 text-right font-extrabold text-rose-700 tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-r border-slate-200/80 rounded-r-xl shadow-2xs group-hover:shadow-xs transition-colors">
                           {formatCurrency(p.totalWastageCost)}
                         </td>
                       </tr>
@@ -2275,17 +2333,17 @@ export default function PNL() {
                   )}
                 </tbody>
                 {sortedRemainingProducts.length > 0 && (
-                  <tfoot className="bg-rose-50/50 font-bold border-t-2 border-rose-200 text-gray-900">
-                    <tr>
-                      <td className="py-3 px-4 text-rose-900">
+                  <tfoot>
+                    <tr className="font-bold text-slate-900">
+                      <td className="py-3.5 px-3.5 bg-rose-50/60 border-y border-l border-rose-200/90 rounded-l-xl uppercase text-rose-900 tracking-wider">
                         TOTAL REMAINING PRODUCTS ({sortedRemainingProducts.length})
                       </td>
-                      <td className="py-3 px-3 text-gray-400">-</td>
-                      <td className="py-3 px-3 text-center text-rose-900">
+                      <td className="py-3.5 px-3 text-slate-400 bg-rose-50/60 border-y border-rose-200/90">-</td>
+                      <td className="py-3.5 px-3 text-center text-rose-900 bg-rose-50/60 border-y border-rose-200/90 font-extrabold">
                         {remainingProductsTotals.remainingQty.toLocaleString()} units
                       </td>
-                      <td className="py-3 px-3 text-gray-400">-</td>
-                      <td className="py-3 px-4 text-right text-rose-700 text-sm">
+                      <td className="py-3.5 px-3 text-slate-400 bg-rose-50/60 border-y border-rose-200/90">-</td>
+                      <td className="py-3.5 px-3.5 text-right text-rose-700 bg-rose-50/60 border-y border-r border-rose-200/90 rounded-r-xl text-sm font-extrabold tabular-nums">
                         {formatCurrency(remainingProductsTotals.totalWastageCost)}
                       </td>
                     </tr>

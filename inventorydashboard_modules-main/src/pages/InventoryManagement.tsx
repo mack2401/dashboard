@@ -4741,53 +4741,53 @@ const InventoryManagement: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="overflow-x-auto flex-1 max-h-[420px] overflow-y-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50/80 text-gray-600 uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-gray-150">
+                <div className="overflow-x-auto flex-1 max-h-[420px] overflow-y-auto p-3 bg-slate-50/50">
+                  <table className="w-full text-sm text-left border-separate border-spacing-y-1.5">
+                    <thead className="bg-slate-50/90 backdrop-blur-xs text-slate-500 uppercase text-[10px] font-bold tracking-wider sticky top-0 z-10 border-b border-slate-200/80">
                       <tr>
-                        <th className="px-3 py-2.5 text-center w-12">#</th>
-                        <th className="px-3 py-2.5">Item name</th>
-                        <th className="px-3 py-2.5 text-center">Stock (SOH)</th>
-                        <th className="px-3 py-2.5 text-center">Qty Sold</th>
-                        <th className="px-3 py-2.5 text-right">Total (₹)</th>
+                        <th className="px-3 py-2 text-center w-12">#</th>
+                        <th className="px-3 py-2">Item name</th>
+                        <th className="px-3 py-2 text-center">Stock (SOH)</th>
+                        <th className="px-3 py-2 text-center">Qty Sold</th>
+                        <th className="px-3 py-2 text-right">Total (₹)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-xs">
+                    <tbody className="text-xs">
                       {currentApprovedFastMoving.map((p, i) => {
                         const rank = approvedFmStartIndex + i;
                         return (
-                        <tr key={`${p.name}-${i}`} className="hover:bg-blue-50/30 transition-colors">
-                          <td className="px-3 py-2.5 text-center font-bold text-gray-400">
+                        <tr key={`${p.name}-${i}`} className="group transition-all duration-150">
+                          <td className="px-3 py-2.5 text-center font-bold text-slate-500 bg-white group-hover:bg-slate-50/90 border-y border-l border-slate-200/80 rounded-l-xl shadow-2xs group-hover:shadow-xs transition-colors">
                             {rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : rank + 1}
                           </td>
-                          <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">{p.name}</div>
-                            <div className="text-[11px] text-gray-400">
+                          <td className="px-3 py-2.5 bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                            <div className="font-bold text-slate-900">{p.name}</div>
+                            <div className="text-[11px] text-slate-400">
                               {p.category} {p.sku && p.sku !== '-' ? `• SKU: ${p.sku}` : ''}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-center">
+                          <td className="px-3 py-2.5 text-center bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
                             {p.currentSOH !== null ? (
                               <span
-                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold border ${
                                   p.isLowStock
-                                    ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                                    : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 }`}
                               >
                                 {p.currentSOH}
                                 {p.isLowStock && " (Low)"}
                               </span>
                             ) : (
-                              <span className="text-gray-400 text-[11px]">-</span>
+                              <span className="text-slate-400 text-[11px]">-</span>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-center">
-                            <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold bg-green-50 text-green-700 border border-green-200/60">
+                          <td className="px-3 py-2.5 text-center bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                            <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200/70">
                               {p.quantity}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 text-right font-bold text-gray-800">
+                          <td className="px-3 py-2.5 text-right font-extrabold text-slate-900 tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-r border-slate-200/80 rounded-r-xl shadow-2xs group-hover:shadow-xs transition-colors">
                             {formatCurrency(p.totalValue)}
                           </td>
                         </tr>
@@ -4796,7 +4796,7 @@ const InventoryManagement: React.FC = () => {
 
                       {filteredApprovedFastMoving.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="py-12 px-4 text-center">
+                          <td colSpan={5} className="py-12 px-4 text-center bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                             <p className="text-sm font-medium text-gray-700">
                               {fastMovingFilterLowStock
@@ -4886,53 +4886,53 @@ const InventoryManagement: React.FC = () => {
                   </span>
                 </div>
 
-                <div className="overflow-x-auto flex-1 max-h-[420px] overflow-y-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="bg-gray-50/80 text-gray-600 uppercase text-[10px] tracking-wider sticky top-0 z-10 border-b border-gray-150">
+                <div className="overflow-x-auto flex-1 max-h-[420px] overflow-y-auto p-3 bg-slate-50/50">
+                  <table className="w-full text-sm text-left border-separate border-spacing-y-1.5">
+                    <thead className="bg-slate-50/90 backdrop-blur-xs text-slate-500 uppercase text-[10px] font-bold tracking-wider sticky top-0 z-10 border-b border-slate-200/80">
                       <tr>
-                        <th className="px-3 py-2.5 text-center w-12">#</th>
-                        <th className="px-3 py-2.5">Item name</th>
-                        <th className="px-3 py-2.5 text-center">Stock (SOH)</th>
-                        <th className="px-3 py-2.5 text-center">Requested Qty</th>
-                        <th className="px-3 py-2.5 text-right">Total (₹)</th>
+                        <th className="px-3 py-2 text-center w-12">#</th>
+                        <th className="px-3 py-2">Item name</th>
+                        <th className="px-3 py-2 text-center">Stock (SOH)</th>
+                        <th className="px-3 py-2 text-center">Requested Qty</th>
+                        <th className="px-3 py-2 text-right">Total (₹)</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100 text-xs">
+                    <tbody className="text-xs">
                       {currentEnquiryFastMoving.map((p, i) => {
                         const rank = enquiryFmStartIndex + i;
                         return (
-                        <tr key={`${p.name}-${i}`} className="hover:bg-blue-50/30 transition-colors">
-                          <td className="px-3 py-2.5 text-center font-bold text-gray-400">
+                        <tr key={`${p.name}-${i}`} className="group transition-all duration-150">
+                          <td className="px-3 py-2.5 text-center font-bold text-slate-500 bg-white group-hover:bg-slate-50/90 border-y border-l border-slate-200/80 rounded-l-xl shadow-2xs group-hover:shadow-xs transition-colors">
                             {rank === 0 ? "🥇" : rank === 1 ? "🥈" : rank === 2 ? "🥉" : rank + 1}
                           </td>
-                          <td className="px-3 py-2.5">
-                            <div className="font-semibold text-gray-900">{p.name}</div>
-                            <div className="text-[11px] text-gray-400">
+                          <td className="px-3 py-2.5 bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                            <div className="font-bold text-slate-900">{p.name}</div>
+                            <div className="text-[11px] text-slate-400">
                               {p.category} {p.sku && p.sku !== '-' ? `• SKU: ${p.sku}` : ''}
                             </div>
                           </td>
-                          <td className="px-3 py-2.5 text-center">
+                          <td className="px-3 py-2.5 text-center bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
                             {p.currentSOH !== null ? (
                               <span
-                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                                className={`inline-block px-2 py-0.5 rounded-full text-[11px] font-bold border ${
                                   p.isLowStock
-                                    ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                                    : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                                    ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                    : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                                 }`}
                               >
                                 {p.currentSOH}
                                 {p.isLowStock && " (Low)"}
                               </span>
                             ) : (
-                              <span className="text-gray-400 text-[11px]">-</span>
+                              <span className="text-slate-400 text-[11px]">-</span>
                             )}
                           </td>
-                          <td className="px-3 py-2.5 text-center">
-                            <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold bg-blue-50 text-blue-700 border border-blue-200/60">
+                          <td className="px-3 py-2.5 text-center bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 shadow-2xs group-hover:shadow-xs transition-colors">
+                            <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold bg-blue-50 text-blue-700 border border-blue-200/70">
                               {p.quantity}
                             </span>
                           </td>
-                          <td className="px-3 py-2.5 text-right font-bold text-gray-800">
+                          <td className="px-3 py-2.5 text-right font-extrabold text-slate-900 tabular-nums bg-white group-hover:bg-slate-50/90 border-y border-r border-slate-200/80 rounded-r-xl shadow-2xs group-hover:shadow-xs transition-colors">
                             {formatCurrency(p.totalValue)}
                           </td>
                         </tr>
@@ -4941,7 +4941,7 @@ const InventoryManagement: React.FC = () => {
 
                       {filteredEnquiryFastMoving.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="py-12 px-4 text-center">
+                          <td colSpan={5} className="py-12 px-4 text-center bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                             <Package className="w-8 h-8 text-gray-300 mx-auto mb-2" />
                             <p className="text-sm font-medium text-gray-700">
                               {fastMovingFilterLowStock
@@ -5259,21 +5259,21 @@ const InventoryManagement: React.FC = () => {
         )}
 
         {/* Products Table with Image Column */}
-        <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 overflow-hidden">
+        <div className="bg-slate-50/50 rounded-2xl border border-slate-200/80 p-3 sm:p-4 overflow-hidden shadow-2xs">
           <div className="overflow-x-auto">
-            <table className="w-full text-center">
+            <table className="w-full text-center border-separate border-spacing-y-2">
               <thead>
-                <tr className="bg-gray-100/90 border-b-2 border-gray-200 text-xs sm:text-sm font-bold text-gray-900">
-                  <th className="py-3.5 px-2 text-center w-14 font-bold text-gray-900">
+                <tr className="text-slate-500 font-bold uppercase tracking-wider text-[11px]">
+                  <th className="py-2.5 px-2 text-center w-14 font-bold text-slate-500 uppercase tracking-wider text-[11px]">
                     Image
                   </th>
-                  <th className="py-3.5 px-2 text-center font-bold text-gray-900">
+                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">
                     <button
                       onClick={() => {
                         setSortField('hsnCode');
                         setSortDirection(sortField === 'hsnCode' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
                     >
                       HSN Code
                       {sortField === 'hsnCode' && (
@@ -5283,13 +5283,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3.5 px-2.5 text-center font-bold text-gray-900">
+                  <th className="py-2.5 px-2.5 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">
                     <button
                       onClick={() => {
                         setSortField('name');
                         setSortDirection(sortField === 'name' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
                     >
                       Item name
                       {sortField === 'name' && (
@@ -5299,13 +5299,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3.5 px-2 text-center font-bold text-gray-900">
+                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">
                     <button
                       onClick={() => {
                         setSortField('category');
                         setSortDirection(sortField === 'category' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
                     >
                       Category
                       {sortField === 'category' && (
@@ -5315,13 +5315,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 whitespace-nowrap">
+                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('totalQuantity');
                         setSortDirection(sortField === 'totalQuantity' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
                     >
                       SOH
                       {sortField === 'totalQuantity' && (
@@ -5331,13 +5331,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 whitespace-nowrap">
+                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('currentPrice');
                         setSortDirection(sortField === 'currentPrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
                     >
                       Purchase Price
                       {sortField === 'currentPrice' && (
@@ -5347,13 +5347,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 whitespace-nowrap">
+                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('purchasePrice');
                         setSortDirection(sortField === 'purchasePrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-gray-900 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
                     >
                       Selling Price
                       {sortField === 'purchasePrice' && (
@@ -5363,16 +5363,19 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-3.5 px-2 text-center font-bold text-gray-900">Status</th>
-                  <th className="py-3.5 px-2 text-center font-bold text-gray-900 w-12">Actions</th>
+                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">Status</th>
+                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] w-14">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-xs sm:text-sm">
+              <tbody className="text-xs sm:text-sm">
                 {currentItems.length > 0 ? (
                   currentItems.map((product, index) => {
                     const canEdit = canEditProduct(product);
                     const canDelete = canDeleteProduct(product);
                     const isRowMatch = isHighlighted(product.id, product.name);
+                    const cellBase = isRowMatch
+                      ? "bg-amber-50/90 group-hover:bg-amber-100/90 border-y border-amber-300 py-3 px-2 transition-colors shadow-2xs"
+                      : "bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 py-3 px-2 transition-colors shadow-2xs group-hover:shadow-xs";
                     
                     return (
                       <React.Fragment key={product.id}>
@@ -5382,10 +5385,10 @@ const InventoryManagement: React.FC = () => {
                           data-product-id={product.id}
                           data-highlight-id={product.id}
                           data-highlight-match={isRowMatch ? "true" : undefined}
-                          className={`cursor-pointer transition-all duration-300 ${
+                          className={`group cursor-pointer transition-all duration-200 ${
                             isRowMatch
-                              ? "active-find-match ring-4 ring-blue-600 bg-amber-100/90 font-semibold"
-                              : "hover:bg-gray-50/80"
+                              ? "active-find-match ring-2 ring-blue-500 rounded-xl font-semibold"
+                              : ""
                           }`}
                           onClick={() => {
                             setSelectedDetailsProduct(product);
@@ -5393,23 +5396,25 @@ const InventoryManagement: React.FC = () => {
                             setIsDetailsModalOpen(true);
                           }}
                         >
-                          <td className="py-2.5 px-2 w-14 text-center">
+                          <td className={`${cellBase} w-14 text-center border-l rounded-l-xl ${isRowMatch ? "border-l-amber-400" : "border-l-slate-200/80"}`}>
                             <div className="flex justify-center">
                               {renderProductImage(product.image, product.name, 'small')}
                             </div>
                           </td>
-                          <td className="py-2.5 px-2 text-xs font-mono text-gray-700 whitespace-nowrap text-center font-medium">
-                            {product.hsnCode || '-'}
+                          <td className={`${cellBase} text-xs font-mono text-slate-700 whitespace-nowrap text-center font-medium`}>
+                            <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-700 text-xs font-mono font-medium border border-slate-200/60">
+                              {product.hsnCode || '-'}
+                            </span>
                           </td>
-                          <td className="py-2.5 px-2.5 max-w-[220px] text-center">
-                            <div className="font-semibold text-gray-900 text-xs sm:text-sm truncate text-center flex items-center justify-center gap-1.5" title={product.name}>
+                          <td className={`${cellBase} px-2.5 max-w-[220px] text-center`}>
+                            <div className="font-bold text-slate-900 text-xs sm:text-sm truncate text-center flex items-center justify-center gap-1.5" title={product.name}>
                               <span>{product.name}</span>
                             </div>
-                            <div className="flex items-center justify-center gap-1.5 text-[11px] text-gray-500 mt-0.5 flex-wrap">
-                              {product.sku && <span className="font-mono">SKU: {product.sku}</span>}
+                            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 mt-0.5 flex-wrap">
+                              {product.sku && <span className="font-mono text-slate-500">SKU: {product.sku}</span>}
                               {product.isOldStock && (
                                 <span 
-                                  className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-100 text-amber-800 rounded-md border border-amber-300 inline-flex items-center gap-1 shadow-2xs" 
+                                  className="px-1.5 py-0.5 text-[10px] font-bold bg-amber-50 text-amber-800 rounded-md border border-amber-300/80 inline-flex items-center gap-1 shadow-2xs" 
                                   title="Old Stock: Missed in the latest imported Excel sheet"
                                 >
                                   <Clock className="w-2.5 h-2.5 text-amber-700" />
@@ -5417,30 +5422,32 @@ const InventoryManagement: React.FC = () => {
                                 </span>
                               )}
                               {(product.isQuoteOnly || product.productType === 'quote_purpose') && (
-                                <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-purple-100 text-purple-700 rounded-full border border-purple-200">
+                                <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-purple-50 text-purple-700 rounded-full border border-purple-200/80">
                                   Quote Item
                                 </span>
                               )}
                             </div>
                           </td>
-                          <td className="py-2.5 px-2 text-center">
-                            <span className="inline-block px-2 py-0.5 rounded-md text-xs bg-gray-100 text-gray-700 truncate max-w-[120px]" title={product.category}>
+                          <td className={`${cellBase} text-center`}>
+                            <span className="inline-block px-2.5 py-0.5 rounded-md text-xs bg-slate-100 text-slate-700 font-medium border border-slate-200/60 truncate max-w-[120px]" title={product.category}>
                               {product.category}
                             </span>
                           </td>
-                          <td className="py-2.5 px-2 text-center text-xs tabular-nums whitespace-nowrap">
-                            <span className="font-bold text-blue-600 text-sm">{product.totalQuantity}</span>
+                          <td className={`${cellBase} text-center text-xs tabular-nums whitespace-nowrap`}>
+                            <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold text-blue-600 bg-blue-50/60 border border-blue-100 text-sm">
+                              {product.totalQuantity}
+                            </span>
                           </td>
-                          <td className="py-2.5 px-2 text-center text-xs sm:text-sm font-semibold text-gray-900 tabular-nums whitespace-nowrap">
+                          <td className={`${cellBase} text-center text-xs sm:text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap`}>
                             {formatCurrency(product.currentPrice || 0)}
                           </td>
-                          <td className="py-2.5 px-2 text-center text-xs sm:text-sm font-semibold text-emerald-600 tabular-nums whitespace-nowrap">
+                          <td className={`${cellBase} text-center text-xs sm:text-sm font-bold text-emerald-600 tabular-nums whitespace-nowrap`}>
                             {formatCurrency(getProductPurchasePrice(product))}
                           </td>
-                          <td className="py-2.5 px-2 text-center whitespace-nowrap">
+                          <td className={`${cellBase} text-center whitespace-nowrap`}>
                             {renderStockBadge(product)}
                           </td>
-                          <td className="py-2.5 px-2 text-center w-12 relative" onClick={(e) => e.stopPropagation()}>
+                          <td className={`${cellBase} text-center w-14 relative border-r rounded-r-xl ${isRowMatch ? "border-r-amber-400" : "border-r-slate-200/80"}`} onClick={(e) => e.stopPropagation()}>
                             <div className="relative inline-block text-left">
                               <button
                                 type="button"
@@ -5580,11 +5587,11 @@ const InventoryManagement: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center">
+                    <td colSpan={9} className="py-12 text-center bg-white rounded-xl border border-slate-200/80 shadow-2xs">
                       <div className="text-center">
-                        <Package className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No products found</h3>
-                        <p className="text-gray-600 mb-4">
+                        <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
+                        <h3 className="text-lg font-bold text-slate-900 mb-2">No products found</h3>
+                        <p className="text-slate-500 mb-4 text-xs">
                           {searchTerm || filterCategory !== 'all' || filterStock !== 'all'
                             ? 'Try changing your search or filter criteria'
                             : canAddProduct()
@@ -5594,7 +5601,7 @@ const InventoryManagement: React.FC = () => {
                         {canAddProduct() && !searchTerm && filterCategory === 'all' && filterStock === 'all' && (
                           <button
                             onClick={() => setIsAddModalOpen(true)}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                            className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs font-semibold shadow-2xs cursor-pointer"
                           >
                             Add Your First Product
                           </button>
