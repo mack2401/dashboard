@@ -1,9 +1,10 @@
 /**
- * High-precision, professional HTML Print & PDF Template Generator
+ * Single-Page Precision HTML Print & PDF Template Generator
  * for TAX INVOICE and QUOTATION documents.
  *
- * Implements modern corporate typography, Indian GST compliance,
- * clean grid structures, Amount in Words conversion, and A4 print optimizations.
+ * Engineered to strictly fit on a SINGLE A4 PAGE in portrait mode,
+ * with modern corporate typography, Indian GST compliance (State 33),
+ * high-resolution branding, and zero multi-page overflow.
  */
 
 export interface BillItemPrint {
@@ -135,17 +136,17 @@ export const defaultCompanyBankDetails: BankDetailsPrint = {
 
 export const defaultQuotationTerms: TermConditionPrint[] = [
   { id: 1, text: "Payment Terms: 100% advance payment required to confirm order." },
-  { id: 2, text: "Delivery Timeline: 10 - 12 business days from the date of advance confirmation." },
-  { id: 3, text: "Price Validity: This quotation is valid for 2 days from the date of issuance." },
-  { id: 4, text: "GST is charged extra as applicable at current statutory rates." },
-  { id: 5, text: "Subject to Coimbatore jurisdiction only." },
+  { id: 2, text: "Delivery Timeline: 10 - 12 business days from advance confirmation." },
+  { id: 3, text: "Price Validity: Valid for 2 days from date of issuance." },
+  { id: 4, text: "GST charged extra as applicable at statutory rates." },
+  { id: 5, text: "Subject to Coimbatore jurisdiction." },
 ];
 
 export const defaultInvoiceTerms: TermConditionPrint[] = [
   { id: 1, text: "Goods once sold cannot be taken back or exchanged unless approved." },
   { id: 2, text: "Payment terms strictly as agreed per invoice." },
-  { id: 3, text: "Warranty as per standard manufacturer guidelines against manufacturing defects." },
-  { id: 4, text: "Subject to Coimbatore jurisdiction only." },
+  { id: 3, text: "Warranty as per standard manufacturer guidelines." },
+  { id: 4, text: "Subject to Coimbatore jurisdiction." },
 ];
 
 const parseDateString = (rawDate: any): string => {
@@ -162,7 +163,7 @@ const parseDateString = (rawDate: any): string => {
 };
 
 /**
- * Generates an ultra-clean, modern, and corporate printable HTML string
+ * Generates an ultra-clean, modern, single-page printable HTML string
  * for both Tax Invoices and Quotations.
  */
 export const generateBillPrintHTML = (data: BillPrintData): string => {
@@ -218,15 +219,15 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
   if (isQuotation) {
     tableHeadersHtml = `
       <tr>
-        <th style="width: 44px; text-align: center;">#</th>
+        <th style="width: 32px; text-align: center;">#</th>
         <th style="text-align: left;">Item Description & Specifications</th>
-        <th style="width: 85px; text-align: center;">HSN/SAC</th>
-        <th style="width: 55px; text-align: center;">Qty</th>
-        <th style="width: 55px; text-align: center;">UOM</th>
-        <th style="width: 95px; text-align: right;">Unit Rate (₹)</th>
-        <th style="width: 65px; text-align: center;">GST %</th>
-        <th style="width: 90px; text-align: right;">GST Amt (₹)</th>
-        <th style="width: 105px; text-align: right;">Total (₹)</th>
+        <th style="width: 75px; text-align: center;">HSN/SAC</th>
+        <th style="width: 45px; text-align: center;">Qty</th>
+        <th style="width: 45px; text-align: center;">UOM</th>
+        <th style="width: 85px; text-align: right;">Unit Rate (₹)</th>
+        <th style="width: 55px; text-align: center;">GST %</th>
+        <th style="width: 80px; text-align: right;">GST Amt (₹)</th>
+        <th style="width: 95px; text-align: right;">Total (₹)</th>
       </tr>
     `;
 
@@ -244,14 +245,14 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
         <tr>
           <td style="text-align: center; color: #64748b; font-weight: 600;">${index + 1}</td>
           <td>
-            <div style="font-weight: 700; color: #0f172a; font-size: 12.5px;">${item.productName}</div>
-            ${item.sku && item.sku !== '-' ? `<div style="font-size: 10px; color: #64748b; font-family: monospace;">SKU: ${item.sku}</div>` : ''}
+            <div style="font-weight: 700; color: #0f172a; font-size: 11px;">${item.productName}</div>
+            ${item.sku && item.sku !== '-' ? `<div style="font-size: 9px; color: #64748b; font-family: monospace;">SKU: ${item.sku}</div>` : ''}
           </td>
-          <td style="text-align: center; font-family: monospace; font-size: 11px; color: #475569;">${item.hsn || '0000'}</td>
+          <td style="text-align: center; font-family: monospace; font-size: 9.5px; color: #475569;">${item.hsn || '0000'}</td>
           <td style="text-align: center; font-weight: 700; color: #0f172a;">${itemQty}</td>
-          <td style="text-align: center; color: #64748b; font-size: 11px;">${item.uom || 'Nos'}</td>
+          <td style="text-align: center; color: #64748b; font-size: 9.5px;">${item.uom || 'Nos'}</td>
           <td style="text-align: right; font-variant-numeric: tabular-nums;">₹${itemPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-          <td style="text-align: center; font-weight: 600; color: #3b82f6; font-size: 11.5px;">${itemRatePct}%</td>
+          <td style="text-align: center; font-weight: 600; color: #2563eb; font-size: 10px;">${itemRatePct}%</td>
           <td style="text-align: right; font-variant-numeric: tabular-nums; color: #475569;">₹${itemTaxAmt.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td style="text-align: right; font-weight: 700; color: #0f172a; font-variant-numeric: tabular-nums;">₹${lineTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
         </tr>
@@ -261,13 +262,13 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     // Tax Invoice Table
     tableHeadersHtml = `
       <tr>
-        <th style="width: 44px; text-align: center;">#</th>
+        <th style="width: 35px; text-align: center;">#</th>
         <th style="text-align: left;">Description of Goods / Services</th>
-        <th style="width: 95px; text-align: center;">HSN / SAC</th>
-        <th style="width: 60px; text-align: center;">Qty</th>
-        <th style="width: 110px; text-align: right;">Unit Rate (₹)</th>
-        <th style="width: 120px; text-align: right;">Taxable Value (₹)</th>
-        <th style="width: 130px; text-align: right;">Amount (₹)</th>
+        <th style="width: 85px; text-align: center;">HSN / SAC</th>
+        <th style="width: 50px; text-align: center;">Qty</th>
+        <th style="width: 100px; text-align: right;">Unit Rate (₹)</th>
+        <th style="width: 105px; text-align: right;">Taxable Value (₹)</th>
+        <th style="width: 115px; text-align: right;">Amount (₹)</th>
       </tr>
     `;
 
@@ -280,10 +281,10 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
         <tr>
           <td style="text-align: center; color: #64748b; font-weight: 600;">${index + 1}</td>
           <td>
-            <div style="font-weight: 700; color: #0f172a; font-size: 12.5px;">${item.productName}</div>
-            ${item.sku && item.sku !== '-' ? `<div style="font-size: 10px; color: #64748b; font-family: monospace;">SKU: ${item.sku}</div>` : ''}
+            <div style="font-weight: 700; color: #0f172a; font-size: 11px;">${item.productName}</div>
+            ${item.sku && item.sku !== '-' ? `<div style="font-size: 9px; color: #64748b; font-family: monospace;">SKU: ${item.sku}</div>` : ''}
           </td>
-          <td style="text-align: center; font-family: monospace; font-size: 11px; color: #475569;">${item.hsn || '0000'}</td>
+          <td style="text-align: center; font-family: monospace; font-size: 9.5px; color: #475569;">${item.hsn || '0000'}</td>
           <td style="text-align: center; font-weight: 700; color: #0f172a;">${itemQty}</td>
           <td style="text-align: right; font-variant-numeric: tabular-nums;">₹${itemPrice.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
           <td style="text-align: right; font-variant-numeric: tabular-nums; color: #334155;">₹${itemTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
@@ -314,7 +315,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
   <style>
     @page {
       size: A4 portrait;
-      margin: 10mm 12mm 12mm 12mm;
+      margin: 6mm 8mm 6mm 8mm;
     }
     * {
       margin: 0;
@@ -322,73 +323,85 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       box-sizing: border-box;
       -webkit-font-smoothing: antialiased;
     }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #ffffff;
+    }
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      font-size: 12px;
-      line-height: 1.5;
+      font-size: 10px;
+      line-height: 1.3;
       color: #1e293b;
-      background: #ffffff;
-      padding: 24px 28px;
+      padding: 10px 14px;
     }
     .document-sheet {
-      max-width: 900px;
+      width: 100%;
+      max-width: 820px;
       margin: 0 auto;
       background: #ffffff;
+      display: flex;
+      flex-direction: column;
     }
 
     /* Top Letterhead */
     .letterhead {
       display: flex;
       justify-content: space-between;
-      align-items: flex-start;
-      padding-bottom: 14px;
-      border-bottom: 2px solid #e2e8f0;
-      margin-bottom: 14px;
+      align-items: center;
+      padding-bottom: 6px;
+      border-bottom: 1.5px solid #cbd5e1;
+      margin-bottom: 6px;
     }
     .brand-col {
       flex: 1;
-      max-width: 320px;
+      max-width: 260px;
     }
     .brand-logo {
-      height: 48px;
+      height: 34px;
       width: auto;
-      max-width: 170px;
+      max-width: 140px;
       object-fit: contain;
       display: block;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .brand-tagline {
-      font-size: 10.5px;
+      font-size: 8.5px;
       font-weight: 600;
       color: #64748b;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       text-transform: uppercase;
     }
     .company-col {
-      flex: 1.4;
+      flex: 1.5;
       text-align: right;
     }
     .company-name {
-      font-size: 17px;
+      font-size: 14px;
       font-weight: 800;
       color: #0f172a;
-      letter-spacing: 0.3px;
-      margin-bottom: 2px;
+      letter-spacing: 0.2px;
+      margin-bottom: 1px;
     }
     .company-address {
-      font-size: 11px;
+      font-size: 9px;
       color: #475569;
-      line-height: 1.5;
-      margin-bottom: 4px;
+      line-height: 1.25;
+      margin-bottom: 2px;
     }
     .company-meta {
-      font-size: 10.5px;
+      font-size: 8.5px;
       color: #475569;
       display: flex;
       justify-content: flex-end;
-      gap: 12px;
+      gap: 8px;
       flex-wrap: wrap;
+    }
+    .tax-pills {
       margin-top: 3px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 4px;
     }
     .tax-id-pill {
       display: inline-block;
@@ -396,10 +409,10 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       font-weight: 700;
       background: #f1f5f9;
       color: #1e293b;
-      padding: 2px 7px;
-      border-radius: 4px;
+      padding: 1px 5px;
+      border-radius: 3px;
       border: 1px solid #cbd5e1;
-      font-size: 10.5px;
+      font-size: 8.5px;
     }
 
     /* Document Title Banner */
@@ -409,39 +422,36 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       align-items: center;
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 10px;
-      padding: 12px 18px;
-      margin-bottom: 14px;
+      border-radius: 6px;
+      padding: 5px 10px;
+      margin-bottom: 6px;
     }
     .title-left {
       display: flex;
-      flex-direction: column;
-      gap: 2px;
+      align-items: center;
+      gap: 8px;
     }
     .doc-main-title {
-      font-size: 22px;
+      font-size: 16px;
       font-weight: 900;
-      letter-spacing: 1.5px;
+      letter-spacing: 1px;
       color: ${isQuotation ? '#1d4ed8' : '#0f172a'};
-      display: flex;
-      align-items: center;
-      gap: 10px;
     }
     .doc-sub-title {
-      font-size: 9.5px;
+      font-size: 8px;
       font-weight: 700;
-      letter-spacing: 1px;
+      letter-spacing: 0.5px;
       color: #64748b;
       text-transform: uppercase;
     }
     .doc-badge-status {
       display: inline-flex;
       align-items: center;
-      padding: 3px 10px;
+      padding: 1.5px 7px;
       border-radius: 9999px;
-      font-size: 10px;
+      font-size: 8.5px;
       font-weight: 800;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.5px;
       text-transform: uppercase;
     }
     .badge-paid {
@@ -461,7 +471,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     }
     .title-meta-grid {
       display: flex;
-      gap: 20px;
+      gap: 14px;
       text-align: right;
     }
     .meta-box {
@@ -469,14 +479,14 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       flex-direction: column;
     }
     .meta-box-label {
-      font-size: 9.5px;
+      font-size: 8px;
       text-transform: uppercase;
       font-weight: 700;
       color: #64748b;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
     }
     .meta-box-value {
-      font-size: 13px;
+      font-size: 11px;
       font-weight: 800;
       color: #0f172a;
       font-family: monospace;
@@ -486,36 +496,36 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     .party-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
-      margin-bottom: 12px;
+      gap: 8px;
+      margin-bottom: 6px;
     }
     .party-card {
       border: 1px solid #e2e8f0;
-      border-radius: 8px;
+      border-radius: 5px;
       background: #ffffff;
       overflow: hidden;
     }
     .party-header {
       background: #f8fafc;
-      padding: 6px 12px;
-      font-size: 9.5px;
+      padding: 3px 8px;
+      font-size: 8.5px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.8px;
+      letter-spacing: 0.6px;
       color: #475569;
       border-bottom: 1px solid #e2e8f0;
     }
     .party-body {
-      padding: 10px 12px;
-      font-size: 11.5px;
+      padding: 5px 8px;
+      font-size: 9.5px;
       color: #334155;
-      line-height: 1.5;
+      line-height: 1.35;
     }
     .party-name {
       font-weight: 800;
       color: #0f172a;
-      font-size: 13px;
-      margin-bottom: 2px;
+      font-size: 11px;
+      margin-bottom: 1px;
     }
 
     /* Place of Supply Strip */
@@ -524,38 +534,38 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       align-items: center;
       justify-content: space-between;
       background: #f1f5f9;
-      border-radius: 6px;
-      padding: 6px 12px;
-      font-size: 10.5px;
+      border-radius: 4px;
+      padding: 3px 8px;
+      font-size: 8.5px;
       color: #334155;
-      margin-bottom: 14px;
+      margin-bottom: 6px;
       border: 1px solid #e2e8f0;
     }
 
     /* Items Table */
     .table-container {
-      margin-bottom: 14px;
-      border-radius: 8px;
+      margin-bottom: 6px;
+      border-radius: 5px;
       overflow: hidden;
       border: 1px solid #cbd5e1;
     }
     .items-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 11.5px;
+      font-size: 9.5px;
     }
     .items-table th {
       background: #f8fafc;
       color: #334155;
       font-weight: 700;
-      font-size: 10.5px;
+      font-size: 8.5px;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
-      padding: 8px 10px;
-      border-bottom: 1.5px solid #cbd5e1;
+      letter-spacing: 0.4px;
+      padding: 4px 6px;
+      border-bottom: 1px solid #cbd5e1;
     }
     .items-table td {
-      padding: 8px 10px;
+      padding: 3.5px 6px;
       border-bottom: 1px solid #f1f5f9;
       color: #1e293b;
       vertical-align: middle;
@@ -567,9 +577,9 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     /* Financial Bottom Section */
     .bottom-grid {
       display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 16px;
-      margin-bottom: 14px;
+      grid-template-columns: 1.2fr 0.8fr;
+      gap: 10px;
+      margin-bottom: 6px;
       align-items: start;
     }
 
@@ -577,19 +587,18 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     .words-card {
       background: #f8fafc;
       border: 1px solid #e2e8f0;
-      border-radius: 6px;
-      padding: 8px 12px;
-      margin-bottom: 10px;
-      font-size: 11px;
+      border-radius: 4px;
+      padding: 3px 6px;
+      margin-bottom: 4px;
+      font-size: 9px;
     }
     .words-label {
-      font-size: 9px;
+      font-size: 7.5px;
       font-weight: 700;
       text-transform: uppercase;
       color: #64748b;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       display: block;
-      margin-bottom: 1px;
     }
     .words-text {
       font-weight: 700;
@@ -599,26 +608,26 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     /* Bank Card */
     .bank-card {
       border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      border-radius: 4px;
       background: #ffffff;
-      padding: 8px 12px;
-      font-size: 10.5px;
-      margin-bottom: 10px;
+      padding: 4px 6px;
+      font-size: 8.5px;
+      margin-bottom: 4px;
     }
     .bank-header {
-      font-size: 9.5px;
+      font-size: 8px;
       font-weight: 800;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       color: #1e293b;
-      margin-bottom: 4px;
-      padding-bottom: 3px;
+      margin-bottom: 2px;
+      padding-bottom: 1px;
       border-bottom: 1px solid #e2e8f0;
     }
     .bank-row {
       display: grid;
-      grid-template-columns: 110px 1fr;
-      padding: 1.5px 0;
+      grid-template-columns: 75px 1fr;
+      padding: 0.5px 0;
     }
     .bank-label {
       color: #64748b;
@@ -633,43 +642,67 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     /* Terms Card */
     .terms-card {
       border: 1px solid #e2e8f0;
-      border-radius: 6px;
+      border-radius: 4px;
       background: #ffffff;
-      padding: 8px 12px;
-      font-size: 10px;
+      padding: 4px 6px;
+      font-size: 8px;
       color: #475569;
     }
     .terms-header {
-      font-size: 9.5px;
+      font-size: 8px;
       font-weight: 800;
       text-transform: uppercase;
       color: #1e293b;
-      margin-bottom: 3px;
-      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+      letter-spacing: 0.4px;
     }
     .terms-list {
       list-style-type: decimal;
-      padding-left: 14px;
-      line-height: 1.45;
+      padding-left: 11px;
+      line-height: 1.25;
     }
-    .terms-list li {
-      margin-bottom: 1px;
+
+    /* Client Acceptance Box for Quotation */
+    .acceptance-box {
+      border: 1px dashed #94a3b8;
+      border-radius: 4px;
+      padding: 4px 6px;
+      margin-top: 4px;
+      background: #fcfcfd;
+      font-size: 8px;
+      color: #475569;
+    }
+    .acceptance-header {
+      font-weight: 800;
+      color: #1e293b;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .acceptance-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .acceptance-line {
+      border-bottom: 1px dotted #94a3b8;
+      height: 12px;
     }
 
     /* Totals Box */
     .totals-card {
-      border: 1.5px solid #cbd5e1;
-      border-radius: 8px;
+      border: 1px solid #cbd5e1;
+      border-radius: 5px;
       background: #f8fafc;
-      padding: 12px 14px;
+      padding: 6px 8px;
     }
     .calc-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-size: 11px;
+      font-size: 9px;
       color: #475569;
-      padding: 3px 0;
+      padding: 1.5px 0;
     }
     .calc-row.discount {
       color: #16a34a;
@@ -687,56 +720,28 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     .calc-divider {
       height: 1px;
       background: #cbd5e1;
-      margin: 6px 0;
+      margin: 3px 0;
     }
     .grand-total-box {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
-      padding-top: 6px;
-      margin-top: 4px;
-      border-top: 2px solid #0f172a;
+      padding-top: 3px;
+      margin-top: 2px;
+      border-top: 1.5px solid #0f172a;
     }
     .grand-total-label {
-      font-size: 13px;
+      font-size: 10px;
       font-weight: 900;
       color: #0f172a;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
     }
     .grand-total-value {
-      font-size: 18px;
+      font-size: 14px;
       font-weight: 900;
       color: ${isQuotation ? '#1d4ed8' : '#047857'};
       font-variant-numeric: tabular-nums;
-    }
-
-    /* Client Acceptance Box for Quotation */
-    .acceptance-box {
-      border: 1.5px dashed #94a3b8;
-      border-radius: 6px;
-      padding: 10px 14px;
-      margin-top: 10px;
-      background: #fcfcfd;
-      font-size: 10px;
-      color: #475569;
-    }
-    .acceptance-header {
-      font-weight: 800;
-      color: #1e293b;
-      margin-bottom: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .acceptance-fields {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 12px;
-      margin-top: 8px;
-    }
-    .acceptance-line {
-      border-bottom: 1px dotted #94a3b8;
-      height: 18px;
     }
 
     /* Footer Signatory Block */
@@ -744,102 +749,103 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       display: flex;
       justify-content: space-between;
       align-items: flex-end;
-      padding-top: 14px;
+      padding-top: 4px;
       border-top: 1px solid #e2e8f0;
-      margin-top: 14px;
+      margin-top: 4px;
     }
     .footer-notes {
-      font-size: 10px;
+      font-size: 8px;
       color: #64748b;
-      max-width: 480px;
-      line-height: 1.4;
+      max-width: 440px;
+      line-height: 1.25;
     }
     .signatory-box {
       text-align: right;
-      width: 220px;
+      width: 170px;
     }
     .signatory-company {
-      font-size: 11.5px;
+      font-size: 9.5px;
       font-weight: 800;
       color: #0f172a;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .sign-image-wrapper {
-      height: 52px;
+      height: 32px;
       display: flex;
       justify-content: flex-end;
       align-items: center;
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
     .sign-image {
-      max-height: 50px;
-      max-width: 150px;
+      max-height: 30px;
+      max-width: 110px;
       object-fit: contain;
     }
     .signatory-title {
-      font-size: 10.5px;
+      font-size: 8.5px;
       font-weight: 600;
       color: #475569;
       border-top: 1px solid #cbd5e1;
-      padding-top: 3px;
+      padding-top: 1.5px;
       display: inline-block;
-      width: 150px;
+      width: 120px;
     }
 
-    /* Bottom Copyright Disclaimer */
+    /* Minimal System Disclaimer */
     .system-disclaimer {
       text-align: center;
-      font-size: 9px;
+      font-size: 7.5px;
       color: #94a3b8;
-      margin-top: 18px;
-      padding-top: 8px;
+      margin-top: 3px;
+      padding-top: 2px;
       border-top: 1px dashed #e2e8f0;
     }
 
     /* On-Screen Action Bar */
     .no-print-bar {
       text-align: center;
-      margin-top: 24px;
-      padding: 16px;
+      margin-top: 14px;
+      padding: 10px;
       background: #f8fafc;
-      border-radius: 8px;
+      border-radius: 6px;
       border: 1px solid #e2e8f0;
     }
     .print-btn {
-      padding: 10px 22px;
-      font-size: 13px;
+      padding: 7px 16px;
+      font-size: 11.5px;
       font-weight: 700;
-      border-radius: 8px;
+      border-radius: 6px;
       border: none;
       background: #2563eb;
       color: white;
       cursor: pointer;
-      margin: 0 6px;
+      margin: 0 4px;
       box-shadow: 0 1px 2px rgba(0,0,0,0.08);
-      transition: background 0.15s;
-    }
-    .print-btn:hover {
-      background: #1d4ed8;
     }
     .close-btn {
-      padding: 10px 18px;
-      font-size: 13px;
+      padding: 7px 14px;
+      font-size: 11.5px;
       font-weight: 600;
-      border-radius: 8px;
+      border-radius: 6px;
       border: 1px solid #cbd5e1;
       background: white;
       color: #475569;
       cursor: pointer;
-      margin: 0 6px;
-    }
-    .close-btn:hover {
-      background: #f1f5f9;
+      margin: 0 4px;
     }
 
     @media print {
-      body {
-        padding: 0;
-        background: transparent;
+      @page {
+        size: A4 portrait;
+        margin: 6mm 8mm 6mm 8mm;
+      }
+      html, body {
+        height: 100% !important;
+        max-height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: hidden !important;
+        background: transparent !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
@@ -847,15 +853,16 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
         display: none !important;
       }
       .document-sheet {
-        max-width: 100%;
+        max-width: 100% !important;
+        height: 100% !important;
+        box-shadow: none !important;
+        page-break-after: avoid !important;
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
-      tr {
-        page-break-inside: avoid;
-        break-inside: avoid;
-      }
-      .bottom-grid, .footer-block {
-        page-break-inside: avoid;
-        break-inside: avoid;
+      * {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
       }
     }
   </style>
@@ -877,18 +884,17 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       <div class="company-col">
         <div class="company-name">Protowiz Private Limited</div>
         <div class="company-address">
-          34/17A, First Floor, Ramalingam Nagar, 4th Cross St, Saibaba Colony,<br />
-          Coimbatore - 641011, Tamil Nadu, India
+          34/17A, First Floor, Ramalingam Nagar, 4th Cross St, Saibaba Colony, Coimbatore - 641011, Tamil Nadu
         </div>
         <div class="company-meta">
-          <span>info@ibots.in</span>
-          <span>+91 80152 98233</span>
+          <span>info@ibots.in</span> &bull;
+          <span>+91 80152 98233</span> &bull;
           <span>www.ibots.in</span>
         </div>
-        <div style="margin-top: 5px;">
+        <div class="tax-pills">
           <span class="tax-id-pill">GSTIN: 33AAKCP9459K1ZO</span>
-          <span class="tax-id-pill" style="margin-left: 4px;">PAN: AAMCP9459K</span>
-          <span class="tax-id-pill" style="margin-left: 4px;">State Code: 33</span>
+          <span class="tax-id-pill">PAN: AAMCP9459K</span>
+          <span class="tax-id-pill">State Code: 33</span>
         </div>
       </div>
     </header>
@@ -896,17 +902,15 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     <!-- Document Title Banner -->
     <div class="title-banner">
       <div class="title-left">
-        <div class="doc-main-title">
-          <span>${docTitle}</span>
-          ${isQuotation ? `
-            <span class="doc-badge-status badge-quotation">QUOTATION</span>
-          ` : isPaid ? `
-            <span class="doc-badge-status badge-paid">PAID</span>
-          ` : `
-            <span class="doc-badge-status badge-unpaid">PAYMENT DUE</span>
-          `}
-        </div>
-        <div class="doc-sub-title">${docSubTitle}</div>
+        <span class="doc-main-title">${docTitle}</span>
+        ${isQuotation ? `
+          <span class="doc-badge-status badge-quotation">QUOTATION</span>
+        ` : isPaid ? `
+          <span class="doc-badge-status badge-paid">PAID</span>
+        ` : `
+          <span class="doc-badge-status badge-unpaid">PAYMENT DUE</span>
+        `}
+        <span class="doc-sub-title">${docSubTitle}</span>
       </div>
       <div class="title-meta-grid">
         <div class="meta-box">
@@ -915,7 +919,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
         </div>
         <div class="meta-box">
           <span class="meta-box-label">Date</span>
-          <span class="meta-box-value" style="font-family: inherit; font-size: 12px;">${formattedDate}</span>
+          <span class="meta-box-value" style="font-family: inherit; font-size: 10px;">${formattedDate}</span>
         </div>
         ${enquiryRef ? `
         <div class="meta-box">
@@ -933,14 +937,9 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
         <div class="party-header">${isQuotation ? 'Quotation Issued By' : 'Supplier / Issued By'}</div>
         <div class="party-body">
           <div class="party-name">Protowiz Private Limited</div>
-          <div>34/17A, First Floor, 4th Cross Rd, Ramalingam Nagar,</div>
-          <div>Saibaba Colony, Coimbatore, Tamil Nadu - 641011</div>
-          <div style="margin-top: 4px;">
-            <strong>GSTIN:</strong> 33AAKCP9459K1ZO &nbsp;|&nbsp; <strong>State:</strong> Tamil Nadu (33)
-          </div>
-          <div>
-            <strong>Contact:</strong> info@ibots.in &nbsp;|&nbsp; +91 80152 98233
-          </div>
+          <div>34/17A, Ramalingam Nagar, Saibaba Colony, Coimbatore - 641011</div>
+          <div><strong>GSTIN:</strong> 33AAKCP9459K1ZO &nbsp;|&nbsp; <strong>State:</strong> Tamil Nadu (33)</div>
+          <div><strong>Contact:</strong> info@ibots.in &nbsp;|&nbsp; +91 80152 98233</div>
         </div>
       </div>
 
@@ -949,19 +948,12 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
         <div class="party-header">${isQuotation ? 'Quotation Prepared For' : 'Billed To / Buyer'}</div>
         <div class="party-body">
           <div class="party-name">${customerName}</div>
-          ${customerCompany ? `<div style="font-weight: 600; color: #475569;">${customerCompany}</div>` : ''}
-          ${customerCity || customerState ? `<div>${[customerCity, customerState].filter(Boolean).join(', ')}</div>` : ''}
-          <div style="margin-top: 4px;">
-            <strong>Contact:</strong> ${customerContact}
+          ${customerCompany ? `<div><strong>Company:</strong> ${customerCompany}</div>` : ''}
+          <div><strong>Contact:</strong> ${customerContact} &nbsp;|&nbsp; <strong>Location:</strong> ${[customerCity, customerState].filter(Boolean).join(', ') || '-'}</div>
+          <div>
+            <strong>GSTIN:</strong> ${customerGstin ? `<span style="font-family: monospace; font-weight: bold;">${customerGstin}</span>` : 'Consumer / Unregistered'}
+            ${!isQuotation && paymentMode !== 'N/A' ? ` &nbsp;|&nbsp; <strong>Payment:</strong> ${paymentMode}` : ''}
           </div>
-          ${customerGstin ? `
-            <div><strong>GSTIN:</strong> <span style="font-family: monospace; font-weight: bold;">${customerGstin}</span></div>
-          ` : `
-            <div><strong>Registration:</strong> Consumer / Unregistered</div>
-          `}
-          ${!isQuotation && paymentMode !== 'N/A' ? `
-            <div><strong>Payment Mode:</strong> ${paymentMode} ${paymentSubStatus ? `(${paymentSubStatus})` : ''}</div>
-          ` : ''}
         </div>
       </div>
     </div>
@@ -970,7 +962,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     <div class="supply-strip">
       <div>
         <strong>Place of Supply:</strong> ${placeOfSupply} &nbsp;&bull;&nbsp;
-        <strong>GST Treatment:</strong> ${isInterState ? 'Inter-State Supply (IGST Applicable)' : 'Intra-State Supply (CGST + SGST Applicable)'}
+        <strong>GST Treatment:</strong> ${isInterState ? 'Inter-State Supply (IGST)' : 'Intra-State Supply (CGST + SGST)'}
       </div>
       <div>
         <strong>Reverse Charge:</strong> No
@@ -1036,26 +1028,25 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
         <!-- Client Acceptance Section for Quotation -->
         <div class="acceptance-box">
           <div class="acceptance-header">Client Acceptance & Confirmation</div>
-          <div>We confirm acceptance of the items, pricing, and terms specified in this quotation.</div>
           <div class="acceptance-fields">
             <div>
               <div class="acceptance-line"></div>
-              <div style="font-size: 8.5px; text-transform: uppercase; margin-top: 2px;">Name & Designation</div>
+              <div style="font-size: 7.5px; text-transform: uppercase; margin-top: 1px;">Name & Designation</div>
             </div>
             <div>
               <div class="acceptance-line"></div>
-              <div style="font-size: 8.5px; text-transform: uppercase; margin-top: 2px;">Authorized Signature</div>
+              <div style="font-size: 7.5px; text-transform: uppercase; margin-top: 1px;">Authorized Signature</div>
             </div>
             <div>
               <div class="acceptance-line"></div>
-              <div style="font-size: 8.5px; text-transform: uppercase; margin-top: 2px;">Date & Seal</div>
+              <div style="font-size: 7.5px; text-transform: uppercase; margin-top: 1px;">Date & Seal</div>
             </div>
           </div>
         </div>
         ` : ''}
 
         ${data.notes ? `
-        <div style="margin-top: 8px; padding: 6px 10px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; font-size: 10px; color: #166534;">
+        <div style="margin-top: 4px; padding: 3px 6px; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 4px; font-size: 8.5px; color: #166534;">
           <strong>Notes:</strong> ${data.notes.replace(/\\n/g, '<br>')}
         </div>
         ` : ''}
@@ -1103,7 +1094,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
 
           ${data.shippingCharges && data.shippingCharges > 0 ? `
           <div class="calc-row">
-            <span>Shipping / Delivery Charges</span>
+            <span>Shipping / Delivery</span>
             <span class="calc-val">₹${Number(data.shippingCharges).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
           </div>
           ` : ''}
@@ -1119,8 +1110,8 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
     <!-- Signatory & Authorization Block -->
     <div class="footer-block">
       <div class="footer-notes">
-        This is an official commercial ${isQuotation ? 'quotation' : 'tax invoice'} issued by <strong>Protowiz Private Limited</strong>.<br />
-        For queries regarding this document, please contact info@ibots.in or +91 80152 98233.
+        Official commercial ${isQuotation ? 'quotation' : 'tax invoice'} issued by <strong>Protowiz Private Limited</strong>.<br />
+        This is a computer-generated document &bull; Coimbatore - 641011 &bull; info@ibots.in &bull; +91 80152 98233
       </div>
       <div class="signatory-box">
         <div class="signatory-company">For Protowiz Private Limited</div>
@@ -1138,15 +1129,15 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       </div>
     </div>
 
-    <!-- Disclaimer -->
+    <!-- Minimal System Disclaimer -->
     <div class="system-disclaimer">
-      This is a computer-generated document &bull; Protowiz Private Limited &bull; Coimbatore - 641011 &bull; www.ibots.in
+      Protowiz Private Limited &bull; Unleash the power of Electronics &bull; www.ibots.in
     </div>
 
     <!-- On-Screen Action Bar (Hidden when printing/PDF exporting) -->
     <div class="no-print-bar">
       <button onclick="window.print();" class="print-btn">
-        🖨 Print / Save as PDF
+        🖨 Print / Save as PDF (Single Page)
       </button>
       <button onclick="window.close();" class="close-btn">
         ✕ Close Window

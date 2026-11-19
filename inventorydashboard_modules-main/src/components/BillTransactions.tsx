@@ -3049,186 +3049,193 @@ const BillTransactions: React.FC = () => {
                 </div>
               </div>
 
-              {/* Editable Bank Details */}
-              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                <div className="flex items-center justify-between mb-2.5">
-                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Bank Details</h4>
-                  <div className="flex gap-2">
-                    {!editingBankDetails ? (
-                      <button
-                        onClick={() => setEditingBankDetails(true)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        Edit
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => setEditingBankDetails(false)}
-                          className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          Done
-                        </button>
-                        <button
-                          onClick={resetBankDetails}
-                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Reset
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {editingBankDetails ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                    <div>
-                      <label className="block text-[11px] text-gray-500 mb-0.5">Beneficiary Name</label>
-                      <input
-                        type="text"
-                        value={editBankDetails.beneficiaryName}
-                        onChange={(e) => handleBankDetailChange('beneficiaryName', e.target.value)}
-                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-gray-500 mb-0.5">Bank Name</label>
-                      <input
-                        type="text"
-                        value={editBankDetails.bankName}
-                        onChange={(e) => handleBankDetailChange('bankName', e.target.value)}
-                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-gray-500 mb-0.5">Account No</label>
-                      <input
-                        type="text"
-                        value={editBankDetails.accountNo}
-                        onChange={(e) => handleBankDetailChange('accountNo', e.target.value)}
-                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] text-gray-500 mb-0.5">IFSC Code</label>
-                      <input
-                        type="text"
-                        value={editBankDetails.ifscCode}
-                        onChange={(e) => handleBankDetailChange('ifscCode', e.target.value)}
-                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
-                      />
-                    </div>
-                    <div className="sm:col-span-2">
-                      <label className="block text-[11px] text-gray-500 mb-0.5">Branch</label>
-                      <input
-                        type="text"
-                        value={editBankDetails.branch}
-                        onChange={(e) => handleBankDetailChange('branch', e.target.value)}
-                        className="w-full px-2.5 py-1.5 border rounded-xl text-xs bg-white"
-                      />
-                    </div>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-gray-700">
-                    <p><strong className="text-gray-500 font-medium">Beneficiary:</strong> <span className="font-semibold text-gray-900">{editBankDetails.beneficiaryName}</span></p>
-                    <p><strong className="text-gray-500 font-medium">Bank:</strong> <span className="font-semibold text-gray-900">{editBankDetails.bankName}</span></p>
-                    <p><strong className="text-gray-500 font-medium">Account:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.accountNo}</span></p>
-                    <p><strong className="text-gray-500 font-medium">IFSC:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.ifscCode}</span></p>
-                    <p className="sm:col-span-2"><strong className="text-gray-500 font-medium">Branch:</strong> <span className="font-semibold text-gray-900">{editBankDetails.branch}</span></p>
-                  </div>
-                )}
-              </div>
-
-              {/* Editable Terms & Conditions */}
-              <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
-                <div className="flex items-center justify-between mb-2.5">
-                  <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Terms & Conditions</h4>
-                  <div className="flex gap-2">
-                    {!editingTerms ? (
-                      <button
-                        onClick={() => setEditingTerms(true)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
-                      >
-                        <Edit3 className="w-3.5 h-3.5" />
-                        Edit
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => setEditingTerms(false)}
-                          className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          Done
-                        </button>
-                        <button
-                          onClick={resetTerms}
-                          className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5" />
-                          Reset
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-                {editingTerms ? (
-                  <div className="space-y-2">
-                    {editTerms.map((term, index) => (
-                      <div key={term.id} className="flex items-center gap-2">
-                        <span className="text-gray-400 font-mono text-xs">{index + 1}.</span>
-                        <input
-                          type="text"
-                          value={term.text}
-                          onChange={(e) => handleTermChange(term.id, e.target.value)}
-                          className="flex-1 px-2.5 py-1.5 border rounded-xl text-xs bg-white"
-                        />
-                        <button
-                          onClick={() => handleRemoveTerm(term.id)}
-                          className="text-red-500 hover:text-red-700 p-1 cursor-pointer"
-                          title="Remove term"
-                        >
-                          <X className="w-3.5 h-3.5" />
-                        </button>
+              {/* Bank Details & Terms & Conditions Side-by-Side (Single Screen Efficiency) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                {/* Editable Bank Details */}
+                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Bank Details</h4>
+                      <div className="flex gap-2">
+                        {!editingBankDetails ? (
+                          <button
+                            onClick={() => setEditingBankDetails(true)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => setEditingBankDetails(false)}
+                              className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Done
+                            </button>
+                            <button
+                              onClick={resetBankDetails}
+                              className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Reset
+                            </button>
+                          </>
+                        )}
                       </div>
-                    ))}
-                    <div className="flex items-center gap-2 pt-1">
-                      <span className="text-gray-400 font-mono text-xs">{editTerms.length + 1}.</span>
-                      <input
-                        type="text"
-                        value={newTerm}
-                        onChange={(e) => setNewTerm(e.target.value)}
-                        placeholder="Add new term..."
-                        className="flex-1 px-2.5 py-1.5 border rounded-xl text-xs bg-white"
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            handleAddTerm();
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={handleAddTerm}
-                        className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition"
-                      >
-                        + Add
-                      </button>
                     </div>
+                    {editingBankDetails ? (
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-0.5">Beneficiary</label>
+                          <input
+                            type="text"
+                            value={editBankDetails.beneficiaryName}
+                            onChange={(e) => handleBankDetailChange('beneficiaryName', e.target.value)}
+                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-0.5">Bank Name</label>
+                          <input
+                            type="text"
+                            value={editBankDetails.bankName}
+                            onChange={(e) => handleBankDetailChange('bankName', e.target.value)}
+                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-0.5">Account No</label>
+                          <input
+                            type="text"
+                            value={editBankDetails.accountNo}
+                            onChange={(e) => handleBankDetailChange('accountNo', e.target.value)}
+                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] text-gray-500 mb-0.5">IFSC Code</label>
+                          <input
+                            type="text"
+                            value={editBankDetails.ifscCode}
+                            onChange={(e) => handleBankDetailChange('ifscCode', e.target.value)}
+                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <label className="block text-[10px] text-gray-500 mb-0.5">Branch</label>
+                          <input
+                            type="text"
+                            value={editBankDetails.branch}
+                            onChange={(e) => handleBankDetailChange('branch', e.target.value)}
+                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1 text-xs text-gray-700">
+                        <p><strong className="text-gray-500 font-medium">Beneficiary:</strong> <span className="font-semibold text-gray-900">{editBankDetails.beneficiaryName}</span></p>
+                        <p><strong className="text-gray-500 font-medium">Bank:</strong> <span className="font-semibold text-gray-900">{editBankDetails.bankName}</span></p>
+                        <p><strong className="text-gray-500 font-medium">Account:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.accountNo}</span></p>
+                        <p><strong className="text-gray-500 font-medium">IFSC:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.ifscCode}</span></p>
+                        <p><strong className="text-gray-500 font-medium">Branch:</strong> <span className="font-semibold text-gray-900">{editBankDetails.branch}</span></p>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <ul className="list-none space-y-1 text-xs text-gray-700">
-                    {editTerms.map((term, index) => (
-                      <li key={term.id} className="flex items-start gap-1.5">
-                        <span className="text-gray-400 font-mono">{index + 1}.</span>
-                        <span>{term.text}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
+                </div>
 
-              {/* Sign & Seal Option Card */}
+                {/* Editable Terms & Conditions */}
+                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Terms & Conditions</h4>
+                      <div className="flex gap-2">
+                        {!editingTerms ? (
+                          <button
+                            onClick={() => setEditingTerms(true)}
+                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            Edit
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => setEditingTerms(false)}
+                              className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                            >
+                              <Check className="w-3.5 h-3.5" />
+                              Done
+                            </button>
+                            <button
+                              onClick={resetTerms}
+                              className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
+                            >
+                              <RotateCcw className="w-3.5 h-3.5" />
+                              Reset
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {editingTerms ? (
+                      <div className="space-y-1.5 max-h-48 overflow-y-auto">
+                        {editTerms.map((term, index) => (
+                          <div key={term.id} className="flex items-center gap-2">
+                            <span className="text-gray-400 font-mono text-xs">{index + 1}.</span>
+                            <input
+                              type="text"
+                              value={term.text}
+                              onChange={(e) => handleTermChange(term.id, e.target.value)}
+                              className="flex-1 px-2 py-1 border rounded-lg text-xs bg-white"
+                            />
+                            <button
+                              onClick={() => handleRemoveTerm(term.id)}
+                              className="text-red-500 hover:text-red-700 p-0.5 cursor-pointer"
+                              title="Remove term"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                        <div className="flex items-center gap-2 pt-1">
+                          <span className="text-gray-400 font-mono text-xs">{editTerms.length + 1}.</span>
+                          <input
+                            type="text"
+                            value={newTerm}
+                            onChange={(e) => setNewTerm(e.target.value)}
+                            placeholder="Add new term..."
+                            className="flex-1 px-2 py-1 border rounded-lg text-xs bg-white"
+                            onKeyPress={(e) => {
+                              if (e.key === 'Enter') {
+                                handleAddTerm();
+                              }
+                            }}
+                          />
+                          <button
+                            onClick={handleAddTerm}
+                            className="text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2.5 py-1 rounded-lg text-xs font-bold whitespace-nowrap cursor-pointer transition"
+                          >
+                            + Add
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <ul className="list-none space-y-1 text-xs text-gray-700">
+                        {editTerms.map((term, index) => (
+                          <li key={term.id} className="flex items-start gap-1.5">
+                            <span className="text-gray-400 font-mono text-[11px]">{index + 1}.</span>
+                            <span className="leading-tight">{term.text}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </div>
+              
+                            {/* Sign & Seal Option Card */}
               <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-100">
                 <div className="flex items-center justify-between">
                   <div>
