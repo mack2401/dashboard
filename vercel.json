@@ -1,0 +1,10 @@
+{
+  "buildCommand": "cd inventorydashboard_modules-main && npm install && npm run build",
+  "outputDirectory": "inventorydashboard_modules-main/dist",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
