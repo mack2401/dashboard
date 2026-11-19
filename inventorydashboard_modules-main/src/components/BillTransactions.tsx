@@ -1297,49 +1297,37 @@ const BillTransactions: React.FC = () => {
   };
 
   const printHtmlDocument = (htmlContent: string) => {
+    // Open via isolated Blob URL with rel="noopener noreferrer"
+    // This detaches the document window from parent thread so the main dashboard tab never freezes
+    try {
+      const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(blobUrl);
+        } catch (_) {}
+      }, 120000);
+      return;
+    } catch (err) {
+      console.warn("Blob print open failed, falling back to window.open:", err);
+    }
+
+    // Fallback using window.open with opener severed
     const printWindow = window.open("", "_blank");
     if (printWindow) {
+      try {
+        printWindow.opener = null;
+      } catch (_) {}
       printWindow.document.open();
       printWindow.document.write(htmlContent);
       printWindow.document.close();
-      setTimeout(() => {
-        try {
-          printWindow.focus();
-          printWindow.print();
-        } catch (e) {
-          console.warn("Auto-print error:", e);
-        }
-      }, 400);
-    } else {
-      // Fallback using hidden iframe (bypasses browser popup blockers)
-      const iframe = document.createElement("iframe");
-      iframe.style.position = "fixed";
-      iframe.style.right = "0";
-      iframe.style.bottom = "0";
-      iframe.style.width = "0";
-      iframe.style.height = "0";
-      iframe.style.border = "none";
-      document.body.appendChild(iframe);
-
-      const doc = iframe.contentWindow?.document || iframe.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(htmlContent);
-        doc.close();
-        setTimeout(() => {
-          try {
-            iframe.contentWindow?.focus();
-            iframe.contentWindow?.print();
-          } catch (e) {
-            console.warn("Iframe print error:", e);
-          }
-          setTimeout(() => {
-            if (document.body.contains(iframe)) {
-              document.body.removeChild(iframe);
-            }
-          }, 60000);
-        }, 500);
-      }
     }
   };
 
@@ -1355,11 +1343,15 @@ const BillTransactions: React.FC = () => {
           <head>
             <title>Proforma Invoice - ${bill.invoiceNumber}</title>
             <script>
-              window.addEventListener('DOMContentLoaded', function() {
+              window.addEventListener('load', function() {
                 setTimeout(function() {
-                  window.focus();
-                  window.print();
-                }, 300);
+                  try {
+                    window.focus();
+                    window.print();
+                  } catch (e) {
+                    console.warn("Auto-print error:", e);
+                  }
+                }, 400);
               });
             </script>
             <style>
@@ -1448,9 +1440,12 @@ const BillTransactions: React.FC = () => {
                 <div>
                   <div class="billing-label">Billed by</div>
                   <div class="billing-content">
-                    <strong>${bill.billedBy?.name || 'N/A'}</strong><br>
-                    ${bill.billedBy?.address || 'Protowiz Private Limited,34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011'}
-                    ${bill.billedBy?.gstin ? `<br>GSTIN: ${bill.billedBy.gstin}` : ''}
+                    <strong>Protowiz Private Limited</strong><br>
+                    ${(() => {
+                      const rawAddr = bill.billedBy?.address || '34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011';
+                      return rawAddr.replace(/^Protowiz Private Limited[, -]*/i, '').trim();
+                    })()}
+                    ${bill.billedBy?.gstin ? `<br>GSTIN: ${bill.billedBy.gstin}` : '<br>GSTIN: 33AAKCP9459K1ZO'}
                   </div>
                 </div>
                 <div>
@@ -1701,11 +1696,15 @@ const BillTransactions: React.FC = () => {
           <head>
             <title>${documentType} - ${selectedBill.invoiceNumber}</title>
             <script>
-              window.addEventListener('DOMContentLoaded', function() {
+              window.addEventListener('load', function() {
                 setTimeout(function() {
-                  window.focus();
-                  window.print();
-                }, 300);
+                  try {
+                    window.focus();
+                    window.print();
+                  } catch (e) {
+                    console.warn("Auto-print error:", e);
+                  }
+                }, 400);
               });
             </script>
             <style>
@@ -2048,10 +2047,13 @@ const BillTransactions: React.FC = () => {
                 <div>
                   <div class="billing-label">Billed by</div>
                   <div class="billing-content">
-                    <strong>${selectedBill.billedBy?.name || 'N/A'}</strong><br>
-                    ${selectedBill.billedBy?.address || 'Protowiz Private Limited,34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011'}
-                    ${selectedBill.billedBy?.gstin ? `<br>GSTIN: ${selectedBill.billedBy.gstin}` : ''}
-                    ${selectedBill.billedBy?.pan ? `<br>PAN: ${selectedBill.billedBy.pan}` : ''}
+                    <strong>Protowiz Private Limited</strong><br>
+                    ${(() => {
+                      const rawAddr = selectedBill.billedBy?.address || '34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011';
+                      return rawAddr.replace(/^Protowiz Private Limited[, -]*/i, '').trim();
+                    })()}
+                    ${selectedBill.billedBy?.gstin ? `<br>GSTIN: ${selectedBill.billedBy.gstin}` : '<br>GSTIN: 33AAKCP9459K1ZO'}
+                    ${selectedBill.billedBy?.pan ? `<br>PAN: ${selectedBill.billedBy.pan}` : '<br>PAN: AAMCP9459K'}
                   </div>
                 </div>
                 <div>
@@ -3965,7 +3967,9 @@ const BillTransactions: React.FC = () => {
                   className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs font-semibold flex items-center gap-2 text-xs transition cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  Print Bill
+                  {selectedBill.status === "quotation" || isQuotationBill(selectedBill)
+                    ? "Print / Download Quotation"
+                    : "Print Bill"}
                 </button>
                 <button
                   onClick={() => setSelectedBill(null)}

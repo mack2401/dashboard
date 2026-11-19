@@ -572,9 +572,8 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
   }, [open, initialMaterials, initialGstRate]);
 
   const getBilledByDetails = () => {
-    const employee = employees.find(emp => emp.id === currentUserProfile?.id);
     return {
-      name: employee?.employeeName || employee?.name || currentUserProfile?.employeeName || currentUserProfile?.name || "Staff",
+      name: "Protowiz Private Limited",
       address: "Protowiz Private Limited,34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011",
       gstin: "33AAKCP9459K1ZO",
       pan: "AAMCP9459K",
@@ -1218,11 +1217,15 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
           <title>${bill.documentType} - ${bill.invoiceNumber}</title>
           <meta charset="utf-8">
           <script>
-            window.addEventListener('DOMContentLoaded', function() {
+            window.addEventListener('load', function() {
               setTimeout(function() {
-                window.focus();
-                window.print();
-              }, 300);
+                try {
+                  window.focus();
+                  window.print();
+                } catch (e) {
+                  console.warn("Auto-print error:", e);
+                }
+              }, 400);
             });
           </script>
           <style>
@@ -1337,11 +1340,14 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
               <div>
                 <div class="billing-label">Billed by</div>
                 <div class="billing-content">
-                  <strong>${bill.billedBy?.name || 'N/A'}</strong><br>
-                  ${bill.billedBy?.address || ''}<br>
+                  <strong>Protowiz Private Limited</strong><br>
+                  ${(() => {
+                    const rawAddr = bill.billedBy?.address || '34/17A, First floor, 4th Cross Rd, Ramalingam Nagar, Saibaba Colony, Coimbatore, Tamil Nadu 641011';
+                    return rawAddr.replace(/^Protowiz Private Limited[, -]*/i, '').trim();
+                  })()}<br>
                   ${bill.billedBy?.city || ''} ${bill.billedBy?.state ? ', ' + bill.billedBy?.state : ''} ${bill.billedBy?.pincode || ''}<br>
-                  ${bill.billedBy?.gstin ? `GSTIN: ${bill.billedBy.gstin}<br>` : ''}
-                  ${bill.billedBy?.pan ? `PAN: ${bill.billedBy.pan}` : ''}
+                  ${bill.billedBy?.gstin ? `GSTIN: ${bill.billedBy.gstin}<br>` : '<br>GSTIN: 33AAKCP9459K1ZO'}
+                  ${bill.billedBy?.pan ? `PAN: ${bill.billedBy.pan}` : '<br>PAN: AAMCP9459K'}
                 </div>
               </div>
               <div>
@@ -1464,49 +1470,36 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
       </html>
     `;
 
+    // Open via isolated Blob URL with rel="noopener noreferrer"
+    // This detaches the document window from parent thread so the main dashboard tab never freezes
+    try {
+      const blob = new Blob([htmlContent], { type: "text/html;charset=utf-8" });
+      const blobUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(blobUrl);
+        } catch (_) {}
+      }, 120000);
+      return;
+    } catch (err) {
+      console.warn("Blob print open failed, falling back to window.open:", err);
+    }
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
+      try {
+        printWindow.opener = null;
+      } catch (_) {}
       printWindow.document.open();
       printWindow.document.write(htmlContent);
       printWindow.document.close();
-      setTimeout(() => {
-        try {
-          printWindow.focus();
-          printWindow.print();
-        } catch (e) {
-          console.warn("Auto-print error:", e);
-        }
-      }, 400);
-    } else {
-      // Fallback: If popup is blocked by browser, print seamlessly using hidden iframe
-      const iframe = document.createElement('iframe');
-      iframe.style.position = 'fixed';
-      iframe.style.right = '0';
-      iframe.style.bottom = '0';
-      iframe.style.width = '0';
-      iframe.style.height = '0';
-      iframe.style.border = 'none';
-      document.body.appendChild(iframe);
-
-      const doc = iframe.contentWindow?.document || iframe.contentDocument;
-      if (doc) {
-        doc.open();
-        doc.write(htmlContent);
-        doc.close();
-        setTimeout(() => {
-          try {
-            iframe.contentWindow?.focus();
-            iframe.contentWindow?.print();
-          } catch (e) {
-            console.warn("Iframe print error:", e);
-          }
-          setTimeout(() => {
-            if (document.body.contains(iframe)) {
-              document.body.removeChild(iframe);
-            }
-          }, 60000);
-        }, 500);
-      }
     }
   };
 
@@ -1600,8 +1593,8 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
           <div className="grid grid-cols-2 gap-8 mb-5">
             <div>
               <div className="font-bold text-gray-700 mb-2 text-xs uppercase tracking-wide">Billed by</div>
-              <div className="text-gray-800 font-semibold text-sm">{billedBy.name}</div>
-              <div className="text-gray-600 text-xs mt-1 leading-relaxed">{billedBy.address}</div>
+              <div className="text-gray-800 font-semibold text-sm">Protowiz Private Limited</div>
+              <div className="text-gray-600 text-xs mt-1 leading-relaxed">{billedBy.address.replace(/^Protowiz Private Limited[, -]*/i, '').trim()}</div>
               <div className="text-gray-600 text-xs mt-1">GSTIN: {billedBy.gstin}</div>
               <div className="text-gray-600 text-xs">PAN: {billedBy.pan}</div>
             </div>
