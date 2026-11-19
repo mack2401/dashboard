@@ -252,13 +252,19 @@ export const calculateCurrentPurchaseValue = (product: Product): number => {
 
 export const calculateOriginalPurchaseValue = (product: Product): number => {
   const stockEntries = product.stockEntries || [];
-  if (stockEntries.length === 0) return product.totalQuantity * (product.currentPrice || 0);
+  if (stockEntries.length === 0) {
+    const unitCost = product.currentPrice || getProductPurchasePrice(product) || 0;
+    return product.totalQuantity * unitCost;
+  }
   
   const totalAddedCost = stockEntries
     .filter(e => e.type !== 'deliver')
-    .reduce((c, e) => c + (e.totalPrice || 0), 0);
+    .reduce((c, e) => c + (e.totalPrice || ((e.quantity || 0) * (e.unitPrice || 0))), 0);
     
-  if (totalAddedCost === 0) return product.totalQuantity * (product.currentPrice || 0);
+  if (totalAddedCost === 0) {
+    const unitCost = product.currentPrice || getProductPurchasePrice(product) || 0;
+    return product.totalQuantity * unitCost;
+  }
   return totalAddedCost;
 };
 
@@ -2266,15 +2272,18 @@ const InventoryManagement: React.FC = () => {
   const stats = useMemo(() => {
     const totalProducts = products.length;
     const totalSOH = products.reduce((sum, p) => sum + (p.totalQuantity || 0), 0);
-    const totalPurchasePrice = products.reduce((sum, p) => sum + ((p.totalQuantity || 0) * (p.currentPrice || 0)), 0);
-    const totalValue = totalPurchasePrice;
+    // Total values purchased of the products (all stock ever purchased/added)
+    const totalPurchasedValue = products.reduce((sum, p) => sum + calculateOriginalPurchaseValue(p), 0);
+    const currentStockPurchaseValue = products.reduce((sum, p) => sum + ((p.totalQuantity || 0) * (p.currentPrice || getProductPurchasePrice(p) || 0)), 0);
+    const totalPurchasePrice = totalPurchasedValue;
+    const totalValue = totalPurchasedValue;
     const lowStock = products.filter(p => 
       p.totalQuantity <= p.lowStockThreshold && p.totalQuantity > 0
     ).length;
     const outOfStock = products.filter(p => p.totalQuantity === 0).length;
     const oldStock = products.filter(p => p.isOldStock === true).length;
     
-    const totalCurrentValue = totalPurchasePrice;
+    const totalCurrentValue = currentStockPurchaseValue;
     
     const totalDeliveryValue = transactions
       .filter(t => t.type === 'deliver')
@@ -2283,6 +2292,8 @@ const InventoryManagement: React.FC = () => {
     return {
       totalProducts,
       totalSOH,
+      totalPurchasedValue,
+      currentStockPurchaseValue,
       totalPurchasePrice,
       totalValue,
       lowStock,
@@ -3799,18 +3810,19 @@ const InventoryManagement: React.FC = () => {
             tooltip="Click to view all stock"
           />
 
-          {/* Total Purchase Price */}
+          {/* Total Purchase Value */}
           <KPICard
-            title="Total Purchase Price"
-            value={formatCurrency(stats.totalPurchasePrice)}
+            title="Total Purchase Value"
+            value={formatCurrency(stats.totalPurchasedValue)}
             icon={<IndianRupee className="w-4 h-4" />}
             iconBg="bg-emerald-50"
             iconColor="text-emerald-600"
+            subtitle={stats.currentStockPurchaseValue > 0 ? `Stock SOH: ${formatCurrency(stats.currentStockPurchaseValue)}` : undefined}
             onClick={() => {
               setActiveTab('all');
               setFilterStock('all');
             }}
-            tooltip="Click to view all products"
+            tooltip="Total purchase value of all products purchased in inventory"
           />
 
           {/* Low Stock */}

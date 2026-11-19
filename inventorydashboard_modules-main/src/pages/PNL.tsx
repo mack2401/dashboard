@@ -10,6 +10,7 @@ import * as XLSX from "xlsx-js-style";
 import { DateFilter, isDateInPresetRange } from "../components/common/DateFilter";
 import {
   isSoldBill,
+  isSoldBillRecord,
   isDroppedBill,
   isQuotationBill,
   deduplicateBills,
@@ -488,11 +489,8 @@ export default function PNL() {
     return deduplicatedBills
       .map((b) => resolveBillWithEnquiry(b, enquiriesMap))
       .filter((b) => {
-        // Exclude dropped or fully refunded bills
-        if (isDroppedBill(b) || b.status === "dropped") return false;
-
-        // Exclude quotations - only include confirmed sold/paid bills
-        if (!isSoldBill(b) || b.status !== "paid") return false;
+        // Exclude dropped or quotations - only include confirmed sold/paid bills
+        if (!isSoldBillRecord(b)) return false;
 
         // Filter by Date
         const billDate = getBillDate(b);

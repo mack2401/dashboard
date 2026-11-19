@@ -29,6 +29,7 @@ import KPICard from "./KPICard";
 import { DateFilter, isDateInPresetRange } from "./common/DateFilter";
 import {
   isSoldBill,
+  isSoldBillRecord,
   isDroppedBill,
   isQuotationBill,
   deduplicateBills,
@@ -990,13 +991,13 @@ const BillTransactions: React.FC = () => {
     // 3. Order Status Filter (All, Approved/Paid, Quotation, Dropped)
     // If a search term is actively typed and would yield 0 results in current tab, don't restrict by tab
     if (orderStatusFilter === "approved") {
-      const statusFiltered = filtered.filter((b) => b.status === "paid");
+      const statusFiltered = filtered.filter((b) => isSoldBillRecord(b));
       filtered = hasActiveSearch && statusFiltered.length === 0 ? filtered : statusFiltered;
     } else if (orderStatusFilter === "quotation") {
-      const statusFiltered = filtered.filter((b) => b.status === "quotation");
+      const statusFiltered = filtered.filter((b) => isQuotationBill(b) && !isDroppedBill(b));
       filtered = hasActiveSearch && statusFiltered.length === 0 ? filtered : statusFiltered;
     } else if (orderStatusFilter === "dropped") {
-      const statusFiltered = filtered.filter((b) => b.status === "dropped");
+      const statusFiltered = filtered.filter((b) => isDroppedBill(b));
       filtered = hasActiveSearch && statusFiltered.length === 0 ? filtered : statusFiltered;
     }
 
@@ -1034,10 +1035,40 @@ const BillTransactions: React.FC = () => {
     let quoteCount = 0;
     let gstCount = 0;
 
-    filteredTransactions.forEach((bill) => {
-      const isDropped = bill.status === "dropped" || isDroppedBill(bill);
-      const isQuotation = !isDropped && (bill.status === "quotation" || isQuotationBill(bill));
-      const isSold = !isDropped && !isQuotation && (bill.status === "paid" || bill.paymentStatus === "completed" || isSoldBill(bill));
+    // Evaluate summary KPIs across the active date & search window (identical to PNL date window)
+    const statsSourceBills = (monthFilter !== "all" || startDate || endDate || searchTerm.trim())
+      ? transactions.filter((b) => {
+          if (searchTerm.trim()) {
+            const term = searchTerm.trim().toLowerCase();
+            const custName = (b.customerName || b.billedTo?.name || "").toLowerCase();
+            const compName = ((b as any).companyName || "").toLowerCase();
+            const gst = (b.billedTo?.gstin || (b as any).gstin || "").toLowerCase();
+            const inv = (b.invoiceNumber || "").toLowerCase();
+            const contact = (b.customerContact || b.billedTo?.contactNumber || "").toLowerCase();
+            const bId = (b.billId || "").toLowerCase();
+            const enq = (b.enquiryEnqId || b.enquiryId || (b.billedTo as any)?.enqId || "").toLowerCase();
+            const matches =
+              custName.includes(term) ||
+              compName.includes(term) ||
+              gst.includes(term) ||
+              inv.includes(term) ||
+              contact.includes(term) ||
+              bId.includes(term) ||
+              enq.includes(term);
+            if (!matches) return false;
+          }
+          if (monthFilter !== "all" || startDate || endDate) {
+            const d = getBillDate(b);
+            return isDateInFilterRange(d, monthFilter, startDate, endDate);
+          }
+          return true;
+        })
+      : transactions;
+
+    statsSourceBills.forEach((bill) => {
+      const isDropped = isDroppedBill(bill);
+      const isQuotation = !isDropped && isQuotationBill(bill);
+      const isSold = isSoldBillRecord(bill);
 
       if (bill.isGST) gstCount++;
 
@@ -1067,7 +1098,7 @@ const BillTransactions: React.FC = () => {
         totalShipping += shipping;
         totalGrandRevenue += billTotal;
 
-        // Calculate Purchase Value for this sold bill record (identical to PNL.tsx)
+        // Calculate Purchase Value for this sold bill record (100% parity with PNL.tsx)
         const { billPurchase, billItemsQty } = calculateBillPurchaseCost(
           bill,
           productsMap,

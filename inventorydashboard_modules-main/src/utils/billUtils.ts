@@ -122,6 +122,54 @@ export const isSoldBill = (bill: any): boolean => {
 };
 
 /**
+ * Single source of truth for confirmed sold bills:
+ * Strictly excludes dropped bills, quotations, proformas, estimates, and unpaid leads.
+ */
+export const isSoldBillRecord = (bill: any): boolean => {
+  if (!bill) return false;
+  if (isDroppedBill(bill)) return false;
+  if (isQuotationBill(bill)) return false;
+  return isSoldBill(bill);
+};
+
+/**
+ * Calculate total purchase value of all stock ever purchased for a product.
+ * Sum of all non-delivery stock entries, falling back to quantity * unit cost.
+ */
+export const calculateProductPurchasedValue = (product: any): number => {
+  if (!product) return 0;
+  const stockEntries = product.stockEntries || [];
+  if (Array.isArray(stockEntries) && stockEntries.length > 0) {
+    const addedCost = stockEntries
+      .filter((e: any) => e && e.type !== "deliver")
+      .reduce(
+        (sum: number, e: any) =>
+          sum +
+          Number(
+            e.totalPrice !== undefined && e.totalPrice !== null && !isNaN(Number(e.totalPrice))
+              ? Number(e.totalPrice)
+              : Number(e.quantity || 0) * Number(e.unitPrice || 0)
+          ),
+        0
+      );
+    if (addedCost > 0) return addedCost;
+  }
+  const qty = Number(product.totalQuantity || product.quantity || 0);
+  const unitCost = getProductUnitCost(product);
+  return qty * unitCost;
+};
+
+/**
+ * Calculate current physical stock on hand value at unit purchase cost.
+ */
+export const calculateProductCurrentStockValue = (product: any): number => {
+  if (!product) return 0;
+  const qty = Math.max(0, Number(product.totalQuantity || 0));
+  const unitCost = getProductUnitCost(product);
+  return qty * unitCost;
+};
+
+/**
  * Deduplicate bills: keep only the newest revision for duplicate invoice numbers or document IDs.
  */
 export function deduplicateBills<T extends { id?: string; invoiceNumber?: string; updatedAt?: any; createdAt?: any; billDate?: any }>(
@@ -185,6 +233,35 @@ export function buildEnquiriesMap(enquiries: any[]): Map<string, any> {
         map.set(compact.toUpperCase(), enq);
       }
     }
+
+    // Phone indexing
+    const rawPhone = String(
+      enq.contactNumber ||
+      enq.customerContact ||
+      enq.customer?.contactNumber ||
+      enq.customer?.phone ||
+      enq.customer?.mobile ||
+      enq.phone ||
+      enq.mobile ||
+      enq.companyDetails?.companyMobile ||
+      ""
+    ).replace(/\D/g, "");
+    if (rawPhone.length >= 7) {
+      map.set(`phone_${rawPhone}`, enq);
+      map.set(`phone_${rawPhone.slice(-10)}`, enq);
+    }
+
+    // Name indexing
+    const rawName = String(
+      enq.customerName ||
+      enq.customer?.name ||
+      enq.companyDetails?.companyName ||
+      enq.name ||
+      ""
+    ).trim().toLowerCase();
+    if (rawName.length >= 3) {
+      map.set(`name_${rawName}`, enq);
+    }
   });
 
   return map;
@@ -213,6 +290,31 @@ export function findMatchingEnquiry(bill: any, enquiriesMap: Map<string, any>): 
     if (enquiriesMap.has(strLower)) return enquiriesMap.get(strLower);
     const compact = strLower.replace(/[\s-_]/g, "");
     if (compact && enquiriesMap.has(compact)) return enquiriesMap.get(compact);
+  }
+
+  // Fallback to customer phone number
+  const rawBillPhone = String(
+    bill.customerContact ||
+    bill.billedTo?.contactNumber ||
+    (bill as any).phone ||
+    (bill as any).mobile ||
+    (bill as any).contact ||
+    ""
+  ).replace(/\D/g, "");
+  if (rawBillPhone.length >= 7) {
+    if (enquiriesMap.has(`phone_${rawBillPhone}`)) return enquiriesMap.get(`phone_${rawBillPhone}`);
+    if (enquiriesMap.has(`phone_${rawBillPhone.slice(-10)}`)) return enquiriesMap.get(`phone_${rawBillPhone.slice(-10)}`);
+  }
+
+  // Fallback to customer name
+  const rawBillName = String(
+    bill.customerName ||
+    bill.billedTo?.name ||
+    (bill as any).name ||
+    ""
+  ).trim().toLowerCase();
+  if (rawBillName.length >= 3 && enquiriesMap.has(`name_${rawBillName}`)) {
+    return enquiriesMap.get(`name_${rawBillName}`);
   }
 
   return null;

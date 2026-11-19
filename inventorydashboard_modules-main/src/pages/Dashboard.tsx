@@ -34,6 +34,7 @@ import { db } from "../firebase";
 import { useAuth } from "../App";
 import {
   isSoldBill,
+  isSoldBillRecord,
   isDroppedBill,
   isQuotationBill,
   deduplicateBills,
@@ -256,7 +257,7 @@ const Dashboard: React.FC = () => {
 
   // Filter bills based on selected timeframe (Yesterday, Today, Past Dates) - SOLD bills only
   const filteredBills = useMemo(() => {
-    const soldBills = resolvedBills.filter((b) => isSoldBill(b) && b.status === "paid");
+    const soldBills = resolvedBills.filter((b) => isSoldBillRecord(b));
 
     if (timeFilter === "today") {
       return soldBills.filter((b) => isToday(getBillDate(b)));
@@ -402,7 +403,7 @@ const Dashboard: React.FC = () => {
   // All-time Total Sales (Sold bills only, excludes quotations and dropped)
   const allTimeTotalSales = useMemo(() => {
     return resolvedBills
-      .filter((b) => isSoldBill(b) && b.status === "paid")
+      .filter((b) => isSoldBillRecord(b))
       .reduce((sum, b) => sum + getBillTotal(b), 0);
   }, [resolvedBills]);
 
@@ -417,7 +418,7 @@ const Dashboard: React.FC = () => {
   }, [resolvedBills]);
 
   const todayPaidBillsCount = useMemo(() => {
-    return todayBills.filter((b) => isSoldBill(b) && b.status === "paid").length;
+    return todayBills.filter((b) => isSoldBillRecord(b)).length;
   }, [todayBills]);
 
   const todayPendingBillsCount = useMemo(() => {
@@ -428,7 +429,7 @@ const Dashboard: React.FC = () => {
   const staffLeaderboard = useMemo(() => {
     const staffMap: Record<string, StaffPerformance> = {};
 
-    resolvedBills.filter((b) => isSoldBill(b) && b.status === "paid").forEach((bill) => {
+    resolvedBills.filter((b) => isSoldBillRecord(b)).forEach((bill) => {
       let staffName = "Unassigned Staff";
       if (bill.assignedToName && String(bill.assignedToName).trim() !== "") {
         staffName = String(bill.assignedToName).trim();

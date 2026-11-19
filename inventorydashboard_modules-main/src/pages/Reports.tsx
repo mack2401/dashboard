@@ -50,6 +50,7 @@ import ComparisonAnalytics from "../components/reports/ComparisonAnalytics";
 import * as XLSX from "xlsx-js-style";
 import {
   isSoldBill,
+  isSoldBillRecord,
   isDroppedBill,
   isQuotationBill,
   deduplicateBills,
@@ -738,7 +739,7 @@ const Reports: React.FC = () => {
 
     // Filter sold bills in date window (strictly excludes quotations and dropped)
     const periodBills = resolvedBills.filter((b) => {
-      if (!isSoldBill(b) || b.status !== "paid") return false;
+      if (!isSoldBillRecord(b)) return false;
       const d = getBillDate(b);
       return d >= startDate && d <= now;
     });

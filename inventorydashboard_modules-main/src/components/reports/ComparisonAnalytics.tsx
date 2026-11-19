@@ -37,7 +37,7 @@ import {
   CartesianGrid,
 } from "recharts";
 import * as XLSX from "xlsx-js-style";
-import { isSoldBill, isDroppedBill, getBillTotal, getBillDate } from "../../utils/billUtils";
+import { isSoldBill, isSoldBillRecord, isDroppedBill, isQuotationBill, getBillTotal, getBillDate } from "../../utils/billUtils";
 
 interface ComparisonAnalyticsProps {
   bills: any[];
@@ -171,10 +171,9 @@ export default function ComparisonAnalytics({
     const salesList: NormalizedSale[] = [];
     const processedEnqIds = new Set<string>();
 
-    // 1. Extract from Bills (strictly sold bills only)
+    // 1. Extract from Bills (strictly sold bills only, excludes quotations and dropped)
     bills.forEach((b) => {
-      if (isDroppedBill(b)) return;
-      if (!isSoldBill(b)) return;
+      if (!isSoldBillRecord(b)) return;
 
       if (b.enquiryId) processedEnqIds.add(b.enquiryId);
       if (b.enquiryEnqId) processedEnqIds.add(b.enquiryEnqId);
