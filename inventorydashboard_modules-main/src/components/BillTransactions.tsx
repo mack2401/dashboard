@@ -785,8 +785,6 @@ const BillTransactions: React.FC = () => {
       const isQuotation = !isDropped && isQuotationBill(bill);
       const isSold = isSoldBillRecord(bill);
 
-      if (bill.isGST) gstCount++;
-
       const subtotal = Number(bill.subtotal || bill.taxableValue || 0);
       const cgst = Number(bill.cgst || 0);
       const sgst = Number(bill.sgst || 0);
@@ -801,6 +799,7 @@ const BillTransactions: React.FC = () => {
         quoteCount++;
         quotedAmountVal += billTotal;
       } else if (isSold) {
+        if (bill.isGST) gstCount++;
         paidCount++;
         sellVal += billTotal;
         paidSellVal += billTotal;
@@ -1212,38 +1211,36 @@ const BillTransactions: React.FC = () => {
         right: { style: "thin", color: { rgb: "E2E8F0" } },
       };
 
-      const b2bTransactions = filteredTransactions.filter(
+      const soldTransactions = filteredTransactions.filter(
+        (b) => isSoldBillRecord(b)
+      );
+      const b2bSoldTransactions = soldTransactions.filter(
         (b) => (b.billType || "").toUpperCase() === "B2B"
       );
-      const b2cTransactions = filteredTransactions.filter(
+      const b2cSoldTransactions = soldTransactions.filter(
         (b) => (b.billType || "").toUpperCase() !== "B2B"
       );
 
-      const totalTaxable = filteredTransactions.reduce(
+      const totalTaxable = soldTransactions.reduce(
         (sum, b) => sum + Number(b.subtotal || b.taxableValue || 0),
         0
       );
-      const totalCGST = filteredTransactions.reduce(
+      const totalCGST = soldTransactions.reduce(
         (sum, b) => sum + Number(b.cgst || 0),
         0
       );
-      const totalSGST = filteredTransactions.reduce(
+      const totalSGST = soldTransactions.reduce(
         (sum, b) => sum + Number(b.sgst || 0),
         0
       );
-      const totalIGST = filteredTransactions.reduce(
+      const totalIGST = soldTransactions.reduce(
         (sum, b) => sum + Number(b.igst || 0),
         0
       );
-      const totalShipping = filteredTransactions.reduce(
+      const totalShipping = soldTransactions.reduce(
         (sum, b) => sum + Number(b.shippingCharges || 0),
         0
       );
-      const soldTransactions = filteredTransactions.filter(
-        (b) => b.status === "paid" || isSoldBill(b)
-      );
-      const b2bSoldTransactions = soldTransactions.filter((b) => b.billType === "B2B");
-      const b2cSoldTransactions = soldTransactions.filter((b) => b.billType === "B2C");
 
       const totalAmount = soldTransactions.reduce(
         (sum, b) => sum + Number(b.totalAmount || 0),
