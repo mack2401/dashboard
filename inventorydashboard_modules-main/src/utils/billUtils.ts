@@ -338,6 +338,7 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
   const enquiryData = enquiriesMap ? findMatchingEnquiry(bill, enquiriesMap) : null;
 
   const rawEnqStatus = enquiryData?.status || (enquiryData as any)?.productStatus || bill.enquiryStatus || "";
+  const productStatus = rawEnqStatus;
   const enqStatusLower = String(rawEnqStatus).toLowerCase().trim();
 
   const rawEnqPayment = enquiryData?.paymentStatus || "";
@@ -607,7 +608,7 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
     paymentType: paymentSubStatus,
     paymentSubStatus,
     enquiryEnqId: bill.enquiryEnqId || enquiryData?.enqId || "",
-    enquiryStatus: productStatus,
+    enquiryStatus: productStatus || (status === "quotation" ? "Quotation" : (status === "dropped" ? "Dropped" : "Approved")),
     shipmentStatus: bill.shipmentStatus || enquiryData?.shipmentStatus || bill.shippingStatus || "",
     placeOfSupply,
     gstin: customerGstinForDisplay,
