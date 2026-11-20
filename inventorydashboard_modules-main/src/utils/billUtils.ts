@@ -67,13 +67,18 @@ export const isQuotationBill = (bill: any): boolean => {
     invoiceNumber.startsWith("IBQ-") ||
     invoiceNumber.startsWith("IBPI-");
 
+  const isSoldOrApproved =
+    paymentStatus === "paid" ||
+    paymentStatus === "completed" ||
+    enquiryStatus === "approved" ||
+    enquiryStatus === "delivered" ||
+    enquiryStatus === "dispatched" ||
+    enquiryStatus === "paid" ||
+    status === "paid" ||
+    status === "completed" ||
+    (status === "approved" && paymentStatus !== "pending");
+
   if (isExplicitQuote) {
-    const isSoldOrApproved =
-      paymentStatus === "paid" ||
-      enquiryStatus === "approved" ||
-      enquiryStatus === "delivered" ||
-      enquiryStatus === "dispatched" ||
-      status === "approved";
     return !isSoldOrApproved;
   }
 
@@ -114,7 +119,8 @@ export const isSoldBill = (bill: any): boolean => {
     enquiryStatus === "delivered" ||
     enquiryStatus === "dispatched" ||
     enquiryStatus === "completed" ||
-    enquiryStatus === "sales"
+    enquiryStatus === "sales" ||
+    enquiryStatus === "paid"
   );
 };
 
@@ -595,6 +601,39 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
     bill.billId ||
     "";
 
+  const isApprovedOrPaid = status === "paid" || isExplicitApproved || isExplicitPaid;
+
+  // Effective transaction date: if approved or paid, prioritize approval timestamp so it reflects today's sales
+  const effectiveApprovedAt = bill.approvedAt || enquiryData?.approvedAt || (isApprovedOrPaid ? (enquiryData?.updatedAt || bill.updatedAt) : undefined);
+  const effectiveBillDate = isApprovedOrPaid
+    ? (enquiryData?.approvedAt || bill.approvedAt || bill.billDate || bill.date || enquiryData?.updatedAt || bill.updatedAt || bill.createdAt || new Date())
+    : (bill.billDate || bill.date || bill.createdAt || new Date());
+
+  // Ensure totalAmount is populated accurately from enquiry if bill total is 0
+  const enqTotal = Number(enquiryData?.finalTotal || enquiryData?.value || 0);
+  let billTotal = getBillTotal(bill);
+  if (billTotal <= 0 && enqTotal > 0) {
+    billTotal = enqTotal;
+  }
+
+  // If items is still empty but total is positive, provide a synthesized item for component analytics
+  if ((!resolvedItems || resolvedItems.length === 0) && billTotal > 0) {
+    resolvedItems = [{
+      productId: bill.enquiryEnqId || enquiryData?.enqId || "ORDER-ITEM",
+      productName: customerName ? `Order: ${customerName}` : "Order Items",
+      quantity: 1,
+      price: billTotal,
+      total: billTotal,
+      taxableValue: billTotal,
+      taxAmount: 0,
+      taxRate: 0,
+      originalPrice: billTotal,
+      hsn: "",
+    }];
+  }
+
+  const assignedToName = bill.assignedToName || enquiryData?.assignedToName || bill.assignedTo || enquiryData?.assignedTo || "Unassigned";
+
   return {
     ...bill,
     id: bill.id,
@@ -602,7 +641,11 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
     customerContact,
     customerAddress,
     invoiceNumber,
+    billDate: effectiveBillDate,
+    date: effectiveBillDate,
+    approvedAt: effectiveApprovedAt,
     items: Array.isArray(resolvedItems) ? resolvedItems : [],
+    totalAmount: billTotal > 0 ? billTotal : (bill.totalAmount || 0),
     status,
     paymentStatus: transactionPaymentStatus,
     paymentType: paymentSubStatus,
@@ -615,7 +658,8 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
     isGST,
     billType,
     companyName,
-    isQuotation: status === "quotation",
+    isQuotation: (isExplicitApproved || isExplicitPaid) ? false : (bill.isQuotation || status === "quotation"),
+    assignedToName: assignedToName,
     billedTo: {
       ...(bill.billedTo || {}),
       name: bill.billedTo?.name || customerName,
@@ -649,18 +693,42 @@ export function getBillTotal(bill: any): number {
  * Extract unified Date from a bill document.
  */
 export function getBillDate(b: any): Date {
-  const raw = b?.approvedAt || b?.billDate || b?.date || b?.invoiceDate || b?.createdAt || b?.updatedAt;
+  if (!b) return new Date(0);
+
+  // If the record is approved or paid, give highest priority to approval / payment / recent update date
+  const statusLower = String(b.status || "").toLowerCase();
+  const payLower = String(b.paymentStatus || "").toLowerCase();
+  const enqStatusLower = String(b.enquiryStatus || "").toLowerCase();
+  const isApprovedOrPaid =
+    enqStatusLower === "approved" ||
+    enqStatusLower === "delivered" ||
+    enqStatusLower === "dispatched" ||
+    enqStatusLower === "paid" ||
+    statusLower === "approved" ||
+    statusLower === "paid" ||
+    statusLower === "completed" ||
+    payLower === "paid" ||
+    payLower === "completed";
+
+  const raw = isApprovedOrPaid
+    ? (b.approvedAt || b.paidAt || b.updatedAt || b.billDate || b.date || b.invoiceDate || b.createdAt)
+    : (b.billDate || b.date || b.invoiceDate || b.createdAt || b.approvedAt || b.updatedAt);
+
   if (raw?.toDate && typeof raw.toDate === "function") return raw.toDate();
   if (raw instanceof Date) return isNaN(raw.getTime()) ? new Date(0) : raw;
   if (typeof raw === "object" && typeof raw?.seconds === "number") return new Date(raw.seconds * 1000);
   if (typeof raw === "string") {
     const trimmed = raw.trim();
-    const dmyMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (!trimmed) return new Date(0);
+    const dmyMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
     if (dmyMatch) {
       const d = parseInt(dmyMatch[1], 10);
       const m = parseInt(dmyMatch[2], 10) - 1;
       const y = parseInt(dmyMatch[3], 10);
-      const parsed = new Date(y, m, d);
+      const hour = dmyMatch[4] ? parseInt(dmyMatch[4], 10) : 0;
+      const min = dmyMatch[5] ? parseInt(dmyMatch[5], 10) : 0;
+      const sec = dmyMatch[6] ? parseInt(dmyMatch[6], 10) : 0;
+      const parsed = new Date(y, m, d, hour, min, sec);
       if (!isNaN(parsed.getTime())) return parsed;
     }
     const parsed = new Date(trimmed);
@@ -959,8 +1027,8 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     assignedToName: enq.assignedTo || "Unassigned",
     createdBy: enq.assignedTo || "",
     createdByRole: "staff",
-    status: isApproved || isPaid ? "completed" : (isQuotation ? "quotation" : "completed"),
-    paymentStatus: isPaid ? "paid" : "pending",
+    status: isApproved || isPaid ? "paid" : (isQuotation ? "quotation" : "paid"),
+    paymentStatus: isPaid ? "completed" : "pending",
     paymentType: enq.paymentType || enq.paymentSubStatus || "N/A",
     paymentSubStatus: enq.paymentSubStatus || "N/A",
     shipmentStatus: enq.shipmentStatus || "",

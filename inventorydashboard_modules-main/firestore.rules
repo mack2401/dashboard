@@ -2,29 +2,63 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow authenticated users to read employees and enquiries for testing.
+    // Employees
     match /employees/{docId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && get(/databases/$(database)/documents/employees/$(request.auth.uid)).data.role == 'admin';
+      allow write: if request.auth != null;
     }
 
+    // Enquiries and audits
     match /enquiries/{docId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update: if request.auth != null && (
-        // admin can update all
-        get(/databases/$(database)/documents/employees/$(request.auth.uid)).data.role == 'admin'
-        // or the assigned user can update
-        || resource.data.assignedTo == request.auth.uid
-      );
+      allow read, write: if request.auth != null;
       match /audits/{auditId} {
         allow read, write: if request.auth != null;
       }
     }
 
-    // fallback: deny everything else
+    // Bills and Transactions
+    match /bills/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /billTransactions/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Products and Inventory Transactions
+    match /products/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /transactions/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Tasks and Teams
+    match /tasks/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /teams/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Training and Notifications
+    match /training/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /notifications/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /employeeLogin/{docId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Allow authenticated users read & write for all collections in internal ERP
     match /{document=**} {
-      allow read, write: if false;
+      allow read, write: if request.auth != null;
     }
   }
 }

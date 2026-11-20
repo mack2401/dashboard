@@ -976,6 +976,7 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         remarks: formData.remarks ?? "",
         assignedTo: formData.assignedTo ?? "",
         updatedAt: serverTimestamp(),
+        approvedAt: (formData.status === "Approved" || formData.paymentStatus === "Paid" || formData.paymentStatus === "PAID") ? ((initial as any)?.approvedAt || serverTimestamp()) : null,
         subStatus: formData.subStatus ?? "",
         reason: formData.reason ?? "",
         createdAt: createdAtValue,
@@ -1081,8 +1082,8 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
           e => e.id === formData.assignedTo || (e as any).uid === formData.assignedTo
         )?.employeeName || formData.assignedTo || currentUserProfile?.employeeName || currentUserProfile?.name || "Unassigned";
 
-        const billStatus = isDroppedDoc ? "dropped" : (isQuotationDoc ? "quotation" : "completed");
-        const billPaymentStatus = isPaidDoc ? "paid" : "pending";
+        const billStatus = isDroppedDoc ? "dropped" : (isQuotationDoc ? "quotation" : "paid");
+        const billPaymentStatus = isPaidDoc ? "completed" : "pending";
 
         const billPayload: any = {
           invoiceNumber: (initial as any)?.invoiceNumber || payload.invoiceNumber || autoInvNumber,

@@ -606,8 +606,8 @@ const BillTransactions: React.FC = () => {
           });
           console.log("Fallback fetched all bills:", fetchedBills.length);
         } catch (fallbackError) {
-          console.error("Fallback also failed:", fallbackError);
-          throw fallbackError;
+          console.warn("Fallback query warning, proceeding with available records:", fallbackError);
+          // Don't throw so unbilled enquiries can still be fetched and processed cleanly
         }
       }
 
@@ -1957,9 +1957,9 @@ const BillTransactions: React.FC = () => {
 
   // Get exact mutually-exclusive counts for filter tabs
   const allCount = transactions.length;
-  const invoiceCount = transactions.filter((b) => b.status === "paid").length;
-  const quotationCount = transactions.filter((b) => b.status === "quotation").length;
-  const droppedCount = transactions.filter((b) => b.status === "dropped").length;
+  const invoiceCount = transactions.filter((b) => isSoldBillRecord(b)).length;
+  const quotationCount = transactions.filter((b) => isQuotationBill(b) && !isDroppedBill(b)).length;
+  const droppedCount = transactions.filter((b) => isDroppedBill(b)).length;
 
   if (authLoading || loading) {
     return (

@@ -34,7 +34,7 @@ export interface DateFilterProps {
   className?: string;
 }
 
-// Universal date parser for Date, Firestore Timestamp, ISO string, and epoch number
+// Universal date parser for Date, Firestore Timestamp, ISO string, DD/MM/YYYY string, and epoch number
 export function parseAnyDate(val: any): Date | null {
   if (!val) return null;
   if (val instanceof Date) return isNaN(val.getTime()) ? null : val;
@@ -49,7 +49,25 @@ export function parseAnyDate(val: any): Date | null {
   if (typeof val === "object" && typeof val?.seconds === "number") {
     return new Date(val.seconds * 1000);
   }
-  if (typeof val === "string" || typeof val === "number") {
+  if (typeof val === "string") {
+    const trimmed = val.trim();
+    if (!trimmed) return null;
+    // Match Indian / European date formats: DD/MM/YYYY or DD-MM-YYYY, with optional time
+    const dmyMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:\s+(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?)?/);
+    if (dmyMatch) {
+      const day = parseInt(dmyMatch[1], 10);
+      const month = parseInt(dmyMatch[2], 10) - 1;
+      const year = parseInt(dmyMatch[3], 10);
+      const hour = dmyMatch[4] ? parseInt(dmyMatch[4], 10) : 0;
+      const min = dmyMatch[5] ? parseInt(dmyMatch[5], 10) : 0;
+      const sec = dmyMatch[6] ? parseInt(dmyMatch[6], 10) : 0;
+      const parsed = new Date(year, month, day, hour, min, sec);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    const d = new Date(trimmed);
+    return isNaN(d.getTime()) ? null : d;
+  }
+  if (typeof val === "number") {
     const d = new Date(val);
     return isNaN(d.getTime()) ? null : d;
   }
@@ -69,22 +87,29 @@ export function isDateInPresetRange(
   if (!d) return false;
 
   const now = new Date();
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
   const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
 
   switch (preset) {
     case "all":
       return true;
 
-    case "today":
-      return d >= startOfToday && d <= endOfToday;
+    case "today": {
+      const isSameCalendarDay =
+        d.getFullYear() === now.getFullYear() &&
+        d.getMonth() === now.getMonth() &&
+        d.getDate() === now.getDate();
+      return isSameCalendarDay || (d >= startOfToday && d <= endOfToday);
+    }
 
     case "yesterday": {
-      const startOfYesterday = new Date(startOfToday);
-      startOfYesterday.setDate(startOfYesterday.getDate() - 1);
-      const endOfYesterday = new Date(endOfToday);
-      endOfYesterday.setDate(endOfYesterday.getDate() - 1);
-      return d >= startOfYesterday && d <= endOfYesterday;
+      const startOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 0, 0, 0, 0);
+      const endOfYesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1, 23, 59, 59, 999);
+      const isYesterday =
+        d.getFullYear() === startOfYesterday.getFullYear() &&
+        d.getMonth() === startOfYesterday.getMonth() &&
+        d.getDate() === startOfYesterday.getDate();
+      return isYesterday || (d >= startOfYesterday && d <= endOfYesterday);
     }
 
     case "this_week": {

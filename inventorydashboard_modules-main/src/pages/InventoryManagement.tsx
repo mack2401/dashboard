@@ -516,20 +516,22 @@ const InventoryManagement: React.FC = () => {
 
     const unsubscribeProducts = onSnapshot(productsQuery, 
       (snapshot) => {
-        const productsData: Product[] = snapshot.docs.map(doc => {
-          const data = doc.data();
-          return {
-            id: doc.id,
-            ...data,
-            stockEntries: data.stockEntries || [],
-            currentPrice: data.currentPrice !== undefined ? data.currentPrice : (data.stockEntries && data.stockEntries.length > 0 
-              ? data.stockEntries[data.stockEntries.length - 1].unitPrice 
-              : data.price || 0),
-            purchasePrice: data.purchasePrice !== undefined ? data.purchasePrice : undefined,
-            isOldStock: data.isOldStock === true,
-            lastImportedAt: data.lastImportedAt || undefined,
-          } as Product;
-        });
+        const productsData: Product[] = snapshot.docs
+          .map(doc => {
+            const data = doc.data();
+            return {
+              id: doc.id,
+              ...data,
+              stockEntries: data.stockEntries || [],
+              currentPrice: data.currentPrice !== undefined ? data.currentPrice : (data.stockEntries && data.stockEntries.length > 0 
+                ? data.stockEntries[data.stockEntries.length - 1].unitPrice 
+                : data.price || 0),
+              purchasePrice: data.purchasePrice !== undefined ? data.purchasePrice : undefined,
+              isOldStock: data.isOldStock === true,
+              lastImportedAt: data.lastImportedAt || undefined,
+            } as Product;
+          })
+          .filter(p => !p.isDeleted && !(p as any).deleted && p.status !== 'deleted' && !(p as any).deleteApproved);
         
         setProducts(productsData);
         
@@ -962,15 +964,17 @@ const InventoryManagement: React.FC = () => {
   const filteredTransactions = useMemo(() => {
     let filtered = transactions;
     
-    // When filtering by 'add', exclude any orphaned transactions for products that have been deleted from inventory
-    if (transactionFilter === 'add') {
-      filtered = filtered.filter(t => {
-        if (t.type !== 'add') return false;
+    // Exclude orphaned 'add' transactions for products that have been deleted from inventory
+    filtered = filtered.filter(t => {
+      if (t.type === 'add') {
         const hasId = t.productId && currentProductIds.has(t.productId);
         const hasName = t.productName && currentProductNames.has(t.productName.trim().toLowerCase());
         return hasId || hasName;
-      });
-    } else if (transactionFilter !== 'all') {
+      }
+      return true;
+    });
+
+    if (transactionFilter !== 'all') {
       filtered = filtered.filter(t => t.type === transactionFilter);
     }
 
@@ -1423,10 +1427,16 @@ const InventoryManagement: React.FC = () => {
 
       // 4. Cascade delete associated transactions from Firestore
       try {
-        const qById = query(collection(db, 'transactions'), where('productId', '==', productId));
-        const snap = await getDocs(qById);
         const batch = writeBatch(db);
-        snap.forEach(d => batch.delete(d.ref));
+        const qById = query(collection(db, 'transactions'), where('productId', '==', productId));
+        const snapById = await getDocs(qById);
+        snapById.forEach(d => batch.delete(d.ref));
+
+        if (productName) {
+          const qByName = query(collection(db, 'transactions'), where('productName', '==', productName));
+          const snapByName = await getDocs(qByName);
+          snapByName.forEach(d => batch.delete(d.ref));
+        }
         await batch.commit();
       } catch (cascadeErr) {
         console.warn('Could not cascade delete transactions:', cascadeErr);
@@ -1471,10 +1481,16 @@ const InventoryManagement: React.FC = () => {
 
       // 3. Cascade delete associated transactions from Firestore
       try {
-        const qById = query(collection(db, 'transactions'), where('productId', '==', product.id));
-        const snap = await getDocs(qById);
         const batch = writeBatch(db);
-        snap.forEach(d => batch.delete(d.ref));
+        const qById = query(collection(db, 'transactions'), where('productId', '==', product.id));
+        const snapById = await getDocs(qById);
+        snapById.forEach(d => batch.delete(d.ref));
+
+        if (product.name) {
+          const qByName = query(collection(db, 'transactions'), where('productName', '==', product.name));
+          const snapByName = await getDocs(qByName);
+          snapByName.forEach(d => batch.delete(d.ref));
+        }
         await batch.commit();
       } catch (cascadeErr) {
         console.warn('Could not cascade delete transactions:', cascadeErr);
@@ -1642,12 +1658,20 @@ const InventoryManagement: React.FC = () => {
         await deleteDoc(productRef);
 
         try {
-          const qById = query(collection(db, 'transactions'), where('productId', '==', matchedProduct.id));
-          const snap = await getDocs(qById);
           const batch = writeBatch(db);
-          snap.forEach(d => {
+          const qById = query(collection(db, 'transactions'), where('productId', '==', matchedProduct.id));
+          const snapById = await getDocs(qById);
+          snapById.forEach(d => {
             if (d.id !== transactionId) batch.delete(d.ref);
           });
+
+          if (matchedProduct.name) {
+            const qByName = query(collection(db, 'transactions'), where('productName', '==', matchedProduct.name));
+            const snapByName = await getDocs(qByName);
+            snapByName.forEach(d => {
+              if (d.id !== transactionId) batch.delete(d.ref);
+            });
+          }
           await batch.commit();
         } catch (cascadeErr) {
           console.warn('Could not cascade delete remaining transactions:', cascadeErr);
@@ -3208,7 +3232,12 @@ const InventoryManagement: React.FC = () => {
 
     // Filter out deleted products
     filtered = filtered.filter(product => {
-      if ((product as any).isDeleted === true || (product as any).status === 'deleted') {
+      if (
+        (product as any).isDeleted === true ||
+        (product as any).deleted === true ||
+        (product as any).status === 'deleted' ||
+        (product as any).deleteApproved === true
+      ) {
         return false;
       }
       return true;
