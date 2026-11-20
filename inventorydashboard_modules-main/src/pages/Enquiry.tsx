@@ -1,6 +1,6 @@
 // src/pages/EnquiryPage.tsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { type ColumnDef } from "@tanstack/react-table";
 import DataTable from "../components/Table/DataTable";
 import Pagination from "../components/Pagination";
@@ -222,6 +222,7 @@ interface EnquiryPageProps {
 export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) {
   const { user } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
   // Helper to determine initial category from props, path, or query params
   const resolveInitialCategory = (): "all" | "ecommerce" | "academic" => {
@@ -1589,6 +1590,17 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                             Enquiry Record View
                                           </span>
                                           <div className="flex items-center gap-2">
+                                            <button
+                                              onClick={() => {
+                                                setViewModalOpen(false);
+                                                navigate(`/bills?search=${encodeURIComponent(selectedEnquiry.enqId)}`);
+                                              }}
+                                              className="px-3.5 py-1.5 rounded-xl text-xs font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition cursor-pointer flex items-center gap-1.5"
+                                              title="Open corresponding bill / quotation in Billing"
+                                            >
+                                              <FileText className="w-3.5 h-3.5" />
+                                              View in Billing
+                                            </button>
                                             <button
                                               onClick={() => {
                                                 setViewModalOpen(false);

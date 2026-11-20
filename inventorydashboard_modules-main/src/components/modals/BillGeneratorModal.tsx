@@ -162,7 +162,8 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
   };
 
   const [billNumber, setBillNumber] = useState<string>(() => {
-    return generateBillNumber(isQuotation);
+    const isQuote = isQuotation || enquiryData?.status === "Quotation" || enquiryData?.status?.toLowerCase() === "quotation";
+    return generateBillNumber(isQuote);
   });
 
   const LOGO_URL = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}/ibots-logo.png` : "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
@@ -200,20 +201,27 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
     if (!enquiryData?.enqId) return null;
     
     try {
+      const isQuoteMode = isQuotation || enquiryData?.status === "Quotation" || enquiryData?.status?.toLowerCase() === "quotation";
       const billsRef = collection(db, "bills");
       const q = query(
         billsRef, 
-        where("enquiryEnqId", "==", enquiryData.enqId),
-        where("isQuotation", "==", isQuotation)
+        where("enquiryEnqId", "==", enquiryData.enqId)
       );
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        const existingBill = querySnapshot.docs[0];
+        const matchingDoc = querySnapshot.docs.find(d => !!d.data().isQuotation === isQuoteMode) || querySnapshot.docs[0];
+        const existingBill = matchingDoc;
         const billData = existingBill.data();
         setExistingBillId(existingBill.id);
         setExistingBillData(billData);
-        setBillNumber(billData.invoiceNumber);
+        if (billData.invoiceNumber) {
+          if (isQuoteMode && billData.invoiceNumber.startsWith("IBIN-")) {
+            setBillNumber(`IBQ-${billData.invoiceNumber.replace("IBIN-", "")}`);
+          } else {
+            setBillNumber(billData.invoiceNumber);
+          }
+        }
         if (billData.includeSignature !== undefined) {
           setIncludeSignature(billData.includeSignature);
         }
@@ -644,7 +652,12 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
 
   // Determine if this should be shown as Quotation or Invoice based on enquiry status
   const getDocumentType = () => {
-    const isQuote = isQuotation || existingBillData?.isQuotation === true || (!existingBillId && enquiryData?.status === "Quotation");
+    const isQuote =
+      isQuotation ||
+      existingBillData?.isQuotation === true ||
+      enquiryData?.status === "Quotation" ||
+      enquiryData?.status?.toLowerCase() === "quotation" ||
+      enquiryData?.type?.toLowerCase() === "quotation";
     const rawPaymentStatus = enquiryData?.paymentStatus || existingBillData?.paymentStatus || "";
     const isPaid = rawPaymentStatus.toLowerCase() === "paid" || rawPaymentStatus.toLowerCase() === "completed";
     const isApprovedAndPaid = !isQuote && enquiryData?.status === "Approved" && isPaid;

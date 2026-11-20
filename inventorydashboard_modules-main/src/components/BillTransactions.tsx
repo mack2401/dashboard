@@ -158,6 +158,18 @@ const BillTransactions: React.FC = () => {
   const [startDate, setStartDate] = useState<string>("");
   const [endDate, setEndDate] = useState<string>("");
 
+  const location = useLocation();
+
+  // Read search param from URL query if navigated from Enquiry
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const searchParam = params.get("search");
+    if (searchParam) {
+      setSearchTerm(searchParam);
+      setOrderStatusFilter("all");
+    }
+  }, [location.search]);
+
   // Global search & notification deep-linking highlighter
   const {
     highlightId,
@@ -600,6 +612,9 @@ const BillTransactions: React.FC = () => {
         console.warn("Could not batch load enquiries in BillTransactions:", err);
       }
 
+      // Keep track of which enquiries already have a bill in bills collection
+      const matchedEnquiryIds = new Set<string>();
+
       // Process each bill with enquiry data
       const processedTransactions = deduplicatedBills.map((bill) => {
         // Step 1: Find matching enquiry across all possible bill identifiers
@@ -708,6 +723,15 @@ const BillTransactions: React.FC = () => {
             }
           }
         }
+
+        // Mark matched enquiry IDs so unbilled enquiries can be identified
+        if (enquiryData) {
+          if (enquiryData.id) matchedEnquiryIds.add(String(enquiryData.id).toLowerCase());
+          if (enquiryData.enqId) matchedEnquiryIds.add(String(enquiryData.enqId).toLowerCase());
+        }
+        if (bill.enquiryEnqId) matchedEnquiryIds.add(String(bill.enquiryEnqId).toLowerCase());
+        if (bill.enquiryId) matchedEnquiryIds.add(String(bill.enquiryId).toLowerCase());
+        if (bill.billedTo?.enqId) matchedEnquiryIds.add(String(bill.billedTo.enqId).toLowerCase());
 
         const paymentSubStatus = enquiryData?.paymentSubStatus || (bill as any).paymentSubStatus || "N/A";
 
@@ -837,32 +861,51 @@ const BillTransactions: React.FC = () => {
         const productStatus = enquiryData?.status || (bill as any).enquiryStatus || "";
         const paymentStatus = enquiryData?.paymentStatus || (bill as any).paymentStatus || "";
 
+        const isExplicitQuotation =
+          String(productStatus).toLowerCase() === "quotation" ||
+          String(enquiryData?.status).toLowerCase() === "quotation" ||
+          bill.isQuotation === true ||
+          String(bill.status).toLowerCase() === "quotation" ||
+          String(bill.invoiceNumber || "").toUpperCase().startsWith("IBQ-");
+
+        const isExplicitApproved =
+          String(productStatus).toLowerCase() === "approved" ||
+          String(productStatus).toLowerCase() === "delivered" ||
+          String(productStatus).toLowerCase() === "dispatched" ||
+          String(enquiryData?.status).toLowerCase() === "approved" ||
+          String(enquiryData?.status).toLowerCase() === "delivered" ||
+          String(enquiryData?.status).toLowerCase() === "dispatched";
+
+        const isExplicitPaid =
+          String(paymentStatus).toLowerCase() === "paid" ||
+          String(enquiryData?.paymentStatus).toLowerCase() === "paid" ||
+          String(bill.paymentStatus).toLowerCase() === "paid";
+
+        const billWithContext = {
+          ...bill,
+          enquiryStatus: productStatus,
+          paymentStatus,
+          isQuotation: isExplicitQuotation,
+        };
+
         let status: "quotation" | "paid" | "dropped" = "quotation";
         let transactionPaymentStatus: "pending" | "completed" = "pending";
 
-        const billWithContext = { ...bill, enquiryStatus: productStatus, paymentStatus };
-
         if (
-          productStatus.toLowerCase() === "dropped" ||
-          enquiryData?.status?.toLowerCase() === "dropped" ||
-          (bill.status as string) === "dropped" ||
+          String(productStatus).toLowerCase() === "dropped" ||
+          String(enquiryData?.status).toLowerCase() === "dropped" ||
+          String(bill.status).toLowerCase() === "dropped" ||
           isDroppedBill(billWithContext)
         ) {
           status = "dropped";
           transactionPaymentStatus = "pending";
-        } else if (
-          productStatus === "Approved" ||
-          productStatus === "Delivered" ||
-          productStatus === "Dispatched" ||
-          paymentStatus === "Paid" ||
-          paymentStatus === "PAID" ||
-          bill.paymentStatus === "completed" ||
-          bill.status === "paid" ||
-          bill.status === "completed" ||
-          isSoldBill(billWithContext)
-        ) {
+        } else if (isExplicitQuotation && !isExplicitApproved && !isExplicitPaid) {
+          // Quotations must strictly remain quotation status unless approved or paid
+          status = "quotation";
+          transactionPaymentStatus = "pending";
+        } else if (isExplicitApproved || isExplicitPaid || isSoldBill(billWithContext)) {
           status = "paid";
-          transactionPaymentStatus = "completed";
+          transactionPaymentStatus = isExplicitPaid ? "completed" : "pending";
         } else {
           status = "quotation";
           transactionPaymentStatus = "pending";
@@ -917,8 +960,161 @@ const BillTransactions: React.FC = () => {
         } as BillTransaction;
       });
 
-      console.log("Final processed transactions:", processedTransactions.length);
-      setTransactions(processedTransactions);
+      // Step 4: Seamlessly integrate unbilled enquiries from enquiry module
+      // If an enquiry is Approved, Quotation, or has materials/value, but no bill exists in bills collection:
+      const unbilledTransactions: BillTransaction[] = [];
+      for (const enq of allEnquiriesList) {
+        if (!enq) continue;
+        const eId = String(enq.id || "").trim().toLowerCase();
+        const enqId = String(enq.enqId || "").trim().toLowerCase();
+
+        if (eId && matchedEnquiryIds.has(eId)) continue;
+        if (enqId && matchedEnquiryIds.has(enqId)) continue;
+
+        const rawStatus = String(enq.status || "").trim();
+        const statusLower = rawStatus.toLowerCase();
+        const rawPayment = String(enq.paymentStatus || "").trim();
+        const paymentLower = rawPayment.toLowerCase();
+
+        // Parse enquiry materials
+        let items: any[] = [];
+        try {
+          let parsed = enq.materials || enq.products || enq.items;
+          if (typeof parsed === "string") {
+            parsed = JSON.parse(parsed);
+          }
+          if (Array.isArray(parsed)) {
+            items = parsed.map((m: any, idx: number) => ({
+              productId: m.productId || m.id || `PROD-${idx}`,
+              productName: m.productName || m.name || "Item",
+              quantity: Number(m.quantity) || 1,
+              price: Number(m.price) || 0,
+              total: Number(m.totalAmount || m.total || (Number(m.price || 0) * Number(m.quantity || 1))),
+              purchasePrice: m.purchasePrice !== undefined ? Number(m.purchasePrice) : undefined,
+              costPrice: m.costPrice,
+              sku: m.sku,
+              category: m.category,
+              hsn: m.hsn || m.hsnCode || "",
+            }));
+          }
+        } catch (_) {}
+
+        const hasItems = items.length > 0;
+        const enqVal = Number(enq.value || enq.finalTotal || 0);
+        const isApproved = statusLower === "approved" || statusLower === "delivered" || statusLower === "dispatched";
+        const isQuotation = statusLower === "quotation" || String(enq.type || "").toLowerCase() === "quotation";
+        const isActionable = isApproved || isQuotation || statusLower === "testing" || hasItems || enqVal > 0;
+
+        if (!isActionable) continue;
+
+        const custGstin = String(enq.companyDetails?.companyGST || enq.gstin || "").trim().toUpperCase();
+        const isB2B = String(enq.type || "").toUpperCase().includes("B2B") || (custGstin.length >= 10 && custGstin !== "URP");
+        const subtotal = Number(enq.subtotal) || items.reduce((s, it) => s + (it.price * it.quantity), 0);
+        const taxRate = Number(enq.gstRate) || 18;
+        const taxAmount = Number(enq.gstAmount) || Number(enq.taxAmount) || (isB2B ? (subtotal * taxRate) / 100 : 0);
+        const totalAmount = enqVal > 0 ? enqVal : (subtotal + taxAmount);
+
+        let billDate: Timestamp;
+        if (enq.createdAt instanceof Timestamp) {
+          billDate = enq.createdAt;
+        } else if (enq.createdAt?.toDate && typeof enq.createdAt.toDate === "function") {
+          billDate = enq.createdAt;
+        } else if (enq.createdAt) {
+          const d = new Date(enq.createdAt);
+          billDate = !isNaN(d.getTime()) ? Timestamp.fromDate(d) : Timestamp.now();
+        } else {
+          billDate = Timestamp.now();
+        }
+
+        const dueDate = Timestamp.fromDate(new Date(billDate.toDate().getTime() + 15 * 24 * 60 * 60 * 1000));
+
+        let trStatus: "quotation" | "paid" | "dropped" = "quotation";
+        let trPaymentStatus: "pending" | "completed" = "pending";
+
+        if (statusLower === "dropped") {
+          trStatus = "dropped";
+          trPaymentStatus = "pending";
+        } else if (isApproved || paymentLower === "paid") {
+          trStatus = "paid";
+          trPaymentStatus = paymentLower === "paid" ? "completed" : "pending";
+        } else {
+          trStatus = "quotation";
+          trPaymentStatus = "pending";
+        }
+
+        const isQuoteDoc = trStatus === "quotation";
+        const cleanNum = String(enq.enqId || Date.now()).replace(/\D/g, "");
+        const fallbackQuoteNum = `IBQ-${cleanNum.slice(-6) || "000001"}`;
+        const fallbackInvNum = `IBIN-${cleanNum.slice(-8) || "00000001"}`;
+        const invoiceNumber = isQuoteDoc
+          ? (enq.quotationNumber || enq.quoteNo || fallbackQuoteNum)
+          : (enq.invoiceNumber || fallbackInvNum);
+
+        const customerName = enq.customerName || enq.customer?.name || enq.contactPerson || enq.name || enq.clientName || "Customer";
+        const customerContact = enq.contactNumber || enq.customerContact || enq.customer?.contactNumber || enq.phone || enq.mobile || "-";
+        const customerAddress = String(enq.customerAddress || enq.address || "").trim();
+
+        unbilledTransactions.push({
+          id: enq.id,
+          billId: enq.enqId || enq.id,
+          invoiceNumber,
+          billDate,
+          dueDate,
+          customerName,
+          customerContact,
+          customerCity: enq.city || "",
+          customerAddress,
+          items,
+          subtotal,
+          taxAmount,
+          totalAmount,
+          discountAmount: Number(enq.discountAmount) || 0,
+          discountPercentage: Number(enq.discountPercentage) || 0,
+          shippingCharges: Number(enq.shippingCharges) || 0,
+          taxType: enq.taxType || "cgst_sgst",
+          taxRate,
+          cgst: taxAmount / 2,
+          sgst: taxAmount / 2,
+          igst: 0,
+          placeOfSupply: enq.state || "Tamil Nadu",
+          assignedTo: enq.assignedTo || "",
+          assignedToName: enq.assignedToName || "",
+          createdBy: enq.createdBy || "",
+          createdByRole: enq.createdByRole || "staff",
+          status: trStatus,
+          paymentStatus: trPaymentStatus,
+          paymentType: enq.paymentType || enq.paymentSubStatus || "N/A",
+          paymentSubStatus: enq.paymentSubStatus || "N/A",
+          shipmentStatus: enq.shipmentStatus || "",
+          isQuotation: isQuoteDoc,
+          billedBy: defaultBankDetails as any,
+          billedTo: {
+            name: customerName,
+            enqId: enq.enqId || "",
+            contactNumber: customerContact,
+            city: enq.city || "",
+            state: enq.state || "Tamil Nadu",
+            address: customerAddress,
+            gstin: custGstin,
+          },
+          enquiryEnqId: enq.enqId || "",
+          gstin: custGstin,
+          isGST: isB2B || taxAmount > 0,
+          billType: isB2B ? "B2B" : "B2C",
+          companyName: enq.companyDetails?.companyName || "",
+          enquiryStatus: rawStatus,
+        } as BillTransaction);
+      }
+
+      const allTransactions = [...processedTransactions, ...unbilledTransactions];
+      allTransactions.sort((a, b) => {
+        const da = getBillDate(a)?.getTime() || 0;
+        const dbTime = getBillDate(b)?.getTime() || 0;
+        return dbTime - da;
+      });
+
+      console.log("Final processed transactions:", allTransactions.length, "(billed:", processedTransactions.length, "unbilled:", unbilledTransactions.length, ")");
+      setTransactions(allTransactions);
     } catch (err) {
       console.error("Error fetching transactions:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch transactions");
@@ -1178,7 +1374,10 @@ const BillTransactions: React.FC = () => {
     if (selectedBill?.id) {
       try {
         const billRef = doc(db, "bills", selectedBill.id);
-        await updateDoc(billRef, { includeSignature: newVal });
+        const billSnap = await getDoc(billRef);
+        if (billSnap.exists()) {
+          await updateDoc(billRef, { includeSignature: newVal });
+        }
         setSelectedBill((prev) => prev ? ({ ...prev, includeSignature: newVal } as any) : null);
       } catch (err) {
         console.error("Error updating signature setting:", err);
