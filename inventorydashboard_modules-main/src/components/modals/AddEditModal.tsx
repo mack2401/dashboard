@@ -331,8 +331,11 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
 
   useEffect(() => {
     if (initial) {
+      const initAddress = (initial as any).customerAddress || (initial as any).address || initial.customer?.address || "";
       setFormData({
         ...initial,
+        address: initAddress,
+        customerAddress: initAddress,
         paymentSubStatus: initial.paymentSubStatus ?? (initial as any).paymentType ?? "",
       });
       if (initial.companyDetails) {
@@ -357,6 +360,8 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         paymentSubStatus: "",
         value: 0,
         customerName: "",
+        address: "",
+        customerAddress: "",
         remarks: "",
         assignedTo: currentUserProfile?.id ?? "",
         state: "",
@@ -906,6 +911,12 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         contactNumber: isProformaInvoiceMode ? companyDetails.companyMobile : (formData.contactNumber ?? ""),
         email: formData.email ?? "",
         city: formData.city ?? "",
+        address: isProformaInvoiceMode ? companyDetails.companyAddress : (formData.customerAddress || formData.address || "").trim(),
+        customerAddress: isProformaInvoiceMode ? companyDetails.companyAddress : (formData.customerAddress || formData.address || "").trim(),
+        customer: {
+          ...(formData.customer || {}),
+          address: isProformaInvoiceMode ? companyDetails.companyAddress : (formData.customerAddress || formData.address || "").trim(),
+        },
         mode: formData.mode ?? "",
         type: formData.type ?? "",
         status: formData.status ?? "",
@@ -1387,6 +1398,25 @@ Date: ${currentDate}`;
                     <label className="block text-sm font-medium text-gray-600">City</label>
                     <input type="text" name="city" value={formData.city ?? ""} onChange={handleChange} placeholder="Enter city" className="w-full px-3 py-2 border rounded-lg" />
                   </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-600 mb-1">Customer Address</label>
+                  <textarea
+                    name="customerAddress"
+                    value={formData.customerAddress ?? formData.address ?? ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        customerAddress: val,
+                        address: val,
+                      }));
+                    }}
+                    placeholder="Enter complete customer address, street, landmark, pincode..."
+                    rows={2}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-400 leading-relaxed text-sm"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

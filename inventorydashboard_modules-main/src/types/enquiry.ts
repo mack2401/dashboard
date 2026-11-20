@@ -39,6 +39,9 @@ export interface CustomerInfo {
   contact?: string;
   email?: string;
   city?: string;
+  state?: string;
+  address?: string;
+  customerAddress?: string;
   company?: string;
 }
 
@@ -56,6 +59,14 @@ export interface Enquiry {
   source?: string;
   type?: EnquiryType;
   value?: number;      // The estimated value or amount of the enquiry
+  customerName?: string;
+  contactPerson?: string;
+  contactNumber?: string;
+  email?: string;
+  city?: string;
+  state?: string;
+  address?: string;
+  customerAddress?: string;
 
   // --- Status tracking ---
   status?: EnquiryStatus;

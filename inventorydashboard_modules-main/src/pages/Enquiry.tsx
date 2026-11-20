@@ -147,6 +147,17 @@ const getEnquiryCustomerName = (enquiry: any): string => {
   return String(val ?? "").trim();
 };
 
+const getEnquiryAddress = (enquiry: any): string => {
+  if (!enquiry) return "";
+  const val =
+    enquiry.customerAddress ??
+    enquiry.address ??
+    enquiry.customer?.address ??
+    enquiry.companyDetails?.companyAddress ??
+    "";
+  return String(val ?? "").trim();
+};
+
 const matchPhone = (phoneStr: string, query: string): boolean => {
   if (!phoneStr || !query) return false;
   const pRaw = phoneStr.toLowerCase();
@@ -1503,6 +1514,18 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                                 <p className="text-xs font-semibold text-gray-900 flex items-center gap-1.5 break-all">
                                                   <Mail className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
                                                   {selectedEnquiry.email}
+                                                </p>
+                                              </div>
+                                            )}
+
+                                            {getEnquiryAddress(selectedEnquiry) && (
+                                              <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 sm:col-span-2 md:col-span-3">
+                                                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+                                                  Customer Address
+                                                </span>
+                                                <p className="text-xs font-semibold text-gray-900 flex items-start gap-1.5 leading-relaxed">
+                                                  <MapPin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0 mt-0.5" />
+                                                  {getEnquiryAddress(selectedEnquiry)}
                                                 </p>
                                               </div>
                                             )}

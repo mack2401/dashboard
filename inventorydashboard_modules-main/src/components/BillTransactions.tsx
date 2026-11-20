@@ -283,9 +283,9 @@ const BillTransactions: React.FC = () => {
   const [editIncludeSignature, setEditIncludeSignature] = useState<boolean>(true);
   const [newTerm, setNewTerm] = useState("");
 
-  // Logo URL constant
-  const LOGO_URL = "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
-  const SIGNATURE_URL = "/sign.jpg";
+  // Logo & Signature URL constants
+  const LOGO_URL = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}/ibots-logo.png` : "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
+  const SIGNATURE_URL = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}/sign.jpg` : "/sign.jpg";
 
   // Only admin and manager can delete
   const hasDeleteAccess = userRole === "admin" || userRole === "manager";
@@ -1361,6 +1361,8 @@ const BillTransactions: React.FC = () => {
       billedTo: bill.billedTo,
       customerName: bill.customerName,
       customerContact: bill.customerContact,
+      customerAddress: bill.customerAddress || bill.billedTo?.address || (bill as any).address || "",
+      customerEmail: (bill as any).email || (bill.billedTo as any)?.email || "",
       customerCity: bill.customerCity,
       customerState: bill.customerState,
       placeOfSupply: bill.placeOfSupply,
@@ -1380,6 +1382,8 @@ const BillTransactions: React.FC = () => {
       bankDetails: bankDetailsToPrint,
       terms: termsToPrint,
       notes: bill.notes,
+      logoUrl: LOGO_URL,
+      signatureUrl: SIGNATURE_URL,
       includeSignature: shouldIncludeSignature,
     });
 
@@ -1417,6 +1421,8 @@ const BillTransactions: React.FC = () => {
       billedTo: selectedBill.billedTo,
       customerName: selectedBill.customerName,
       customerContact: selectedBill.customerContact,
+      customerAddress: selectedBill.customerAddress || selectedBill.billedTo?.address || (selectedBill as any).address || "",
+      customerEmail: (selectedBill as any).email || (selectedBill.billedTo as any)?.email || "",
       customerCity: selectedBill.customerCity,
       customerState: selectedBill.customerState,
       placeOfSupply: selectedBill.placeOfSupply,
@@ -1436,6 +1442,8 @@ const BillTransactions: React.FC = () => {
       bankDetails: bankDetailsToPrint,
       terms: termsToPrint,
       notes: selectedBill.notes,
+      logoUrl: LOGO_URL,
+      signatureUrl: SIGNATURE_URL,
       includeSignature: shouldIncludeSignature,
     });
 
@@ -2701,11 +2709,20 @@ const BillTransactions: React.FC = () => {
       {/* Modern Bill Details Modal */}
       {selectedBill && (() => {
         const isSelectedQuotation = selectedBill.status === "quotation" || isQuotationBill(selectedBill);
-        const isSelectedPaid = selectedBill.paymentStatus === "completed";
-        const docTitle = isSelectedQuotation ? "Quotation Details" : "Tax Invoice Details";
-        const docBadge = isSelectedQuotation ? "QUOTATION" : (isSelectedPaid ? "TAX INVOICE" : "INVOICE");
+        const isSelectedPaid = selectedBill.paymentStatus === "completed" || selectedBill.status === "paid";
+        const isApprovedBill = !isSelectedQuotation && (
+          isSelectedPaid ||
+          selectedBill.status?.toLowerCase() === "approved" ||
+          selectedBill.status?.toLowerCase() === "paid" ||
+          selectedBill.paymentStatus?.toLowerCase() === "completed" ||
+          selectedBill.paymentStatus?.toLowerCase() === "paid" ||
+          (selectedBill as any).isApproved === true
+        );
+        const docTitle = isSelectedQuotation ? "Quotation Details" : (isApprovedBill ? "Tax Invoice Details" : "Invoice Details");
+        const docBadge = isSelectedQuotation ? "QUOTATION" : (isApprovedBill ? "TAX INVOICE" : "INVOICE");
         const docDate = getBillDate(selectedBill)?.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) || "N/A";
         const taxableVal = Math.max(0, (selectedBill.subtotal || 0) - (selectedBill.discountAmount || 0));
+        const clientAddress = (selectedBill.customerAddress || selectedBill.billedTo?.address || (selectedBill as any).address || "").trim();
 
         return (
         <div 
@@ -2823,27 +2840,57 @@ const BillTransactions: React.FC = () => {
 
                 <div className="bg-slate-50/80 p-4 rounded-2xl border border-slate-200/80">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
-                    {isSelectedQuotation ? "Quotation For / Client" : "Billed To / Recipient"}
+                    {isSelectedQuotation ? "Quotation Prepared For" : "Billed To / Buyer"}
                   </p>
-                  <p className="text-sm font-bold text-gray-900">{selectedBill.customerName || "Customer"}</p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    Contact: <span className="font-semibold text-gray-800">{selectedBill.customerContact || "-"}</span>
-                    &nbsp;|&nbsp; Location: <span className="font-semibold text-gray-800">{[selectedBill.customerCity, selectedBill.customerState].filter(Boolean).join(", ") || "-"}</span>
-                  </p>
-                  <div className="mt-2.5 flex flex-wrap gap-2 text-[11px] font-mono">
-                    {selectedBill.billedTo?.gstin ? (
-                      <span className="bg-white px-2 py-0.5 rounded-lg border border-purple-200 text-purple-700 font-semibold">
-                        GSTIN: {selectedBill.billedTo.gstin}
-                      </span>
-                    ) : (
-                      <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-500">
-                        Consumer / Unregistered
-                      </span>
-                    )}
-                    <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
-                      Place of Supply: <strong className="text-slate-900">{selectedBill.placeOfSupply || "Tamil Nadu (33)"}</strong>
-                    </span>
-                  </div>
+                  {clientAddress ? (
+                    <>
+                      <p className="text-sm font-bold text-gray-900">
+                        {selectedBill.companyName ? `${selectedBill.customerName || "Customer"} • ${selectedBill.companyName}` : (selectedBill.customerName || "Customer")}
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1 leading-relaxed">
+                        {clientAddress}
+                      </p>
+                      <div className="mt-2.5 flex flex-wrap gap-2 text-[11px] font-mono">
+                        <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
+                          GSTIN: <strong className="text-slate-900">{selectedBill.billedTo?.gstin || selectedBill.gstin || "Consumer / Unregistered"}</strong>
+                        </span>
+                        <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
+                          State: <strong className="text-slate-900">{selectedBill.customerState || selectedBill.placeOfSupply || "Tamil Nadu (33)"}</strong>
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-600 mt-1.5">
+                        Contact: <span className="font-semibold text-gray-800">{selectedBill.customerContact || "-"}</span>
+                        {(selectedBill as any).email && (
+                          <span> &nbsp;|&nbsp; Email: <span className="font-semibold text-gray-800">{(selectedBill as any).email}</span></span>
+                        )}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-bold text-gray-900">{selectedBill.customerName || "Customer"}</p>
+                      {selectedBill.companyName && (
+                        <p className="text-xs text-gray-600 mt-0.5 font-medium">{selectedBill.companyName}</p>
+                      )}
+                      <p className="text-xs text-gray-600 mt-1">
+                        Contact: <span className="font-semibold text-gray-800">{selectedBill.customerContact || "-"}</span>
+                        &nbsp;|&nbsp; Location: <span className="font-semibold text-gray-800">{[selectedBill.customerCity, selectedBill.customerState].filter(Boolean).join(", ") || "-"}</span>
+                      </p>
+                      <div className="mt-2.5 flex flex-wrap gap-2 text-[11px] font-mono">
+                        {selectedBill.billedTo?.gstin ? (
+                          <span className="bg-white px-2 py-0.5 rounded-lg border border-purple-200 text-purple-700 font-semibold">
+                            GSTIN: {selectedBill.billedTo.gstin}
+                          </span>
+                        ) : (
+                          <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-500">
+                            Consumer / Unregistered
+                          </span>
+                        )}
+                        <span className="bg-white px-2 py-0.5 rounded-lg border border-slate-200 text-slate-700">
+                          Place of Supply: <strong className="text-slate-900">{selectedBill.placeOfSupply || "Tamil Nadu (33)"}</strong>
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -2993,100 +3040,102 @@ const BillTransactions: React.FC = () => {
               </div>
 
               {/* Bank Details & Terms & Conditions Side-by-Side (Single Screen Efficiency) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                {/* Editable Bank Details */}
-                <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Bank Details</h4>
-                      <div className="flex gap-2">
-                        {!editingBankDetails ? (
-                          <button
-                            onClick={() => setEditingBankDetails(true)}
-                            className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
-                          >
-                            <Edit3 className="w-3.5 h-3.5" />
-                            Edit
-                          </button>
-                        ) : (
-                          <>
+              <div className={`grid ${isApprovedBill ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'} gap-3.5`}>
+                {/* Editable Bank Details - Hidden if Bill is Approved */}
+                {!isApprovedBill && (
+                  <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex flex-col justify-between">
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-xs font-bold text-gray-800 uppercase tracking-wider">Bank Details</h4>
+                        <div className="flex gap-2">
+                          {!editingBankDetails ? (
                             <button
-                              onClick={() => setEditingBankDetails(false)}
-                              className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                              onClick={() => setEditingBankDetails(true)}
+                              className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
                             >
-                              <Check className="w-3.5 h-3.5" />
-                              Done
+                              <Edit3 className="w-3.5 h-3.5" />
+                              Edit
                             </button>
-                            <button
-                              onClick={resetBankDetails}
-                              className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
-                            >
-                              <RotateCcw className="w-3.5 h-3.5" />
-                              Reset
-                            </button>
-                          </>
-                        )}
+                          ) : (
+                            <>
+                              <button
+                                onClick={() => setEditingBankDetails(false)}
+                                className="text-emerald-600 hover:text-emerald-800 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+                              >
+                                <Check className="w-3.5 h-3.5" />
+                                Done
+                              </button>
+                              <button
+                                onClick={resetBankDetails}
+                                className="text-gray-500 hover:text-gray-700 flex items-center gap-1 text-xs cursor-pointer"
+                              >
+                                <RotateCcw className="w-3.5 h-3.5" />
+                                Reset
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
+                      {editingBankDetails ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-0.5">Beneficiary</label>
+                            <input
+                              type="text"
+                              value={editBankDetails.beneficiaryName}
+                              onChange={(e) => handleBankDetailChange('beneficiaryName', e.target.value)}
+                              className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-0.5">Bank Name</label>
+                            <input
+                              type="text"
+                              value={editBankDetails.bankName}
+                              onChange={(e) => handleBankDetailChange('bankName', e.target.value)}
+                              className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-0.5">Account No</label>
+                            <input
+                              type="text"
+                              value={editBankDetails.accountNo}
+                              onChange={(e) => handleBankDetailChange('accountNo', e.target.value)}
+                              className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] text-gray-500 mb-0.5">IFSC Code</label>
+                            <input
+                              type="text"
+                              value={editBankDetails.ifscCode}
+                              onChange={(e) => handleBankDetailChange('ifscCode', e.target.value)}
+                              className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                            />
+                          </div>
+                          <div className="sm:col-span-2">
+                            <label className="block text-[10px] text-gray-500 mb-0.5">Branch</label>
+                            <input
+                              type="text"
+                              value={editBankDetails.branch}
+                              onChange={(e) => handleBankDetailChange('branch', e.target.value)}
+                              className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
+                            />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-1 text-xs text-gray-700">
+                          <p><strong className="text-gray-500 font-medium">Beneficiary:</strong> <span className="font-semibold text-gray-900">{editBankDetails.beneficiaryName}</span></p>
+                          <p><strong className="text-gray-500 font-medium">Bank:</strong> <span className="font-semibold text-gray-900">{editBankDetails.bankName}</span></p>
+                          <p><strong className="text-gray-500 font-medium">Account:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.accountNo}</span></p>
+                          <p><strong className="text-gray-500 font-medium">IFSC:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.ifscCode}</span></p>
+                          <p><strong className="text-gray-500 font-medium">Branch:</strong> <span className="font-semibold text-gray-900">{editBankDetails.branch}</span></p>
+                        </div>
+                      )}
                     </div>
-                    {editingBankDetails ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-0.5">Beneficiary</label>
-                          <input
-                            type="text"
-                            value={editBankDetails.beneficiaryName}
-                            onChange={(e) => handleBankDetailChange('beneficiaryName', e.target.value)}
-                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-0.5">Bank Name</label>
-                          <input
-                            type="text"
-                            value={editBankDetails.bankName}
-                            onChange={(e) => handleBankDetailChange('bankName', e.target.value)}
-                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-0.5">Account No</label>
-                          <input
-                            type="text"
-                            value={editBankDetails.accountNo}
-                            onChange={(e) => handleBankDetailChange('accountNo', e.target.value)}
-                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] text-gray-500 mb-0.5">IFSC Code</label>
-                          <input
-                            type="text"
-                            value={editBankDetails.ifscCode}
-                            onChange={(e) => handleBankDetailChange('ifscCode', e.target.value)}
-                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
-                          />
-                        </div>
-                        <div className="sm:col-span-2">
-                          <label className="block text-[10px] text-gray-500 mb-0.5">Branch</label>
-                          <input
-                            type="text"
-                            value={editBankDetails.branch}
-                            onChange={(e) => handleBankDetailChange('branch', e.target.value)}
-                            className="w-full px-2 py-1 border rounded-lg text-xs bg-white"
-                          />
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="space-y-1 text-xs text-gray-700">
-                        <p><strong className="text-gray-500 font-medium">Beneficiary:</strong> <span className="font-semibold text-gray-900">{editBankDetails.beneficiaryName}</span></p>
-                        <p><strong className="text-gray-500 font-medium">Bank:</strong> <span className="font-semibold text-gray-900">{editBankDetails.bankName}</span></p>
-                        <p><strong className="text-gray-500 font-medium">Account:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.accountNo}</span></p>
-                        <p><strong className="text-gray-500 font-medium">IFSC:</strong> <span className="font-semibold font-mono text-gray-900">{editBankDetails.ifscCode}</span></p>
-                        <p><strong className="text-gray-500 font-medium">Branch:</strong> <span className="font-semibold text-gray-900">{editBankDetails.branch}</span></p>
-                      </div>
-                    )}
                   </div>
-                </div>
+                )}
 
                 {/* Editable Terms & Conditions */}
                 <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100 flex flex-col justify-between">
@@ -3275,6 +3324,23 @@ const BillTransactions: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                </div>
+              </div>
+
+              {/* Signatory & Authorization Block */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between border-t border-slate-200/80 pt-4 mt-2 gap-4">
+                <div className="text-xs text-gray-500 max-w-sm">
+                  Official commercial {isSelectedQuotation ? 'quotation' : 'tax invoice'} issued by <strong className="text-gray-800">Protowiz Private Limited</strong>.<br />
+                  This is a computer-generated document &bull; Coimbatore - 641011 &bull; info@ibots.in &bull; +91 80152 98233
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-bold text-gray-900">For Protowiz Private Limited</p>
+                  {editIncludeSignature && (
+                    <div className="flex justify-end my-1.5">
+                      <img src={SIGNATURE_URL} alt="Sign & Seal" className="h-11 w-auto object-contain bg-white p-1 border border-slate-200 rounded-lg shadow-2xs" />
+                    </div>
+                  )}
+                  <p className="text-[11px] font-semibold text-gray-600 border-t border-slate-200 pt-1 inline-block min-w-[120px]">Authorised Signatory</p>
                 </div>
               </div>
 

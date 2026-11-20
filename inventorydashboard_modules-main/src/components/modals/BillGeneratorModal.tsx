@@ -115,6 +115,9 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
   const [includeSignature, setIncludeSignature] = useState<boolean>(true);
   const [deductFromInventory, setDeductFromInventory] = useState<boolean>(false);
   const [shippingCharges, setShippingCharges] = useState<number>(120);
+  const [customerAddress, setCustomerAddress] = useState<string>(() => {
+    return (enquiryData as any)?.customerAddress || (enquiryData as any)?.address || "";
+  });
 
   const getInitialInvoiceDate = (enq: any, existingBill: any): string => {
     if (existingBill?.billDate) {
@@ -155,8 +158,8 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
     return generateBillNumber(isQuotation);
   });
 
-  const LOGO_URL = "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
-  const SIGNATURE_URL = "/sign.jpg";
+  const LOGO_URL = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}/ibots-logo.png` : "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
+  const SIGNATURE_URL = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}/sign.jpg` : "/sign.jpg";
 
   // Real-time products listener
   useEffect(() => {
@@ -228,6 +231,9 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
         if (billData.placeOfSupply) {
           setPlaceOfSupply(billData.placeOfSupply);
         }
+        if (billData.customerAddress || billData.billedTo?.address || billData.address) {
+          setCustomerAddress(billData.customerAddress || billData.billedTo?.address || billData.address);
+        }
         if (billData.bankDetails) {
           setBankDetails(billData.bankDetails);
         }
@@ -279,6 +285,10 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
     if (open && enquiryData?.enqId) {
       checkExistingBill();
       setInvoiceDate(getInitialInvoiceDate(enquiryData, null));
+      const initialAddr = enquiryData.customerAddress || enquiryData.address || "";
+      if (initialAddr) {
+        setCustomerAddress(initialAddr);
+      }
       // Fetch payment type and payment sub status from enquiry data
       if (enquiryData.paymentType) {
         setPaymentType(enquiryData.paymentType);
@@ -588,7 +598,7 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
       contactNumber: enquiryData.contactNumber || "",
       city: enquiryData.city || "",
       state: enquiryData.state || "Tamil Nadu",
-      address: enquiryData.address || "",
+      address: customerAddress || enquiryData.customerAddress || enquiryData.address || "",
       gstin: enquiryData.gstin || "",
       pan: enquiryData.pan || "",
     };
@@ -903,6 +913,7 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
         dueDate: Timestamp.fromDate(new Date(selectedBillDate.getTime() + 15 * 24 * 60 * 60 * 1000)),
         customerName: billedTo.name,
         customerContact: billedTo.contactNumber,
+        customerAddress: billedTo.address,
         customerCity: billedTo.city,
         billedBy: billedBy,
         billedTo: billedTo,
@@ -1140,6 +1151,7 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
       totalAmount: calculateTotal(),
       customerName: billedTo.name,
       customerContact: billedTo.contactNumber,
+      customerAddress: billedTo.address,
       customerCity: billedTo.city,
       customerState: billedTo.state,
       enquiryEnqId: enquiryData?.enqId,
@@ -1295,7 +1307,21 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
               <div className="text-gray-800 font-semibold text-sm">{billedTo.name}</div>
               <div className="text-gray-600 text-xs mt-1">Enquiry ID: {billedTo.enqId}</div>
               <div className="text-gray-600 text-xs">Contact: {billedTo.contactNumber}</div>
-              <div className="text-gray-600 text-xs">City: {billedTo.city}</div>
+              
+              <div className="mt-2.5 mb-2">
+                <label className="block text-[11px] font-bold text-gray-700 uppercase tracking-wide mb-1">
+                  Customer Address
+                </label>
+                <textarea
+                  value={customerAddress}
+                  onChange={(e) => setCustomerAddress(e.target.value)}
+                  placeholder="Enter complete customer address, street, landmark, pincode..."
+                  rows={2}
+                  className="w-full text-xs p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:border-blue-500 bg-white leading-relaxed"
+                />
+              </div>
+
+              <div className="text-gray-600 text-xs mt-1">City: {billedTo.city}</div>
               <div className="text-gray-600 text-xs">State: {billedTo.state}</div>
               {billedTo.gstin && <div className="text-gray-600 text-xs">GSTIN: {billedTo.gstin}</div>}
               {displayPaymentType && (
@@ -1638,58 +1664,67 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
           )}
 
           <div className="grid grid-cols-2 gap-6 mb-5">
-            <div className="bg-gray-50 rounded p-4 text-xs text-gray-700 leading-relaxed relative">
-              <div className="flex items-center justify-between mb-2">
-                <p className="font-bold text-gray-800 text-sm">Bank Details</p>
-                {showPreview && (
-                  <div className="flex gap-2">
-                    {!editingBankDetails ? (
-                      <button
-                        onClick={() => setEditingBankDetails(true)}
-                        className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs"
-                      >
-                        <Edit3 className="w-3 h-3" />
-                        Edit
-                      </button>
-                    ) : (
-                      <>
+            {!(!docType.isQuotation && (docType.isApprovedAndPaid || enquiryData?.status === "Approved" || existingBillData?.status === "approved" || existingBillData?.status === "paid")) ? (
+              <div className="bg-gray-50 rounded p-4 text-xs text-gray-700 leading-relaxed relative">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-bold text-gray-800 text-sm">Bank Details</p>
+                  {showPreview && (
+                    <div className="flex gap-2">
+                      {!editingBankDetails ? (
                         <button
-                          onClick={() => setEditingBankDetails(false)}
-                          className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
+                          onClick={() => setEditingBankDetails(true)}
+                          className="text-blue-600 hover:text-blue-800 flex items-center gap-1 text-xs"
                         >
-                          <Check className="w-3 h-3" />
-                          Done
+                          <Edit3 className="w-3 h-3" />
+                          Edit
                         </button>
-                        <button
-                          onClick={resetBankDetails}
-                          className="text-gray-600 hover:text-gray-800 flex items-center gap-1 text-xs"
-                        >
-                          <RotateCcw className="w-3 h-3" />
-                          Reset
-                        </button>
-                      </>
-                    )}
+                      ) : (
+                        <>
+                          <button
+                            onClick={() => setEditingBankDetails(false)}
+                            className="text-green-600 hover:text-green-800 flex items-center gap-1 text-xs"
+                          >
+                            <Check className="w-3 h-3" />
+                            Done
+                          </button>
+                          <button
+                            onClick={resetBankDetails}
+                            className="text-gray-600 hover:text-gray-800 flex items-center gap-1 text-xs"
+                          >
+                            <RotateCcw className="w-3 h-3" />
+                            Reset
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {editingBankDetails && showPreview ? (
+                  <div className="space-y-2">
+                    <input type="text" value={bankDetails.beneficiaryName} onChange={(e) => handleBankDetailChange('beneficiaryName', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Beneficiary Name" />
+                    <input type="text" value={bankDetails.bankName} onChange={(e) => handleBankDetailChange('bankName', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Bank Name" />
+                    <input type="text" value={bankDetails.accountNo} onChange={(e) => handleBankDetailChange('accountNo', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Account No" />
+                    <input type="text" value={bankDetails.ifscCode} onChange={(e) => handleBankDetailChange('ifscCode', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="IFSC Code" />
+                    <input type="text" value={bankDetails.branch} onChange={(e) => handleBankDetailChange('branch', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Branch" />
+                  </div>
+                ) : (
+                  <div>
+                    <p><strong>Beneficiary Name:</strong> {bankDetails.beneficiaryName}</p>
+                    <p><strong>Bank Name:</strong> {bankDetails.bankName}</p>
+                    <p><strong>Account No:</strong> {bankDetails.accountNo}</p>
+                    <p><strong>IFSC Code:</strong> {bankDetails.ifscCode}</p>
+                    <p><strong>Branch:</strong> {bankDetails.branch}</p>
                   </div>
                 )}
               </div>
-              {editingBankDetails && showPreview ? (
-                <div className="space-y-2">
-                  <input type="text" value={bankDetails.beneficiaryName} onChange={(e) => handleBankDetailChange('beneficiaryName', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Beneficiary Name" />
-                  <input type="text" value={bankDetails.bankName} onChange={(e) => handleBankDetailChange('bankName', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Bank Name" />
-                  <input type="text" value={bankDetails.accountNo} onChange={(e) => handleBankDetailChange('accountNo', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Account No" />
-                  <input type="text" value={bankDetails.ifscCode} onChange={(e) => handleBankDetailChange('ifscCode', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="IFSC Code" />
-                  <input type="text" value={bankDetails.branch} onChange={(e) => handleBankDetailChange('branch', e.target.value)} className="w-full px-2 py-1 border rounded text-xs" placeholder="Branch" />
-                </div>
-              ) : (
-                <div>
-                  <p><strong>Beneficiary Name:</strong> {bankDetails.beneficiaryName}</p>
-                  <p><strong>Bank Name:</strong> {bankDetails.bankName}</p>
-                  <p><strong>Account No:</strong> {bankDetails.accountNo}</p>
-                  <p><strong>IFSC Code:</strong> {bankDetails.ifscCode}</p>
-                  <p><strong>Branch:</strong> {bankDetails.branch}</p>
-                </div>
-              )}
-            </div>
+            ) : (
+              <div className="bg-emerald-50/70 border border-emerald-200/80 rounded p-4 text-xs text-emerald-900 leading-relaxed flex flex-col justify-center">
+                <p className="font-bold text-emerald-800 text-sm">Invoice Approved & Paid</p>
+                <p className="text-[11px] text-emerald-700 mt-1">
+                  Bank details are removed from the bill since payment is approved.
+                </p>
+              </div>
+            )}
 
             <div>
               <div className="flex justify-between py-1.5 text-sm">

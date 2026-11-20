@@ -69,6 +69,8 @@ export interface BillPrintData {
   };
   customerName?: string;
   customerContact?: string;
+  customerEmail?: string;
+  customerAddress?: string;
   customerCity?: string;
   customerState?: string;
   enquiryEnqId?: string;
@@ -167,8 +169,18 @@ const parseDateString = (rawDate: any): string => {
  * for both Tax Invoices and Quotations.
  */
 export const generateBillPrintHTML = (data: BillPrintData): string => {
+  const origin = typeof window !== 'undefined' && window.location?.origin ? window.location.origin : '';
   const isQuotation = data.isQuotation === true || data.documentType === "QUOTATION" || data.status === "quotation";
   const isPaid = data.isPaid === true || data.paymentStatus === "completed" || data.status === "paid" || data.isApprovedAndPaid === true;
+  const isApprovedInvoice = !isQuotation && (
+    isPaid ||
+    data.status?.toLowerCase() === "approved" ||
+    data.status?.toLowerCase() === "paid" ||
+    data.paymentStatus?.toLowerCase() === "paid" ||
+    data.paymentStatus?.toLowerCase() === "completed" ||
+    (data as any).isApproved === true ||
+    data.isApprovedAndPaid === true
+  );
   
   const docTitle = isQuotation ? "QUOTATION" : (isPaid || data.documentType === "TAX INVOICE" ? "TAX INVOICE" : "INVOICE");
   const docSubTitle = isQuotation 
@@ -182,12 +194,14 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
   const termsList = data.terms && data.terms.length > 0 ? data.terms : (isQuotation ? defaultQuotationTerms : defaultInvoiceTerms);
   const shouldIncludeSignature = data.includeSignature !== false;
   
-  const logoUrl = data.logoUrl || "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
-  const signatureUrl = data.signatureUrl || "/sign.jpg";
+  const logoUrl = data.logoUrl || (origin ? `${origin}/ibots-logo.png` : "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png");
+  const signatureUrl = data.signatureUrl || (origin ? `${origin}/sign.jpg` : "/sign.jpg");
 
   const customerName = data.billedTo?.name || data.customerName || "Customer";
   const customerCompany = data.billedTo?.companyName || "";
   const customerContact = data.billedTo?.contactNumber || data.customerContact || "-";
+  const customerEmail = data.customerEmail || (data as any).email || (data.billedTo as any)?.email || "";
+  const customerAddress = (data.customerAddress || data.billedTo?.address || (data as any).address || "").trim();
   const customerCity = data.billedTo?.city || data.customerCity || "";
   const customerState = data.billedTo?.state || data.customerState || "Tamil Nadu";
   const customerGstin = data.billedTo?.gstin || (data as any).gstin || "";
@@ -298,6 +312,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
 <html lang="en">
 <head>
   <meta charset="utf-8">
+  ${origin ? `<base href="${origin}/" />` : ''}
   <title>${docTitle} - ${docNumber} | Protowiz Private Limited</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <script>
@@ -946,6 +961,14 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
       <!-- Buyer / Billed To -->
       <div class="party-card">
         <div class="party-header">${isQuotation ? 'Quotation Prepared For' : 'Billed To / Buyer'}</div>
+        ${customerAddress ? `
+        <div class="party-body">
+          <div class="party-name">${customerCompany ? `${customerName} &bull; ${customerCompany}` : customerName}</div>
+          <div>${customerAddress}</div>
+          <div><strong>GSTIN:</strong> ${customerGstin ? `<span style="font-family: monospace; font-weight: bold;">${customerGstin}</span>` : 'Consumer / Unregistered'} &nbsp;|&nbsp; <strong>State:</strong> ${customerState || placeOfSupply || 'Tamil Nadu (33)'}</div>
+          <div><strong>Contact:</strong> ${customerEmail ? `${customerEmail} &nbsp;|&nbsp; ` : ''}${customerContact || '-'}</div>
+        </div>
+        ` : `
         <div class="party-body">
           <div class="party-name">${customerName}</div>
           ${customerCompany ? `<div><strong>Company:</strong> ${customerCompany}</div>` : ''}
@@ -955,6 +978,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
             ${!isQuotation && paymentMode !== 'N/A' ? ` &nbsp;|&nbsp; <strong>Payment:</strong> ${paymentMode}` : ''}
           </div>
         </div>
+        `}
       </div>
     </div>
 
@@ -991,6 +1015,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
           <span class="words-text">${numberToWords(totalAmount)}</span>
         </div>
 
+        ${!isApprovedInvoice ? `
         <!-- Bank Details -->
         <div class="bank-card">
           <div class="bank-header">Bank Transfer & Payment Details</div>
@@ -1015,6 +1040,7 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
             <span class="bank-val" style="font-family: inherit;">${bankDetails.branch}</span>
           </div>
         </div>
+        ` : ''}
 
         <!-- Terms & Conditions -->
         <div class="terms-card">
@@ -1119,9 +1145,9 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
           ${shouldIncludeSignature ? `
             <img 
               src="${signatureUrl}" 
-              alt="Authorized Signatory" 
+              alt="Authorized Signatory & Seal" 
               class="sign-image" 
-              onerror="this.style.display='none'" 
+              onerror="this.onerror=null; this.src='/sign.jpg';" 
             />
           ` : ''}
         </div>
