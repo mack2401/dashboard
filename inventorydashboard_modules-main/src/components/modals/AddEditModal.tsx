@@ -775,17 +775,16 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
     if (materials.length === 0) return false;
     
     const productStatus = formData.status;
-    const paymentStatus = formData.paymentStatus;
     
     if (productStatus === "Proforma Invoice" || productStatus === "Invoice") {
       return true;
     }
     
-    if (productStatus === "Quotation" && paymentStatus === "Not Paid") {
+    if (productStatus === "Quotation") {
       return true;
     }
     
-    if (productStatus === "Approved" && paymentStatus === "Paid") {
+    if (productStatus === "Approved") {
       return true;
     }
     
@@ -1020,6 +1019,82 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         });
         savedDocId = docRef.id;
         console.log("Created new enquiry with current date:", docRef.id);
+      }
+
+      // Auto-sync bill record when enquiry is Approved or Quotation
+      try {
+        const billsRef = collection(db, "bills");
+        const bq = query(billsRef, where("enquiryEnqId", "==", payload.enqId));
+        const bSnap = await getDocs(bq);
+
+        const isQuotationDoc = formData.status === "Quotation";
+        const isApprovedDoc = formData.status === "Approved";
+        const isPaidDoc = formData.paymentStatus === "Paid" || formData.paymentStatus === "PAID";
+        const cleanEnqNum = String(payload.enqId || Date.now()).replace(/\D/g, "");
+        const autoInvNumber = isQuotationDoc
+          ? `IBQ-${cleanEnqNum.slice(-6) || Date.now().toString().slice(-6)}`
+          : `IBIN-${cleanEnqNum.slice(-8) || Date.now().toString().slice(-8)}`;
+
+        const billPayload: any = {
+          customerName: payload.customerName,
+          customerContact: payload.contactNumber,
+          customerAddress: payload.customerAddress || payload.address || "",
+          customerCity: payload.city || "",
+          billedTo: {
+            name: payload.customerName,
+            enqId: payload.enqId,
+            contactNumber: payload.contactNumber,
+            city: payload.city || "",
+            state: payload.state || "Tamil Nadu",
+            address: payload.customerAddress || payload.address || "",
+            gstin: payload.companyDetails?.companyGST || payload.gstin || "",
+          },
+          items: materialsData.map(m => ({
+            productId: m.productId,
+            productName: m.productName,
+            quantity: m.quantity,
+            price: m.price,
+            total: m.totalAmount,
+            taxableValue: m.taxableValue,
+            taxRate: m.taxRate,
+            taxAmount: m.taxAmount,
+            hsn: m.hsnCode || "",
+          })),
+          subtotal: calculateSubtotal(),
+          taxAmount: calculateGST(),
+          totalAmount: finalTotal,
+          taxRate: gstRate,
+          enquiryId: currentDocId || payload.enqId,
+          enquiryEnqId: payload.enqId,
+          status: isQuotationDoc ? "quotation" : "completed",
+          paymentStatus: isPaidDoc ? "paid" : "pending",
+          paymentType: payload.paymentType || payload.paymentSubStatus || "",
+          paymentSubStatus: payload.paymentSubStatus || "",
+          shipmentStatus: payload.shipmentStatus || "",
+          isQuotation: isQuotationDoc,
+          deductFromInventory: deductFromInventory,
+          updatedAt: serverTimestamp(),
+        };
+
+        if (!bSnap.empty) {
+          const existingDoc = bSnap.docs[0];
+          await updateDoc(existingDoc.ref, billPayload);
+          console.log("Auto-updated existing bill in bills collection for enquiry:", payload.enqId);
+        } else if ((isApprovedDoc || isQuotationDoc) && materialsData.length > 0) {
+          await addDoc(billsRef, {
+            ...billPayload,
+            invoiceNumber: autoInvNumber,
+            billDate: createdAtValue,
+            dueDate: Timestamp.fromDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)),
+            billId: `BILL-${Date.now()}`,
+            createdAt: serverTimestamp(),
+            createdBy: currentUserProfile?.id || "",
+            createdByName: currentUserProfile?.employeeName || currentUserProfile?.name || "System",
+          });
+          console.log("Auto-created new bill in bills collection for enquiry:", payload.enqId);
+        }
+      } catch (billSyncErr) {
+        console.warn("Could not auto-sync bill record for enquiry:", billSyncErr);
       }
 
       // --- Counter Update Logic for Fast Moving Items ---
@@ -2407,7 +2482,7 @@ Date: ${currentDate}`;
                 className="px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 flex items-center gap-2"
               >
                 <FileText className="w-4 h-4" />
-                {isProformaInvoice ? "Generate Proforma Invoice" : "Generate Bill"}
+                {isProformaInvoice ? "Generate Proforma Invoice" : (formData.status === "Quotation" ? "Generate Quotation" : "Generate Bill / Invoice")}
               </button>
             )}
             <button onClick={handleSave} disabled={loading} className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50">
@@ -2558,6 +2633,7 @@ Date: ${currentDate}`;
             currentUserProfile={currentUserProfile}
             employees={employees}
             gstRate={gstRate}
+            isQuotation={formData.status === "Quotation" || formData.type === "Quotation"}
             onDataUpdated={(updatedData) => {
               console.log('Received updated data from BillGeneratorModal:', updatedData);
               

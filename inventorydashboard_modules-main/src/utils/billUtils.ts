@@ -36,38 +36,34 @@ export const isQuotationBill = (bill: any): boolean => {
   const status = String(bill.status || "").toLowerCase().trim();
   const enquiryStatus = String(bill.enquiryStatus || "").toLowerCase().trim();
   const paymentStatus = String(bill.paymentStatus || "").toLowerCase().trim();
+  const invoiceNumber = String(bill.invoiceNumber || (bill as any).quotationNumber || (bill as any).quoteNo || "").toUpperCase().trim();
 
-  // If explicitly flagged as quotation / estimate / proforma
-  if (
+  // If explicitly flagged as quotation / estimate / proforma or starts with IBQ-
+  const isExplicitQuote =
     status === "quotation" ||
     status === "quote" ||
     status === "proforma" ||
     enquiryStatus === "quotation" ||
     enquiryStatus === "quote" ||
     bill.isQuotation === true ||
-    bill.isProformaInvoice === true
-  ) {
-    if (
-      status !== "paid" &&
-      status !== "completed" &&
-      paymentStatus !== "paid" &&
-      paymentStatus !== "completed" &&
-      enquiryStatus !== "approved" &&
-      enquiryStatus !== "delivered" &&
-      enquiryStatus !== "dispatched"
-    ) {
-      return true;
-    }
+    bill.isProformaInvoice === true ||
+    invoiceNumber.startsWith("IBQ-");
+
+  const isSoldOrApproved =
+    paymentStatus === "paid" ||
+    enquiryStatus === "approved" ||
+    enquiryStatus === "delivered" ||
+    enquiryStatus === "dispatched" ||
+    (status === "approved" && paymentStatus !== "pending");
+
+  if (isExplicitQuote) {
+    return !isSoldOrApproved;
   }
 
   // Pending bills without approval or payment confirmation are treated as quotation / estimates
   if (
     (status === "pending" || !status) &&
-    paymentStatus !== "paid" &&
-    paymentStatus !== "completed" &&
-    enquiryStatus !== "approved" &&
-    enquiryStatus !== "delivered" &&
-    enquiryStatus !== "dispatched"
+    !isSoldOrApproved
   ) {
     return true;
   }
@@ -82,35 +78,35 @@ export const isSoldBill = (bill: any): boolean => {
   const status = String(bill.status || "").toLowerCase().trim();
   const paymentStatus = String(bill.paymentStatus || "").toLowerCase().trim();
   const enquiryStatus = String(bill.enquiryStatus || "").toLowerCase().trim();
+  const invoiceNumber = String(bill.invoiceNumber || (bill as any).quotationNumber || (bill as any).quoteNo || "").toUpperCase().trim();
 
-  // If marked as quotation or proforma, only consider sold if explicitly approved/paid
-  if (
+  const isQuote =
     status === "quotation" ||
     status === "quote" ||
     status === "proforma" ||
     enquiryStatus === "quotation" ||
     enquiryStatus === "quote" ||
-    bill.isQuotation === true
-  ) {
+    bill.isQuotation === true ||
+    invoiceNumber.startsWith("IBQ-");
+
+  // If marked as quotation or proforma, only consider sold if explicitly approved or paid
+  if (isQuote) {
     return (
-      status === "paid" ||
-      status === "completed" ||
       paymentStatus === "paid" ||
-      paymentStatus === "completed" ||
       enquiryStatus === "approved" ||
       enquiryStatus === "delivered" ||
       enquiryStatus === "dispatched"
     );
   }
 
-  // Sold orders: paid, approved, completed, delivered, dispatched
+  // Sold orders: paid, approved, completed (only if not a quote), delivered, dispatched, sales
   return (
     status === "paid" ||
-    status === "completed" ||
     status === "approved" ||
     status === "delivered" ||
     status === "dispatched" ||
     status === "sales" ||
+    status === "completed" ||
     paymentStatus === "paid" ||
     paymentStatus === "completed" ||
     enquiryStatus === "approved" ||

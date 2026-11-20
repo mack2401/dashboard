@@ -5,7 +5,7 @@ import { X, Printer, Save, AlertCircle, Edit3, Check, RotateCcw, RefreshCw, Plus
 import { Timestamp, doc, updateDoc, addDoc, collection, serverTimestamp, getDoc, query, where, getDocs, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
 import { billService } from "../../services/billService";
-import { generateBillPrintHTML } from "../../utils/billPrintTemplate";
+import { generateBillPrintHTML, getContextualTerms, isLegacyDefaultTerms } from "../../utils/billPrintTemplate";
 
 interface MaterialItem {
   id: string;
@@ -68,7 +68,7 @@ const defaultBankDetails: BankDetails = {
 const defaultTerms: TermsCondition[] = [
   { id: 1, text: "Payment: 100% advance" },
   { id: 2, text: "Delivery: 10-12 days maximum from advance initiation" },
-  { id: 3, text: "Quote Validity: 2 days" },
+  { id: 3, text: "PI Validity: 2 days" },
 ];
 
 // Tax rates configuration
@@ -105,7 +105,14 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
   const [editingBankDetails, setEditingBankDetails] = useState<boolean>(false);
   const [editingTerms, setEditingTerms] = useState<boolean>(false);
   const [bankDetails, setBankDetails] = useState<BankDetails>(defaultBankDetails);
-  const [terms, setTerms] = useState<TermsCondition[]>(defaultTerms);
+  const [terms, setTerms] = useState<TermsCondition[]>(() => {
+    return getContextualTerms({
+      isQuotation,
+      paymentStatus: enquiryData?.paymentStatus,
+      status: enquiryData?.status,
+      shipmentStatus: enquiryData?.shipmentStatus || (enquiryData as any)?.shippingStatus,
+    });
+  });
   const [newTerm, setNewTerm] = useState<string>("");
   const [fetchingHsn, setFetchingHsn] = useState<boolean>(false);
   const [existingBillId, setExistingBillId] = useState<string | null>(null);
@@ -155,7 +162,8 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
   };
 
   const [billNumber, setBillNumber] = useState<string>(() => {
-    return generateBillNumber(isQuotation);
+    const isQuote = isQuotation || enquiryData?.status === "Quotation" || enquiryData?.status?.toLowerCase() === "quotation";
+    return generateBillNumber(isQuote);
   });
 
   const LOGO_URL = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}/ibots-logo.png` : "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
@@ -193,20 +201,27 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
     if (!enquiryData?.enqId) return null;
     
     try {
+      const isQuoteMode = isQuotation || enquiryData?.status === "Quotation" || enquiryData?.status?.toLowerCase() === "quotation";
       const billsRef = collection(db, "bills");
       const q = query(
         billsRef, 
-        where("enquiryEnqId", "==", enquiryData.enqId),
-        where("isQuotation", "==", isQuotation)
+        where("enquiryEnqId", "==", enquiryData.enqId)
       );
       const querySnapshot = await getDocs(q);
       
       if (!querySnapshot.empty) {
-        const existingBill = querySnapshot.docs[0];
+        const matchingDoc = querySnapshot.docs.find(d => !!d.data().isQuotation === isQuoteMode) || querySnapshot.docs[0];
+        const existingBill = matchingDoc;
         const billData = existingBill.data();
         setExistingBillId(existingBill.id);
         setExistingBillData(billData);
-        setBillNumber(billData.invoiceNumber);
+        if (billData.invoiceNumber) {
+          if (isQuoteMode && billData.invoiceNumber.startsWith("IBIN-")) {
+            setBillNumber(`IBQ-${billData.invoiceNumber.replace("IBIN-", "")}`);
+          } else {
+            setBillNumber(billData.invoiceNumber);
+          }
+        }
         if (billData.includeSignature !== undefined) {
           setIncludeSignature(billData.includeSignature);
         }
@@ -238,7 +253,30 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
           setBankDetails(billData.bankDetails);
         }
         if (billData.terms && Array.isArray(billData.terms) && billData.terms.length > 0) {
-          setTerms(billData.terms);
+          const stringTerms = billData.terms.map((t: any) => (typeof t === "string" ? t : t?.text || ""));
+          if (isLegacyDefaultTerms(stringTerms)) {
+            const contextual = getContextualTerms({
+              isQuotation: billData.isQuotation !== undefined ? billData.isQuotation : isQuotation,
+              paymentStatus: billData.paymentStatus || enquiryData?.paymentStatus,
+              status: billData.status || enquiryData?.status,
+              shipmentStatus: billData.shipmentStatus || enquiryData?.shipmentStatus || (enquiryData as any)?.shippingStatus,
+            });
+            setTerms(contextual);
+          } else {
+            setTerms(
+              billData.terms.map((t: any, idx: number) =>
+                typeof t === "string" ? { id: idx + 1, text: t } : { id: t.id || idx + 1, text: t.text || "" }
+              )
+            );
+          }
+        } else {
+          const contextual = getContextualTerms({
+            isQuotation: billData.isQuotation !== undefined ? billData.isQuotation : isQuotation,
+            paymentStatus: billData.paymentStatus || enquiryData?.paymentStatus,
+            status: billData.status || enquiryData?.status,
+            shipmentStatus: billData.shipmentStatus || enquiryData?.shipmentStatus || (enquiryData as any)?.shippingStatus,
+          });
+          setTerms(contextual);
         }
         if (billData.billDate) {
           const d = typeof billData.billDate.toDate === "function" ? billData.billDate.toDate() : new Date(billData.billDate);
@@ -272,6 +310,14 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
           }
         }
         return existingBill;
+      } else {
+        const contextual = getContextualTerms({
+          isQuotation,
+          paymentStatus: enquiryData?.paymentStatus,
+          status: enquiryData?.status,
+          shipmentStatus: enquiryData?.shipmentStatus || (enquiryData as any)?.shippingStatus,
+        });
+        setTerms(contextual);
       }
       return null;
     } catch (error) {
@@ -606,7 +652,12 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
 
   // Determine if this should be shown as Quotation or Invoice based on enquiry status
   const getDocumentType = () => {
-    const isQuote = isQuotation || existingBillData?.isQuotation === true || (!existingBillId && enquiryData?.status === "Quotation");
+    const isQuote =
+      isQuotation ||
+      existingBillData?.isQuotation === true ||
+      enquiryData?.status === "Quotation" ||
+      enquiryData?.status?.toLowerCase() === "quotation" ||
+      enquiryData?.type?.toLowerCase() === "quotation";
     const rawPaymentStatus = enquiryData?.paymentStatus || existingBillData?.paymentStatus || "";
     const isPaid = rawPaymentStatus.toLowerCase() === "paid" || rawPaymentStatus.toLowerCase() === "completed";
     const isApprovedAndPaid = !isQuote && enquiryData?.status === "Approved" && isPaid;
@@ -858,7 +909,13 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
   };
 
   const resetTerms = () => {
-    setTerms(defaultTerms);
+    const contextual = getContextualTerms({
+      isQuotation,
+      paymentStatus: existingBillData?.paymentStatus || enquiryData?.paymentStatus,
+      status: existingBillData?.status || enquiryData?.status,
+      shipmentStatus: existingBillData?.shipmentStatus || enquiryData?.shipmentStatus || (enquiryData as any)?.shippingStatus,
+    });
+    setTerms(contextual);
   };
 
   const handleGenerateBill = async () => {
@@ -955,6 +1012,7 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
         createdByRole: currentUserProfile?.role || "staff",
         status: docType.isQuotation ? "quotation" : "completed",
         paymentStatus: docType.isApprovedAndPaid ? "paid" : "pending",
+        shipmentStatus: enquiryData?.shipmentStatus || existingBillData?.shipmentStatus || (enquiryData as any)?.shippingStatus || "",
         paymentType: paymentType || enquiryData.paymentType || "",
         paymentSubStatus: paymentSubStatus || enquiryData.paymentSubStatus || "",
         updatedAt: now,
@@ -1163,6 +1221,7 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
       isPaid: docType.isPaid,
       isQuotation: docType.isQuotation,
       isApprovedAndPaid: docType.isApprovedAndPaid,
+      shipmentStatus: enquiryData?.shipmentStatus || existingBillData?.shipmentStatus || (enquiryData as any)?.shippingStatus || "",
       logoUrl: LOGO_URL,
       signatureUrl: SIGNATURE_URL,
       includeSignature: includeSignature,

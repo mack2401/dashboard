@@ -42,6 +42,7 @@ export interface BillPrintData {
   paymentStatus?: string;
   paymentType?: string;
   paymentSubStatus?: string;
+  shipmentStatus?: string;
   isPaid?: boolean;
   isQuotation?: boolean;
   isApprovedAndPaid?: boolean;
@@ -137,19 +138,87 @@ export const defaultCompanyBankDetails: BankDetailsPrint = {
 };
 
 export const defaultQuotationTerms: TermConditionPrint[] = [
-  { id: 1, text: "Payment Terms: 100% advance payment required to confirm order." },
-  { id: 2, text: "Delivery Timeline: 10 - 12 business days from advance confirmation." },
-  { id: 3, text: "Price Validity: Valid for 2 days from date of issuance." },
-  { id: 4, text: "GST charged extra as applicable at statutory rates." },
-  { id: 5, text: "Subject to Coimbatore jurisdiction." },
+  { id: 1, text: "Payment: 100% advance" },
+  { id: 2, text: "Delivery: 10-12 days maximum from advance initiation" },
+  { id: 3, text: "PI Validity: 2 days" },
+];
+
+export const defaultDeliveredPaidTerms: TermConditionPrint[] = [
+  { id: 1, text: "Payment has been received in full." },
+  { id: 2, text: "Product has been delivered successfully." },
+  { id: 3, text: "No return or replacement will be accepted after delivery." },
+];
+
+export const defaultPaidInvoiceTerms: TermConditionPrint[] = [
+  { id: 1, text: "Payment has been received in full." },
+  { id: 2, text: "Order has been dispatched and is in transit." },
+  { id: 3, text: "No return or replacement will be accepted after delivery." },
 ];
 
 export const defaultInvoiceTerms: TermConditionPrint[] = [
-  { id: 1, text: "Goods once sold cannot be taken back or exchanged unless approved." },
-  { id: 2, text: "Payment terms strictly as agreed per invoice." },
+  { id: 1, text: "Payment terms strictly as agreed per invoice." },
+  { id: 2, text: "Delivery timeline: 10-12 business days from advance confirmation." },
   { id: 3, text: "Warranty as per standard manufacturer guidelines." },
   { id: 4, text: "Subject to Coimbatore jurisdiction." },
 ];
+
+export const isLegacyDefaultTerms = (terms?: TermConditionPrint[]): boolean => {
+  if (!terms || !Array.isArray(terms) || terms.length === 0) return true;
+  const t0 = String(terms[0]?.text || "").toLowerCase();
+  return (
+    t0.includes("payment terms: 100% advance payment required") ||
+    t0.includes("goods once sold cannot be taken back") ||
+    t0.includes("warranty as per standard manufacturer guidelines")
+  );
+};
+
+export const getContextualTerms = (params: {
+  isQuotation?: boolean;
+  documentType?: string;
+  status?: string;
+  paymentStatus?: string;
+  shipmentStatus?: string;
+  isPaid?: boolean;
+  isApprovedAndPaid?: boolean;
+}): TermConditionPrint[] => {
+  const isQuote =
+    params.isQuotation === true ||
+    params.documentType === "QUOTATION" ||
+    params.documentType === "PROFORMA INVOICE" ||
+    params.status?.toLowerCase() === "quotation" ||
+    params.status?.toLowerCase() === "proforma";
+
+  if (isQuote) {
+    return defaultQuotationTerms;
+  }
+
+  const isPaid =
+    params.isPaid === true ||
+    params.isApprovedAndPaid === true ||
+    params.paymentStatus?.toLowerCase() === "paid" ||
+    params.paymentStatus?.toLowerCase() === "completed" ||
+    params.status?.toLowerCase() === "paid";
+
+  const shipmentStatus = (params.shipmentStatus || "").toLowerCase();
+  const isDelivered = shipmentStatus === "delivered";
+
+  if (isPaid && isDelivered) {
+    return defaultDeliveredPaidTerms;
+  }
+
+  if (isPaid) {
+    if (shipmentStatus === "dispatched" || shipmentStatus === "in shipment") {
+      return defaultPaidInvoiceTerms;
+    }
+    return [
+      { id: 1, text: "Payment has been received in full." },
+      { id: 2, text: "Order is packed and scheduled for delivery." },
+      { id: 3, text: "No return or replacement will be accepted after delivery." },
+    ];
+  }
+
+  return defaultInvoiceTerms;
+};
 
 const parseDateString = (rawDate: any): string => {
   if (!rawDate) return new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
@@ -191,7 +260,18 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
   const formattedDate = parseDateString(data.billDate);
 
   const bankDetails = data.bankDetails || defaultCompanyBankDetails;
-  const termsList = data.terms && data.terms.length > 0 ? data.terms : (isQuotation ? defaultQuotationTerms : defaultInvoiceTerms);
+  const termsList =
+    data.terms && data.terms.length > 0 && !isLegacyDefaultTerms(data.terms)
+      ? data.terms
+      : getContextualTerms({
+          isQuotation,
+          documentType: data.documentType,
+          status: data.status,
+          paymentStatus: data.paymentStatus,
+          shipmentStatus: data.shipmentStatus,
+          isPaid,
+          isApprovedAndPaid: data.isApprovedAndPaid,
+        });
   const shouldIncludeSignature = data.includeSignature !== false;
   
   const logoUrl = data.logoUrl || (origin ? `${origin}/ibots-logo.png` : "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png");
