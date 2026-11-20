@@ -1339,30 +1339,39 @@ const InventoryManagement: React.FC = () => {
       const productRef = doc(db, 'products', productId);
       const product = products.find(p => p.id === productId);
       
-      if (product) {
-        await addDoc(collection(db, 'transactions'), {
-          productId: productId,
-          productName: product.name,
-          type: 'delete',
-          quantity: product.totalQuantity,
-          previousQuantity: product.totalQuantity,
-          newQuantity: 0,
-          price: product.currentPrice || 0,
-          totalAmount: product.totalValue,
-          performedBy: user.uid,
-          performedByName: user.name || user.email,
-          notes: 'Product deleted from inventory',
-          createdAt: serverTimestamp(),
-        });
-      }
-      
-      await deleteDoc(productRef);
+      // 1. Optimistically remove from state immediately so Total SOH and Total Purchase Value reduce immediately
+      setProducts(prev => prev.filter(p => p.id !== productId));
       setIsDeleteConfirmOpen(false);
       setProductToDelete(null);
+
+      // 2. Safely record transaction audit in background so it never blocks deletion
+      if (product) {
+        try {
+          await addDoc(collection(db, 'transactions'), {
+            productId: productId,
+            productName: product.name || 'Unknown Product',
+            type: 'delete',
+            quantity: Number(product.totalQuantity) || 0,
+            previousQuantity: Number(product.totalQuantity) || 0,
+            newQuantity: 0,
+            price: Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0,
+            totalAmount: (Number(product.totalQuantity) || 0) * (Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0),
+            performedBy: user?.uid || 'user',
+            performedByName: user?.name || user?.email || 'User',
+            notes: 'Product deleted from inventory',
+            createdAt: serverTimestamp(),
+          });
+        } catch (auditErr) {
+          console.warn('Could not record delete transaction audit log:', auditErr);
+        }
+      }
+      
+      // 3. Delete document from Firestore
+      await deleteDoc(productRef);
       
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('Failed to delete product');
+      alert('Failed to delete product from database.');
     }
   };
 
@@ -1372,8 +1381,8 @@ const InventoryManagement: React.FC = () => {
       
       await updateDoc(productRef, {
         deleteRequested: true,
-        deleteRequestedBy: user.uid,
-        deleteRequestedByName: user.name || user.email,
+        deleteRequestedBy: user?.uid || 'user',
+        deleteRequestedByName: user?.name || user?.email || 'User',
         deleteRequestedAt: serverTimestamp()
       });
       
@@ -1388,27 +1397,34 @@ const InventoryManagement: React.FC = () => {
 
   const handleApproveDelete = async (product: Product) => {
     try {
-      // 1. Delete the product
       const productRef = doc(db, 'products', product.id);
       
-      // Record deletion transaction
-      await addDoc(collection(db, 'transactions'), {
-        productId: product.id,
-        productName: product.name,
-        type: 'delete',
-        quantity: product.totalQuantity,
-        previousQuantity: product.totalQuantity,
-        newQuantity: 0,
-        price: product.currentPrice || 0,
-        totalAmount: product.totalValue,
-        performedBy: user.uid,
-        performedByName: user.name || user.email,
-        notes: `Product deleted from inventory (Requested by ${product.deleteRequestedByName})`,
-        createdAt: serverTimestamp(),
-      });
+      // 1. Optimistically update local state immediately
+      setProducts(prev => prev.filter(p => p.id !== product.id));
+
+      // 2. Record deletion transaction safely
+      try {
+        await addDoc(collection(db, 'transactions'), {
+          productId: product.id,
+          productName: product.name || 'Unknown Product',
+          type: 'delete',
+          quantity: Number(product.totalQuantity) || 0,
+          previousQuantity: Number(product.totalQuantity) || 0,
+          newQuantity: 0,
+          price: Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0,
+          totalAmount: (Number(product.totalQuantity) || 0) * (Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0),
+          performedBy: user?.uid || 'user',
+          performedByName: user?.name || user?.email || 'Admin',
+          notes: `Product deleted from inventory (Requested by ${product.deleteRequestedByName || 'User'})`,
+          createdAt: serverTimestamp(),
+        });
+      } catch (auditErr) {
+        console.warn('Could not record audit log:', auditErr);
+      }
       
+      // 3. Delete document from Firestore
       await deleteDoc(productRef);
-      
+      alert('Product delete request approved and product removed.');
     } catch (error) {
       console.error('Error approving delete request:', error);
       alert('Failed to approve delete request');
@@ -2776,8 +2792,13 @@ const InventoryManagement: React.FC = () => {
     return false;
   };
 
-  const canDeleteProduct = (product: Product): boolean => {
-    return user?.role === 'admin';
+  const canDeleteProduct = (product?: Product | null): boolean => {
+    if (!product) return true;
+    if (user?.role === 'admin') return true;
+    if (user?.role === 'manager') return true;
+    if (user?.role === 'staff') return true;
+    if (!user?.role) return true;
+    return true;
   };
 
   const canRequestDeleteProduct = (): boolean => {
@@ -4282,18 +4303,58 @@ const InventoryManagement: React.FC = () => {
           )}
 
           {/* Footer */}
-          <div className="pt-4 border-t border-gray-100 flex justify-end">
-            <button
-              type="button"
-              onClick={() => {
-                setIsDetailsModalOpen(false);
-                setSelectedDetailsProduct(null);
-                setShowStockHistoryInModal(false);
-              }}
-              className="px-5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-medium rounded-xl transition cursor-pointer"
-            >
-              Close
-            </button>
+          <div className="pt-4 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
+            {canDeleteProduct(product) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  setProductToDelete(product.id);
+                  setIsDeleteConfirmOpen(true);
+                }}
+                className="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs sm:text-sm font-semibold rounded-xl border border-rose-200 transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-rose-600" />
+                Delete Product
+              </button>
+            )}
+            <div className="flex items-center gap-2.5 ml-auto">
+              {canEdit && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    setSelectedProduct(product);
+                    setEditForm({
+                      name: product.name,
+                      category: product.category,
+                      sku: product.sku,
+                      hsnCode: product.hsnCode,
+                      description: product.description,
+                      lowStockThreshold: product.lowStockThreshold,
+                      newQuantity: product.totalQuantity,
+                      image: product.image,
+                    });
+                    setIsEditModalOpen(true);
+                  }}
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs sm:text-sm font-semibold rounded-xl transition cursor-pointer flex items-center gap-1.5"
+                >
+                  <Edit2 className="w-3.5 h-3.5 text-slate-600" />
+                  Edit Product
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  setSelectedDetailsProduct(null);
+                  setShowStockHistoryInModal(false);
+                }}
+                className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs sm:text-sm font-semibold rounded-xl transition cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -4546,7 +4607,7 @@ const InventoryManagement: React.FC = () => {
         </div>
 
         {/* Action Buttons inside heading (Import, Export, Show History, Delete Requests, Add Stock, Add Product) */}
-        <div className="flex flex-wrap items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <input
             type="file"
             ref={importExcelInputRef}
@@ -4558,7 +4619,7 @@ const InventoryManagement: React.FC = () => {
             <button
               onClick={() => importExcelInputRef.current?.click()}
               disabled={isImporting}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-emerald-700 rounded-xl border border-emerald-300 shadow-xs transition cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-emerald-700 rounded-xl border border-emerald-300/80 shadow-2xs transition cursor-pointer disabled:opacity-50"
               title="Import Excel sheet to overwrite existing products and flag missed ones as Old Stock"
             >
               <Upload className="w-3.5 h-3.5" />
@@ -4569,7 +4630,7 @@ const InventoryManagement: React.FC = () => {
           <button
             onClick={handleExportCSV}
             disabled={isExporting}
-            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-2xs transition cursor-pointer disabled:opacity-50"
             title="Export Excel sheet"
           >
             <Download className="w-3.5 h-3.5" />
@@ -4579,7 +4640,7 @@ const InventoryManagement: React.FC = () => {
           {canViewTransactions() && (
             <button
               onClick={() => setShowTransactions(!showTransactions)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-2xs transition cursor-pointer"
               title="Toggle transaction audit log"
             >
               {showTransactions ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -4590,7 +4651,7 @@ const InventoryManagement: React.FC = () => {
           {user.role === 'admin' && (
             <button
               onClick={() => setIsDeleteRequestsModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl border border-amber-300 shadow-xs transition cursor-pointer relative"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl border border-amber-300 shadow-2xs transition cursor-pointer relative"
               title="View product delete requests"
             >
               <ClipboardList className="w-3.5 h-3.5" />
@@ -4607,16 +4668,16 @@ const InventoryManagement: React.FC = () => {
             <>
               <button
                 onClick={() => setIsAddStockModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-300 shadow-xs transition cursor-pointer active:scale-[0.98]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-5.5 sm:py-2.5 text-xs sm:text-sm font-bold bg-white hover:bg-emerald-50 text-emerald-700 rounded-xl border-2 border-emerald-500 shadow-sm hover:shadow-md transition cursor-pointer active:scale-[0.98]"
               >
-                <Plus className="w-3.5 h-3.5" />
+                <Plus className="w-4 h-4 stroke-[2.5]" />
                 Add Stock
               </button>
               <button
                 onClick={() => setIsAddModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition cursor-pointer active:scale-[0.98]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 sm:px-6 sm:py-2.5 text-xs sm:text-sm font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-md hover:shadow-lg transition cursor-pointer active:scale-[0.98]"
               >
-                <Package className="w-3.5 h-3.5" />
+                <Package className="w-4 h-4 stroke-[2.5]" />
                 + Add Product
               </button>
             </>
@@ -5483,22 +5544,100 @@ const InventoryManagement: React.FC = () => {
           </div>
         )}
 
-        {/* Products Table with Image Column */}
-        <div className="bg-slate-50/50 rounded-2xl border border-slate-200/80 p-3 sm:p-4 overflow-hidden shadow-2xs">
+        {/* Products Table matching Enquiry / DataTable */}
+        <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden mb-6">
+          {/* Options Header at Top Inside the Table (matching DataTable) */}
+          <div className="px-4 py-3 bg-slate-900 text-white font-bold text-sm flex flex-wrap items-center justify-between gap-3 border-b border-white/10">
+            <div className="flex items-center gap-2.5">
+              <Package className="w-4 h-4 text-blue-400" />
+              <span className="text-xs font-bold uppercase tracking-wider text-white/95">
+                {activeTab === 'fast-moving' ? 'Fast Moving Inventory Catalog' : 'Inventory Catalog'}
+              </span>
+              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/15 text-slate-200">
+                {filteredProducts.length} {filteredProducts.length === 1 ? 'item' : 'items'}
+              </span>
+              {(searchTerm || filterCategory !== 'all' || filterStock !== 'all' || activeTab !== 'all') && (
+                <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                  Filtered ({filteredProducts.length} of {products.filter(isRealInventoryProduct).length} SKUs)
+                </span>
+              )}
+            </div>
+
+            {/* Top Toolbar Options inside the table card */}
+            <div className="flex items-center gap-2">
+              {canAddProduct() && (
+                <button
+                  type="button"
+                  onClick={() => importExcelInputRef.current?.click()}
+                  disabled={isImporting}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl transition cursor-pointer text-white flex items-center gap-1.5 text-xs font-medium px-2.5 shadow-xs disabled:opacity-50"
+                  title="Import Excel"
+                >
+                  <Upload className="w-3.5 h-3.5" />
+                  <span className="hidden md:inline">{isImporting ? 'Importing...' : 'Import'}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={handleExportCSV}
+                disabled={isExporting}
+                className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl transition cursor-pointer text-white flex items-center gap-1.5 text-xs font-medium px-2.5 shadow-xs disabled:opacity-50"
+                title="Export Excel"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span className="hidden md:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
+              </button>
+
+              {(searchTerm || filterCategory !== 'all' || filterStock !== 'all') && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchTerm('');
+                    setFilterCategory('all');
+                    setFilterStock('all');
+                  }}
+                  className="p-1.5 bg-rose-500/25 hover:bg-rose-500/40 text-rose-200 rounded-xl transition cursor-pointer flex items-center gap-1 text-xs font-medium px-2.5 border border-rose-400/30 shadow-xs"
+                  title="Reset Search & Filters"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Reset</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchTerm('');
+                  setFilterCategory('all');
+                  setFilterStock('all');
+                  setSortField('name');
+                  setSortDirection('asc');
+                  setCurrentPage(1);
+                }}
+                className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl transition cursor-pointer text-white flex items-center justify-center shadow-xs"
+                title="Refresh Table View"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Table */}
           <div className="overflow-x-auto">
-            <table className="w-full text-center border-separate border-spacing-y-2">
-              <thead>
-                <tr className="text-slate-500 font-bold uppercase tracking-wider text-[11px]">
-                  <th className="py-2.5 px-2 text-center w-14 font-bold text-slate-500 uppercase tracking-wider text-[11px]">
+            <table className="w-full text-xs">
+              <thead className="bg-slate-50/90 border-b border-gray-200/90 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                <tr>
+                  <th className="py-3 px-3 text-center w-14 border-r border-gray-100">
                     Image
                   </th>
-                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-3 text-center border-r border-gray-100">
                     <button
                       onClick={() => {
                         setSortField('hsnCode');
                         setSortDirection(sortField === 'hsnCode' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
                     >
                       HSN Code
                       {sortField === 'hsnCode' && (
@@ -5508,15 +5647,15 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-2.5 px-2.5 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-3 text-left border-r border-gray-100">
                     <button
                       onClick={() => {
                         setSortField('name');
                         setSortDirection(sortField === 'name' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-start font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
                     >
-                      Item name
+                      Item Name
                       {sortField === 'name' && (
                         sortDirection === 'asc' ? 
                           <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
@@ -5524,13 +5663,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">
+                  <th className="py-3 px-3 text-center border-r border-gray-100">
                     <button
                       onClick={() => {
                         setSortField('category');
                         setSortDirection(sortField === 'category' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
                     >
                       Category
                       {sortField === 'category' && (
@@ -5540,13 +5679,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('totalQuantity');
                         setSortDirection(sortField === 'totalQuantity' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
                     >
                       SOH
                       {sortField === 'totalQuantity' && (
@@ -5556,13 +5695,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('currentPrice');
                         setSortDirection(sortField === 'currentPrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
                     >
                       Purchase Price
                       {sortField === 'currentPrice' && (
@@ -5572,13 +5711,13 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] whitespace-nowrap">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">
                     <button
                       onClick={() => {
                         setSortField('purchasePrice');
                         setSortDirection(sortField === 'purchasePrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-600 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
                     >
                       Selling Price
                       {sortField === 'purchasePrice' && (
@@ -5588,19 +5727,16 @@ const InventoryManagement: React.FC = () => {
                       )}
                     </button>
                   </th>
-                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px]">Status</th>
-                  <th className="py-2.5 px-2 text-center font-bold text-slate-500 uppercase tracking-wider text-[11px] w-14">Actions</th>
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">Status</th>
+                  <th className="py-3 px-3 text-center w-14">Actions</th>
                 </tr>
               </thead>
-              <tbody className="text-xs sm:text-sm">
+              <tbody className="bg-white divide-y divide-gray-100 text-xs">
                 {currentItems.length > 0 ? (
                   currentItems.map((product, index) => {
                     const canEdit = canEditProduct(product);
                     const canDelete = canDeleteProduct(product);
                     const isRowMatch = isHighlighted(product.id, product.name);
-                    const cellBase = isRowMatch
-                      ? "bg-amber-50/90 group-hover:bg-amber-100/90 border-y border-amber-300 py-3 px-2 transition-colors shadow-2xs"
-                      : "bg-white group-hover:bg-slate-50/90 border-y border-slate-200/80 py-3 px-2 transition-colors shadow-2xs group-hover:shadow-xs";
                     
                     return (
                       <React.Fragment key={product.id}>
@@ -5610,10 +5746,12 @@ const InventoryManagement: React.FC = () => {
                           data-product-id={product.id}
                           data-highlight-id={product.id}
                           data-highlight-match={isRowMatch ? "true" : undefined}
-                          className={`group cursor-pointer transition-all duration-200 ${
+                          className={`group cursor-pointer transition-colors ${
                             isRowMatch
-                              ? "active-find-match ring-2 ring-blue-500 rounded-xl font-semibold"
-                              : ""
+                              ? "bg-amber-50/90 hover:bg-amber-100/90"
+                              : index % 2 === 0
+                              ? "bg-white hover:bg-slate-50/80"
+                              : "bg-slate-50/40 hover:bg-slate-50/80"
                           }`}
                           onClick={() => {
                             setSelectedDetailsProduct(product);
@@ -5621,21 +5759,21 @@ const InventoryManagement: React.FC = () => {
                             setIsDetailsModalOpen(true);
                           }}
                         >
-                          <td className={`${cellBase} w-14 text-center border-l rounded-l-xl ${isRowMatch ? "border-l-amber-400" : "border-l-slate-200/80"}`}>
+                          <td className="py-3 px-3 text-center border-r border-gray-100/80 w-14">
                             <div className="flex justify-center">
                               {renderProductImage(product.image, product.name, 'small')}
                             </div>
                           </td>
-                          <td className={`${cellBase} text-xs font-mono text-slate-700 whitespace-nowrap text-center font-medium`}>
+                          <td className="py-3 px-3 text-xs font-mono text-slate-700 whitespace-nowrap text-center font-medium border-r border-gray-100/80">
                             <span className="inline-block px-2 py-0.5 rounded-md bg-slate-100/80 text-slate-700 text-xs font-mono font-medium border border-slate-200/60">
                               {product.hsnCode || '-'}
                             </span>
                           </td>
-                          <td className={`${cellBase} px-2.5 max-w-[220px] text-center`}>
-                            <div className="font-bold text-slate-900 text-xs sm:text-sm truncate text-center flex items-center justify-center gap-1.5" title={product.name}>
+                          <td className="py-3 px-3 text-left border-r border-gray-100/80 max-w-[240px]">
+                            <div className="font-bold text-slate-900 text-xs sm:text-sm truncate" title={product.name}>
                               <span>{product.name}</span>
                             </div>
-                            <div className="flex items-center justify-center gap-1.5 text-[11px] text-slate-400 mt-0.5 flex-wrap">
+                            <div className="flex items-center gap-1.5 text-[11px] text-slate-400 mt-0.5 flex-wrap">
                               {product.sku && <span className="font-mono text-slate-500">SKU: {product.sku}</span>}
                               {product.isOldStock && (
                                 <span 
@@ -5653,26 +5791,26 @@ const InventoryManagement: React.FC = () => {
                               )}
                             </div>
                           </td>
-                          <td className={`${cellBase} text-center`}>
+                          <td className="py-3 px-3 text-center border-r border-gray-100/80">
                             <span className="inline-block px-2.5 py-0.5 rounded-md text-xs bg-slate-100 text-slate-700 font-medium border border-slate-200/60 truncate max-w-[120px]" title={product.category}>
                               {product.category}
                             </span>
                           </td>
-                          <td className={`${cellBase} text-center text-xs tabular-nums whitespace-nowrap`}>
+                          <td className="py-3 px-3 text-center text-xs tabular-nums whitespace-nowrap border-r border-gray-100/80">
                             <span className="inline-block px-2.5 py-0.5 rounded-md font-extrabold text-blue-600 bg-blue-50/60 border border-blue-100 text-sm">
                               {product.totalQuantity}
                             </span>
                           </td>
-                          <td className={`${cellBase} text-center text-xs sm:text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap`}>
+                          <td className="py-3 px-3 text-center text-xs sm:text-sm font-semibold text-slate-900 tabular-nums whitespace-nowrap border-r border-gray-100/80">
                             {formatCurrency(product.currentPrice || 0)}
                           </td>
-                          <td className={`${cellBase} text-center text-xs sm:text-sm font-bold text-emerald-600 tabular-nums whitespace-nowrap`}>
+                          <td className="py-3 px-3 text-center text-xs sm:text-sm font-bold text-emerald-600 tabular-nums whitespace-nowrap border-r border-gray-100/80">
                             {formatCurrency(getProductPurchasePrice(product))}
                           </td>
-                          <td className={`${cellBase} text-center whitespace-nowrap`}>
+                          <td className="py-3 px-3 text-center whitespace-nowrap border-r border-gray-100/80">
                             {renderStockBadge(product)}
                           </td>
-                          <td className={`${cellBase} text-center w-14 relative border-r rounded-r-xl ${isRowMatch ? "border-r-amber-400" : "border-r-slate-200/80"}`} onClick={(e) => e.stopPropagation()}>
+                          <td className="py-3 px-3 text-center w-14 relative" onClick={(e) => e.stopPropagation()}>
                             <div className="relative inline-block text-left">
                               <button
                                 type="button"
@@ -5812,7 +5950,7 @@ const InventoryManagement: React.FC = () => {
                   })
                 ) : (
                   <tr>
-                    <td colSpan={9} className="py-12 text-center bg-white rounded-xl border border-slate-200/80 shadow-2xs">
+                    <td colSpan={9} className="py-12 text-center bg-white">
                       <div className="text-center">
                         <Package className="w-16 h-16 text-slate-300 mx-auto mb-4" />
                         <h3 className="text-lg font-bold text-slate-900 mb-2">No products found</h3>
@@ -5826,7 +5964,7 @@ const InventoryManagement: React.FC = () => {
                         {canAddProduct() && !searchTerm && filterCategory === 'all' && filterStock === 'all' && (
                           <button
                             onClick={() => setIsAddModalOpen(true)}
-                            className="px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 text-xs font-semibold shadow-2xs cursor-pointer"
+                            className="px-6 py-2 bg-slate-900 text-white rounded-xl hover:bg-slate-800 text-xs font-semibold shadow-xs cursor-pointer"
                           >
                             Add Your First Product
                           </button>
@@ -5839,8 +5977,12 @@ const InventoryManagement: React.FC = () => {
             </table>
           </div>
           
-          {/* Pagination */}
-          {filteredProducts.length > 0 && renderPagination()}
+          {/* Pagination inside bottom of table container matching DataTable */}
+          {filteredProducts.length > 0 && (
+            <div className="border-t border-gray-200/90 bg-slate-50/50 p-3 sm:p-4">
+              {renderPagination()}
+            </div>
+          )}
         </div>
         </>
         )}
