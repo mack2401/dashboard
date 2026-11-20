@@ -39,7 +39,7 @@ import {
   getBillDate,
   calculateBillPurchaseCost,
 } from "../utils/billUtils";
-import { generateBillPrintHTML, numberToWords as formatNumberToWords } from "../utils/billPrintTemplate";
+import { generateBillPrintHTML, numberToWords as formatNumberToWords, getContextualTerms, isLegacyDefaultTerms } from "../utils/billPrintTemplate";
 import {
   FileText,
   Eye,
@@ -95,6 +95,7 @@ interface BillTransaction extends Omit<Bill, "status"> {
   originalBillId?: string;
   paymentType?: string;
   paymentSubStatus?: string;
+  shipmentStatus?: string;
   enquiryEnqId?: string;
   gstin?: string;
   isGST?: boolean;
@@ -119,7 +120,7 @@ const defaultBankDetails: BankDetails = {
 const defaultTerms: TermsCondition[] = [
   { id: 1, text: "Payment: 100% advance" },
   { id: 2, text: "Delivery: 10-12 days maximum from advance initiation" },
-  { id: 3, text: "Quote Validity: 2 days" },
+  { id: 3, text: "PI Validity: 2 days" },
 ];
 const formatContactNumber = (contact?: string | number): string => {
   if (!contact) return "-";
@@ -911,6 +912,7 @@ const BillTransactions: React.FC = () => {
           billType,
           companyName,
           enquiryStatus: productStatus,
+          shipmentStatus: bill.shipmentStatus || enquiryData?.shipmentStatus || (bill as any).shippingStatus || "",
           placeOfSupply,
         } as BillTransaction;
       });
@@ -1148,10 +1150,25 @@ const BillTransactions: React.FC = () => {
     setSelectedBill(bill);
     setEditingBankDetails(false);
     setEditingTerms(false);
-    // Load terms from bill or use defaults
-    const billTerms = (bill as any).terms || defaultTerms;
+    
+    // Resolve terms contextually based on bill's status, payment status, shipment status
+    const isQuote = bill.status === "quotation" || isQuotationBill(bill);
+    const contextualDefault = getContextualTerms({
+      isQuotation: isQuote,
+      documentType: isQuote ? "QUOTATION" : "TAX INVOICE",
+      status: bill.status || bill.enquiryStatus,
+      paymentStatus: bill.paymentStatus,
+      shipmentStatus: bill.shipmentStatus,
+      isPaid: bill.paymentStatus === "completed" || bill.status === "paid",
+    });
+
+    const billTerms = (bill as any).terms;
+    const finalTerms = (Array.isArray(billTerms) && billTerms.length > 0 && !isLegacyDefaultTerms(billTerms))
+      ? billTerms
+      : contextualDefault;
+
     setEditBankDetails((bill as any).bankDetails || defaultBankDetails);
-    setEditTerms(Array.isArray(billTerms) ? billTerms : defaultTerms);
+    setEditTerms(finalTerms);
     setEditIncludeSignature((bill as any).includeSignature !== undefined ? (bill as any).includeSignature : true);
     setNewTerm("");
   };
@@ -1298,8 +1315,17 @@ const BillTransactions: React.FC = () => {
   };
 
   const resetTerms = () => {
-    const billTerms = (selectedBill as any)?.terms;
-    setEditTerms(Array.isArray(billTerms) ? billTerms : defaultTerms);
+    if (!selectedBill) return;
+    const isQuote = selectedBill.status === "quotation" || isQuotationBill(selectedBill);
+    const contextualDefault = getContextualTerms({
+      isQuotation: isQuote,
+      documentType: isQuote ? "QUOTATION" : "TAX INVOICE",
+      status: selectedBill.status || selectedBill.enquiryStatus,
+      paymentStatus: selectedBill.paymentStatus,
+      shipmentStatus: selectedBill.shipmentStatus,
+      isPaid: selectedBill.paymentStatus === "completed" || selectedBill.status === "paid",
+    });
+    setEditTerms(contextualDefault);
   };
 
   // Number to words conversion (delegated to universal helper)
@@ -1356,6 +1382,7 @@ const BillTransactions: React.FC = () => {
       paymentStatus: bill.paymentStatus,
       paymentType: bill.paymentType,
       paymentSubStatus: bill.paymentSubStatus,
+      shipmentStatus: bill.shipmentStatus,
       isPaid: bill.paymentStatus === "completed",
       isQuotation: false,
       billedTo: bill.billedTo,
@@ -1415,6 +1442,7 @@ const BillTransactions: React.FC = () => {
       paymentStatus: selectedBill.paymentStatus,
       paymentType: selectedBill.paymentType,
       paymentSubStatus: selectedBill.paymentSubStatus,
+      shipmentStatus: selectedBill.shipmentStatus,
       isPaid,
       isQuotation,
       isApprovedAndPaid,
@@ -2948,6 +2976,18 @@ const BillTransactions: React.FC = () => {
                       <div>
                         <span className="text-gray-500 font-medium">Payment Sub Status: </span>
                         <span className="font-semibold text-gray-800">{selectedBill.paymentSubStatus}</span>
+                      </div>
+                    )}
+                    {selectedBill.shipmentStatus && (
+                      <div>
+                        <span className="text-gray-500 font-medium">Shipment Status: </span>
+                        <span className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                          selectedBill.shipmentStatus?.toLowerCase() === "delivered"
+                            ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                            : "bg-blue-100 text-blue-800 border border-blue-200"
+                        }`}>
+                          {selectedBill.shipmentStatus}
+                        </span>
                       </div>
                     )}
                   </div>
