@@ -354,6 +354,26 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
   const billPaymentLower = String(bill.paymentStatus || "").toLowerCase().trim();
 
   const paymentSubStatus = bill.paymentSubStatus || enquiryData?.paymentSubStatus || enquiryData?.paymentType || "";
+  const paymentStatus = rawEnqPayment || bill.paymentStatus || "";
+
+  const isExplicitApproved =
+    productStatus.toLowerCase() === "approved" ||
+    productStatus.toLowerCase() === "delivered" ||
+    productStatus.toLowerCase() === "dispatched" ||
+    enqStatusLower === "approved" ||
+    enqStatusLower === "delivered" ||
+    enqStatusLower === "dispatched" ||
+    billStatusLower === "approved" ||
+    billStatusLower === "delivered" ||
+    billStatusLower === "dispatched";
+
+  const isExplicitPaid =
+    enqPaymentLower === "paid" ||
+    enqPaymentLower === "completed" ||
+    billPaymentLower === "paid" ||
+    billPaymentLower === "completed" ||
+    billStatusLower === "paid" ||
+    billStatusLower === "completed";
 
   const invoiceNumberRaw =
     bill.invoiceNumber ||
