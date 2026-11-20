@@ -133,7 +133,15 @@ interface Transaction {
 
 type SortField = 'name' | 'totalQuantity' | 'currentPrice' | 'purchasePrice' | 'totalValue' | 'category' | 'updatedAt' | 'createdAt' | 'hsnCode';
 type SortDirection = 'asc' | 'desc';
-type StockFilter = 'all' | 'low' | 'out' | 'normal' | 'old';
+type StockFilter = 'all' | 'catalog' | 'low' | 'out' | 'normal' | 'old' | 'quote';
+
+export const isRealInventoryProduct = (p: Product): boolean => {
+  // If product is marked as quotation only or quote purpose, it only counts as an added inventory product if physical stock > 0
+  if (p.isQuoteOnly || p.productType === 'quote_purpose') {
+    return (p.totalQuantity || 0) > 0;
+  }
+  return true;
+};
 type TransactionTypeFilter = 'all' | 'add' | 'deliver' | 'delete';
 
 // ============ HELPER FUNCTIONS ============
@@ -1214,6 +1222,7 @@ const InventoryManagement: React.FC = () => {
         totalValue: newTotalValue,
         stockEntries: updatedStockEntries,
         currentPrice: unitPrice > 0 ? unitPrice : targetProduct.currentPrice,
+        ...(!isQuotePurpose ? { productType: 'inventory', isQuoteOnly: false } : {}),
         updatedAt: serverTimestamp(),
       });
 
@@ -2815,9 +2824,11 @@ const InventoryManagement: React.FC = () => {
     
     if (filterStock !== 'all') {
       filtered = filtered.filter(product => {
-        if (filterStock === 'low') return product.totalQuantity <= product.lowStockThreshold && product.totalQuantity > 0;
-        if (filterStock === 'out') return product.totalQuantity === 0;
-        if (filterStock === 'normal') return product.totalQuantity > product.lowStockThreshold;
+        if (filterStock === 'catalog') return isRealInventoryProduct(product);
+        if (filterStock === 'quote') return !isRealInventoryProduct(product);
+        if (filterStock === 'low') return isRealInventoryProduct(product) && product.totalQuantity <= product.lowStockThreshold && product.totalQuantity > 0;
+        if (filterStock === 'out') return isRealInventoryProduct(product) && product.totalQuantity === 0;
+        if (filterStock === 'normal') return isRealInventoryProduct(product) && product.totalQuantity > product.lowStockThreshold;
         if (filterStock === 'old') return product.isOldStock === true;
         return true;
       });
@@ -2881,18 +2892,23 @@ const InventoryManagement: React.FC = () => {
 
   // ============ STATISTICS ============
   const stats = useMemo(() => {
-    const totalProducts = products.length;
-    const totalSOH = products.reduce((sum, p) => sum + (p.totalQuantity || 0), 0);
+    // Only count products actually added to inventory catalog (excludes quotation-only items without stock)
+    const catalogProducts = products.filter(isRealInventoryProduct);
+    const quoteOnlyProducts = products.filter(p => !isRealInventoryProduct(p));
+
+    const totalProducts = catalogProducts.length;
+    const totalSOH = catalogProducts.reduce((sum, p) => sum + (p.totalQuantity || 0), 0);
     // Total values purchased of the products (all stock ever purchased/added)
-    const totalPurchasedValue = products.reduce((sum, p) => sum + calculateOriginalPurchaseValue(p), 0);
-    const currentStockPurchaseValue = products.reduce((sum, p) => sum + ((p.totalQuantity || 0) * (p.currentPrice || getProductPurchasePrice(p) || 0)), 0);
+    const totalPurchasedValue = catalogProducts.reduce((sum, p) => sum + calculateOriginalPurchaseValue(p), 0);
+    const currentStockPurchaseValue = catalogProducts.reduce((sum, p) => sum + ((p.totalQuantity || 0) * (p.currentPrice || getProductPurchasePrice(p) || 0)), 0);
     const totalPurchasePrice = totalPurchasedValue;
     const totalValue = totalPurchasedValue;
-    const lowStock = products.filter(p => 
+    const lowStock = catalogProducts.filter(p => 
       p.totalQuantity <= p.lowStockThreshold && p.totalQuantity > 0
     ).length;
-    const outOfStock = products.filter(p => p.totalQuantity === 0).length;
-    const oldStock = products.filter(p => p.isOldStock === true).length;
+    const outOfStock = catalogProducts.filter(p => p.totalQuantity === 0).length;
+    const oldStock = catalogProducts.filter(p => p.isOldStock === true).length;
+    const quoteItems = quoteOnlyProducts.length;
     
     const totalCurrentValue = currentStockPurchaseValue;
     
@@ -2912,6 +2928,7 @@ const InventoryManagement: React.FC = () => {
       totalCurrentValue,
       totalDeliveryValue,
       oldStock,
+      quoteItems,
     };
   }, [products, transactions]);
 
@@ -4472,6 +4489,17 @@ const InventoryManagement: React.FC = () => {
     );
   };
 
+  const getRoleBadgeColor = (role?: string) => {
+    switch (role) {
+      case "admin":
+        return "bg-rose-50 text-rose-700 border border-rose-200";
+      case "manager":
+        return "bg-blue-50 text-blue-700 border border-blue-200";
+      default:
+        return "bg-slate-100 text-slate-700 border border-slate-200";
+    }
+  };
+
   // ============ MAIN RENDER ============
   if (!user) {
     return (
@@ -4496,204 +4524,235 @@ const InventoryManagement: React.FC = () => {
   }
 
   return (
-    <div className="w-full">
-      {/* Header */}
-      <div className="w-full">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
-          </div>
-          
-          <div className="flex items-center gap-2.5 mt-4 md:mt-0">
-            {canAddProduct() && (
-              <>
-                <button
-                  onClick={() => setIsAddStockModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-sm font-semibold shadow-xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  Add Stock
-                </button>
-                <button
-                  onClick={() => setIsAddModalOpen(true)}
-                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
-                >
-                  <Package className="w-4 h-4" />
-                  Add New Product
-                </button>
-              </>
-            )}
+    <div className="w-full space-y-6 font-sans">
+      {/* Page Header (Similar to Enquiry) */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-slate-900 text-white flex items-center justify-center shadow-xs">
+              <Box className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
+                  Inventory Management
+                </h1>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${getRoleBadgeColor(user.role)}`}>
+                  {user.role}
+                </span>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Statistics */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 mb-6">
-          {/* Total SKUs */}
-          <KPICard
-            title="Total SKUs"
-            value={stats.totalProducts.toLocaleString('en-IN')}
-            icon={<Box className="w-4 h-4" />}
-            iconBg="bg-indigo-50"
-            iconColor="text-indigo-600"
-            isActive={filterStock === 'all' && activeTab === 'all'}
-            activeRingColor="border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/20"
-            onClick={() => {
-              setActiveTab('all');
-              setFilterStock('all');
-            }}
-            tooltip="Total unique items in catalog (Stock Keeping Units - Item-wise count)"
+        {/* Action Buttons inside heading (Import, Export, Show History, Delete Requests, Add Stock, Add Product) */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          <input
+            type="file"
+            ref={importExcelInputRef}
+            onChange={handleImportExcelFile}
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
           />
+          {canAddProduct() && (
+            <button
+              onClick={() => importExcelInputRef.current?.click()}
+              disabled={isImporting}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-emerald-700 rounded-xl border border-emerald-300 shadow-xs transition cursor-pointer disabled:opacity-50"
+              title="Import Excel sheet to overwrite existing products and flag missed ones as Old Stock"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              {isImporting ? 'Importing...' : 'Import Excel'}
+            </button>
+          )}
 
-          {/* Total SOH */}
-          <KPICard
-            title="Total SOH"
-            value={stats.totalSOH.toLocaleString('en-IN')}
-            icon={<Layers className="w-4 h-4" />}
-            iconBg="bg-blue-50"
-            iconColor="text-blue-600"
-            subtitle="units"
-            isActive={filterStock === 'all'}
-            activeRingColor="border-blue-400 ring-2 ring-blue-500/20 bg-blue-50/20"
-            onClick={() => {
-              setActiveTab('all');
-              setFilterStock('all');
-            }}
-            tooltip="Click to view all stock"
-          />
+          <button
+            onClick={handleExportCSV}
+            disabled={isExporting}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer disabled:opacity-50"
+            title="Export Excel sheet"
+          >
+            <Download className="w-3.5 h-3.5" />
+            {isExporting ? 'Exporting...' : 'Export Excel'}
+          </button>
 
-          {/* Total Purchase Value */}
-          <KPICard
-            title="Total Purchase Value"
-            value={formatCurrency(stats.totalPurchasedValue)}
-            icon={<IndianRupee className="w-4 h-4" />}
-            iconBg="bg-emerald-50"
-            iconColor="text-emerald-600"
-            subtitle={stats.currentStockPurchaseValue > 0 ? `Stock SOH: ${formatCurrency(stats.currentStockPurchaseValue)}` : undefined}
-            onClick={() => {
-              setActiveTab('all');
-              setFilterStock('all');
-            }}
-            tooltip="Total purchase value of all products purchased in inventory"
-          />
+          {canViewTransactions() && (
+            <button
+              onClick={() => setShowTransactions(!showTransactions)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer"
+              title="Toggle transaction audit log"
+            >
+              {showTransactions ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {showTransactions ? 'Hide History' : 'Show History'}
+            </button>
+          )}
 
-          {/* Low Stock */}
-          <KPICard
-            title="Low Stock"
-            value={stats.lowStock}
-            icon={<AlertCircle className="w-4 h-4" />}
-            iconBg={filterStock === 'low' ? 'bg-orange-500' : 'bg-orange-50'}
-            iconColor={filterStock === 'low' ? 'text-white' : 'text-orange-600'}
-            valueColor="text-orange-600"
-            badge={filterStock === 'low' ? { text: "Filtered", variant: "warning" } : undefined}
-            subtitle={filterStock !== 'low' ? <span className="group-hover:text-orange-600 transition-colors">Filter &rarr;</span> : undefined}
-            isActive={filterStock === 'low'}
-            activeRingColor="bg-orange-50/70 border-orange-400 ring-2 ring-orange-500 shadow-sm"
-            onClick={() => {
-              setActiveTab('all');
-              setFilterStock(filterStock === 'low' ? 'all' : 'low');
-            }}
-            tooltip={filterStock === 'low' ? 'Click to show all products' : 'Click to filter low stock items only'}
-          />
+          {user.role === 'admin' && (
+            <button
+              onClick={() => setIsDeleteRequestsModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl border border-amber-300 shadow-xs transition cursor-pointer relative"
+              title="View product delete requests"
+            >
+              <ClipboardList className="w-3.5 h-3.5" />
+              Delete Requests
+              {products.filter(p => p.deleteRequested).length > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full shadow-xs">
+                  {products.filter(p => p.deleteRequested).length}
+                </span>
+              )}
+            </button>
+          )}
 
-          {/* Out of Stock */}
-          <KPICard
-            title="Out of Stock"
-            value={stats.outOfStock}
-            icon={<XCircle className="w-4 h-4" />}
-            iconBg={filterStock === 'out' ? 'bg-rose-500' : 'bg-rose-50'}
-            iconColor={filterStock === 'out' ? 'text-white' : 'text-rose-600'}
-            valueColor="text-rose-600"
-            badge={filterStock === 'out' ? { text: "Filtered", variant: "danger" } : undefined}
-            subtitle={filterStock !== 'out' ? <span className="group-hover:text-rose-600 transition-colors">Filter &rarr;</span> : undefined}
-            isActive={filterStock === 'out'}
-            activeRingColor="bg-rose-50/70 border-rose-400 ring-2 ring-rose-500 shadow-sm"
-            onClick={() => {
-              setActiveTab('all');
-              setFilterStock(filterStock === 'out' ? 'all' : 'out');
-            }}
-            tooltip={filterStock === 'out' ? 'Click to show all products' : 'Click to filter out-of-stock items only'}
-          />
+          {canAddProduct() && (
+            <>
+              <button
+                onClick={() => setIsAddStockModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-emerald-50 text-emerald-700 rounded-xl border border-emerald-300 shadow-xs transition cursor-pointer active:scale-[0.98]"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add Stock
+              </button>
+              <button
+                onClick={() => setIsAddModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition cursor-pointer active:scale-[0.98]"
+              >
+                <Package className="w-3.5 h-3.5" />
+                + Add Product
+              </button>
+            </>
+          )}
         </div>
+      </div>
 
-        {/* Tabs and Actions Row below statistics */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5 border-b border-gray-200">
-          <div className="flex space-x-2 sm:space-x-4">
-            <button
-              onClick={() => setActiveTab('all')}
-              className={`py-2.5 px-4 sm:px-5 text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
-                activeTab === 'all'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              All Inventory
-            </button>
-            <button
-              onClick={() => setActiveTab('fast-moving')}
-              className={`py-2.5 px-4 sm:px-5 text-sm font-semibold border-b-2 transition-colors cursor-pointer ${
-                activeTab === 'fast-moving'
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              Fast Moving Items
-            </button>
-          </div>
+      {/* Statistics */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 mb-6">
+        {/* Total SKUs */}
+        <KPICard
+          title="Total SKUs"
+          value={stats.totalProducts.toLocaleString('en-IN')}
+          icon={<Box className="w-4 h-4" />}
+          iconBg="bg-indigo-50"
+          iconColor="text-indigo-600"
+          isActive={filterStock === 'catalog' && activeTab === 'all'}
+          activeRingColor="border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/20"
+          onClick={() => {
+            setActiveTab('all');
+            setFilterStock(filterStock === 'catalog' ? 'all' : 'catalog');
+          }}
+          tooltip="Total unique items in catalog (excludes quotation-only items)"
+        />
 
-          <div className="flex items-center space-x-2.5 pb-2.5 sm:pb-2">
-            <input
-              type="file"
-              ref={importExcelInputRef}
-              onChange={handleImportExcelFile}
-              accept=".xlsx,.xls,.csv"
-              className="hidden"
-            />
-            {canAddProduct() && (
-              <button
-                onClick={() => importExcelInputRef.current?.click()}
-                disabled={isImporting}
-                className="px-3.5 py-1.5 text-xs sm:text-sm border border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-lg flex items-center font-medium cursor-pointer transition shadow-2xs"
-                title="Import Excel sheet to overwrite existing products and flag missed ones as Old Stock"
-              >
-                <Upload className="w-4 h-4 mr-1.5" />
-                {isImporting ? 'Importing...' : 'Import Excel'}
-              </button>
-            )}
-            <button
-              onClick={handleExportCSV}
-              disabled={isExporting}
-              className="px-3.5 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center bg-white shadow-2xs font-medium cursor-pointer transition"
-            >
-              <Download className="w-4 h-4 mr-1.5" />
-              {isExporting ? 'Exporting...' : 'Export Excel'}
-            </button>
-            {canViewTransactions() && (
-              <button
-                onClick={() => setShowTransactions(!showTransactions)}
-                className="px-3.5 py-1.5 text-xs sm:text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center bg-white shadow-2xs font-medium cursor-pointer transition"
-              >
-                {showTransactions ? <EyeOff className="w-4 h-4 mr-1.5" /> : <Eye className="w-4 h-4 mr-1.5" />}
-                {showTransactions ? 'Hide History' : 'Show History'}
-              </button>
-            )}
-            {user.role === 'admin' && (
-              <button
-                onClick={() => setIsDeleteRequestsModalOpen(true)}
-                className="px-3.5 py-1.5 text-xs sm:text-sm bg-yellow-100 text-yellow-800 border border-yellow-300 rounded-lg hover:bg-yellow-200 flex items-center relative font-medium cursor-pointer transition"
-              >
-                <ClipboardList className="w-4 h-4 mr-1.5" />
-                Delete Requests
-                {products.filter(p => p.deleteRequested).length > 0 && (
-                  <span className="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">
-                    {products.filter(p => p.deleteRequested).length}
-                  </span>
-                )}
-              </button>
-            )}
-          </div>
-        </div>
+        {/* Total SOH */}
+        <KPICard
+          title="Total SOH"
+          value={stats.totalSOH.toLocaleString('en-IN')}
+          icon={<Layers className="w-4 h-4" />}
+          iconBg="bg-blue-50"
+          iconColor="text-blue-600"
+          subtitle="units"
+          isActive={filterStock === 'all' && activeTab === 'all'}
+          activeRingColor="border-blue-400 ring-2 ring-blue-500/20 bg-blue-50/20"
+          onClick={() => {
+            setActiveTab('all');
+            setFilterStock('all');
+          }}
+          tooltip="Click to view all stock"
+        />
 
-        {activeTab === 'fast-moving' && (
+        {/* Total Purchase Value */}
+        <KPICard
+          title="Total Purchase Value"
+          value={formatCurrency(stats.totalPurchasedValue)}
+          icon={<IndianRupee className="w-4 h-4" />}
+          iconBg="bg-emerald-50"
+          iconColor="text-emerald-600"
+          subtitle={stats.currentStockPurchaseValue > 0 ? `Stock SOH: ${formatCurrency(stats.currentStockPurchaseValue)}` : undefined}
+          onClick={() => {
+            setActiveTab('all');
+            setFilterStock('all');
+          }}
+          tooltip="Total purchase value of all products purchased in inventory"
+        />
+
+        {/* Low Stock */}
+        <KPICard
+          title="Low Stock"
+          value={stats.lowStock}
+          icon={<AlertCircle className="w-4 h-4" />}
+          iconBg={filterStock === 'low' ? 'bg-orange-500' : 'bg-orange-50'}
+          iconColor={filterStock === 'low' ? 'text-white' : 'text-orange-600'}
+          valueColor="text-orange-600"
+          badge={filterStock === 'low' ? { text: "Filtered", variant: "warning" } : undefined}
+          subtitle={filterStock !== 'low' ? <span className="group-hover:text-orange-600 transition-colors">Filter &rarr;</span> : undefined}
+          isActive={filterStock === 'low'}
+          activeRingColor="bg-orange-50/70 border-orange-400 ring-2 ring-orange-500 shadow-sm"
+          onClick={() => {
+            setActiveTab('all');
+            setFilterStock(filterStock === 'low' ? 'all' : 'low');
+          }}
+          tooltip={filterStock === 'low' ? 'Click to show all products' : 'Click to filter low stock items only'}
+        />
+
+        {/* Out of Stock */}
+        <KPICard
+          title="Out of Stock"
+          value={stats.outOfStock}
+          icon={<XCircle className="w-4 h-4" />}
+          iconBg={filterStock === 'out' ? 'bg-rose-500' : 'bg-rose-50'}
+          iconColor={filterStock === 'out' ? 'text-white' : 'text-rose-600'}
+          valueColor="text-rose-600"
+          badge={filterStock === 'out' ? { text: "Filtered", variant: "danger" } : undefined}
+          subtitle={filterStock !== 'out' ? <span className="group-hover:text-rose-600 transition-colors">Filter &rarr;</span> : undefined}
+          isActive={filterStock === 'out'}
+          activeRingColor="bg-rose-50/70 border-rose-400 ring-2 ring-rose-500 shadow-sm"
+          onClick={() => {
+            setActiveTab('all');
+            setFilterStock(filterStock === 'out' ? 'all' : 'out');
+          }}
+          tooltip={filterStock === 'out' ? 'Click to show all products' : 'Click to filter out-of-stock items only'}
+        />
+      </div>
+
+      {/* Segmented Control Pill Bar (Similar to Enquiry) */}
+      <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-x-auto mb-6">
+        <button
+          onClick={() => {
+            setActiveTab('all');
+            setFilterStock('all');
+          }}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'all'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
+          }`}
+        >
+          <Layers className="w-3.5 h-3.5" />
+          <span>All Inventory</span>
+          <span
+            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+              activeTab === 'all'
+                ? 'bg-white/20 text-white'
+                : 'bg-gray-100 text-gray-600'
+            }`}
+          >
+            {stats.totalProducts}
+          </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab('fast-moving')}
+          className={`flex items-center gap-2 px-4 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap ${
+            activeTab === 'fast-moving'
+              ? 'bg-slate-900 text-white shadow-xs'
+              : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
+          }`}
+        >
+          <TrendingUp className="w-3.5 h-3.5" />
+          <span>Fast Moving Items</span>
+        </button>
+      </div>
+
+      {activeTab === 'fast-moving' && (
           <div className="space-y-6 mb-6">
             {/* Header controls: Periods (Yesterday, Today, Past Dates) and Specific Date Picker on the right */}
             <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4 sm:p-5">
@@ -5158,46 +5217,72 @@ const InventoryManagement: React.FC = () => {
 
         {activeTab === 'all' && (
           <>
-            {/* Controls */}
-            <div className="bg-white rounded-2xl p-4 sm:p-5 mb-5 shadow-xs border border-gray-200/80">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
-            <div className="relative flex-1">
-              <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-              <input
-                type="text"
-                placeholder="Search products by name, SKU, HSN code, category, or description..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
-              />
+            {/* Controls (Styled like Enquiry Multi-Criteria Search & Filter Panel) */}
+            <div className="bg-white rounded-2xl p-4 sm:p-5 mb-5 shadow-xs border border-gray-200/90">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
+                <div className="relative flex-1">
+                  <Search className="absolute left-3.5 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                  <input
+                    type="text"
+                    placeholder="Search products by Name, SKU, HSN Code, Category, or Description..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all"
+                  />
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                      title="Clear search"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+                
+                <div className="flex flex-wrap items-center gap-2.5">
+                  <select
+                    value={filterCategory}
+                    onChange={(e) => setFilterCategory(e.target.value)}
+                    className="px-3.5 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:bg-white transition-all cursor-pointer"
+                  >
+                    <option value="all">All Categories ({categories.length})</option>
+                    {categories.map(category => (
+                      <option key={category} value={category}>{category}</option>
+                    ))}
+                  </select>
+                  
+                  <select
+                    value={filterStock}
+                    onChange={(e) => setFilterStock(e.target.value as StockFilter)}
+                    className="px-3.5 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:bg-white transition-all cursor-pointer"
+                  >
+                    <option value="all">All Items ({products.length})</option>
+                    <option value="catalog">📦 Inventory Products Only ({stats.totalProducts})</option>
+                    <option value="normal">Normal Stock</option>
+                    <option value="low">Low Stock ({stats.lowStock})</option>
+                    <option value="out">Out of Stock ({stats.outOfStock})</option>
+                    <option value="old">⚠️ Old Stock ({stats.oldStock || 0})</option>
+                    <option value="quote">📋 Quote Items ({stats.quoteItems || 0})</option>
+                  </select>
+
+                  {(searchTerm || filterCategory !== 'all' || filterStock !== 'all') && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setFilterCategory('all');
+                        setFilterStock('all');
+                      }}
+                      className="inline-flex items-center gap-1 px-3 py-2 text-xs font-semibold text-rose-600 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition cursor-pointer"
+                      title="Reset all filters"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      Reset
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
-            
-            <div className="flex space-x-2.5">
-              <select
-                value={filterCategory}
-                onChange={(e) => setFilterCategory(e.target.value)}
-                className="px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none bg-white"
-              >
-                <option value="all">All Categories</option>
-                {categories.map(category => (
-                  <option key={category} value={category}>{category}</option>
-                ))}
-              </select>
-              
-              <select
-                value={filterStock}
-                onChange={(e) => setFilterStock(e.target.value as StockFilter)}
-                className="px-3.5 py-2.5 rounded-xl border border-gray-300 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none bg-white"
-              >
-                <option value="all">All Stock</option>
-                <option value="low">Low Stock</option>
-                <option value="out">Out of Stock</option>
-                <option value="normal">Normal Stock</option>
-                <option value="old">⚠️ Old Stock ({stats.oldStock || 0})</option>
-              </select>
-            </div>
-          </div>
-        </div>
 
         {/* Transactions History */}
         {showTransactions && canViewTransactions() && (
@@ -5759,7 +5844,6 @@ const InventoryManagement: React.FC = () => {
         </div>
         </>
         )}
-      </div>
 
       {/* Modals */}
       {isAddStockModalOpen && renderAddStockModal()}
