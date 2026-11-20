@@ -559,13 +559,26 @@ const BillTransactions: React.FC = () => {
     fetchUserRole();
   }, [authUser]);
 
-  // Fetch transactions when auth and role are ready
+  // Fetch transactions when auth and role are ready & listen to real-time updates
   useEffect(() => {
     if (authLoading) return;
     if (!authUser) return;
     
     console.log("Starting fetch with user:", authUser.uid, "Role:", userRole);
     fetchTransactions();
+
+    const unsubBills = onSnapshot(collection(db, "bills"), () => {
+      fetchTransactions();
+    }, (err) => console.warn("Bills snapshot listener warning:", err));
+
+    const unsubEnquiries = onSnapshot(collection(db, "enquiries"), () => {
+      fetchTransactions();
+    }, (err) => console.warn("Enquiries snapshot listener warning:", err));
+
+    return () => {
+      unsubBills();
+      unsubEnquiries();
+    };
   }, [authUser, userRole, authLoading]);
 
   const fetchTransactions = async () => {
@@ -726,14 +739,14 @@ const BillTransactions: React.FC = () => {
           }
         }
 
-        // Mark matched enquiry IDs so unbilled enquiries can be identified
-        if (enquiryData) {
-          if (enquiryData.id) matchedEnquiryIds.add(String(enquiryData.id).toLowerCase());
-          if (enquiryData.enqId) matchedEnquiryIds.add(String(enquiryData.enqId).toLowerCase());
+        // Only mark matched enquiry ID if the bill specifically links to it by enquiry ID (never by fuzzy customer name or phone)
+        const explicitEnqId = bill.enquiryEnqId || bill.enquiryId || bill.billedTo?.enqId || (bill as any).enqId;
+        if (explicitEnqId) {
+          matchedEnquiryIds.add(String(explicitEnqId).trim().toLowerCase());
         }
-        if (bill.enquiryEnqId) matchedEnquiryIds.add(String(bill.enquiryEnqId).toLowerCase());
-        if (bill.enquiryId) matchedEnquiryIds.add(String(bill.enquiryId).toLowerCase());
-        if (bill.billedTo?.enqId) matchedEnquiryIds.add(String(bill.billedTo.enqId).toLowerCase());
+        if (bill.id) matchedEnquiryIds.add(String(bill.id).trim().toLowerCase());
+        if (bill.billId) matchedEnquiryIds.add(String(bill.billId).trim().toLowerCase());
+        if (bill.invoiceNumber) matchedEnquiryIds.add(String(bill.invoiceNumber).trim().toLowerCase());
 
         const paymentSubStatus = enquiryData?.paymentSubStatus || (bill as any).paymentSubStatus || "N/A";
 
@@ -969,9 +982,13 @@ const BillTransactions: React.FC = () => {
         if (!enq) continue;
         const eId = String(enq.id || "").trim().toLowerCase();
         const enqId = String(enq.enqId || "").trim().toLowerCase();
+        const bId = String(enq.billId || "").trim().toLowerCase();
+        const invNum = String(enq.invoiceNumber || "").trim().toLowerCase();
 
         if (eId && matchedEnquiryIds.has(eId)) continue;
         if (enqId && matchedEnquiryIds.has(enqId)) continue;
+        if (bId && matchedEnquiryIds.has(bId)) continue;
+        if (invNum && matchedEnquiryIds.has(invNum)) continue;
 
         const rawStatus = String(enq.status || "").trim();
         const statusLower = rawStatus.toLowerCase();
@@ -1004,7 +1021,7 @@ const BillTransactions: React.FC = () => {
         const hasItems = items.length > 0;
         const enqVal = Number(enq.value || enq.finalTotal || 0);
         const isApproved = statusLower === "approved" || statusLower === "delivered" || statusLower === "dispatched";
-        const isQuotation = statusLower === "quotation" || String(enq.type || "").toLowerCase() === "quotation";
+        const isQuotation = statusLower === "quotation" || statusLower === "proforma invoice" || String(enq.type || "").toLowerCase() === "quotation";
         const isActionable = isApproved || isQuotation || statusLower === "testing" || hasItems || enqVal > 0;
 
         if (!isActionable) continue;
@@ -1017,13 +1034,14 @@ const BillTransactions: React.FC = () => {
         const totalAmount = enqVal > 0 ? enqVal : (subtotal + taxAmount);
 
         let billDate: Timestamp;
-        if (enq.createdAt instanceof Timestamp) {
-          billDate = enq.createdAt;
-        } else if (enq.createdAt?.toDate && typeof enq.createdAt.toDate === "function") {
-          billDate = enq.createdAt;
-        } else if (enq.createdAt) {
-          const d = new Date(enq.createdAt);
-          billDate = !isNaN(d.getTime()) ? Timestamp.fromDate(d) : Timestamp.now();
+        const dateSource = enq.approvedAt || enq.billDate || (isApproved && enq.updatedAt ? enq.updatedAt : enq.createdAt);
+        if (dateSource instanceof Timestamp) {
+          billDate = dateSource;
+        } else if (dateSource?.toDate && typeof dateSource.toDate === "function") {
+          billDate = dateSource;
+        } else if (dateSource) {
+          const d = getBillDate({ billDate: dateSource });
+          billDate = d && !isNaN(d.getTime()) && d.getTime() > 0 ? Timestamp.fromDate(d) : Timestamp.now();
         } else {
           billDate = Timestamp.now();
         }

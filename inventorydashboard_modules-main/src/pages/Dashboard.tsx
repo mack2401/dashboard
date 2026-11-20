@@ -278,25 +278,26 @@ const Dashboard: React.FC = () => {
       if (b.invoiceNumber) billedKeys.add(String(b.invoiceNumber).trim().toLowerCase());
     });
 
-    // Check for approved enquiries not yet in bills collection
+    // Check for enquiries not yet in bills collection (seamless real-world sync)
     const missingApprovedBills: any[] = [];
     enquiries.forEach((e: any) => {
-      if (e.status === "Approved") {
-        const enqIdStr = String(e.enqId || "").trim().toLowerCase();
-        const docIdStr = String(e.id || "").trim().toLowerCase();
-        const billIdStr = String(e.billId || "").trim().toLowerCase();
-        const invNumStr = String(e.invoiceNumber || `INV-${e.enqId}`).trim().toLowerCase();
+      const statusLower = String(e.status || "").toLowerCase().trim();
+      if (statusLower === "dropped") return;
 
-        const alreadyInBills =
-          (enqIdStr && billedKeys.has(enqIdStr)) ||
-          (docIdStr && billedKeys.has(docIdStr)) ||
-          (billIdStr && billedKeys.has(billIdStr)) ||
-          (invNumStr && billedKeys.has(invNumStr));
+      const enqIdStr = String(e.enqId || "").trim().toLowerCase();
+      const docIdStr = String(e.id || "").trim().toLowerCase();
+      const billIdStr = String(e.billId || "").trim().toLowerCase();
+      const invNumStr = String(e.invoiceNumber || `INV-${e.enqId}`).trim().toLowerCase();
 
-        if (!alreadyInBills) {
-          const synthBill = createBillFromApprovedEnquiry(e);
-          if (synthBill) missingApprovedBills.push(synthBill);
-        }
+      const alreadyInBills =
+        (enqIdStr && billedKeys.has(enqIdStr)) ||
+        (docIdStr && billedKeys.has(docIdStr)) ||
+        (billIdStr && billedKeys.has(billIdStr)) ||
+        (invNumStr && billedKeys.has(invNumStr));
+
+      if (!alreadyInBills) {
+        const synthBill = createBillFromApprovedEnquiry(e);
+        if (synthBill) missingApprovedBills.push(synthBill);
       }
     });
 

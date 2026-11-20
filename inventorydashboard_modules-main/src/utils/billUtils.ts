@@ -432,11 +432,24 @@ export function getBillTotal(bill: any): number {
  * Extract unified Date from a bill document.
  */
 export function getBillDate(b: any): Date {
-  const raw = b?.billDate || b?.date || b?.invoiceDate || b?.createdAt || b?.updatedAt;
+  const raw = b?.approvedAt || b?.billDate || b?.date || b?.invoiceDate || b?.createdAt || b?.updatedAt;
   if (raw?.toDate && typeof raw.toDate === "function") return raw.toDate();
   if (raw instanceof Date) return isNaN(raw.getTime()) ? new Date(0) : raw;
   if (typeof raw === "object" && typeof raw?.seconds === "number") return new Date(raw.seconds * 1000);
-  if (typeof raw === "string" || typeof raw === "number") {
+  if (typeof raw === "string") {
+    const trimmed = raw.trim();
+    const dmyMatch = trimmed.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+    if (dmyMatch) {
+      const d = parseInt(dmyMatch[1], 10);
+      const m = parseInt(dmyMatch[2], 10) - 1;
+      const y = parseInt(dmyMatch[3], 10);
+      const parsed = new Date(y, m, d);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+  if (typeof raw === "number") {
     const parsed = new Date(raw);
     if (!isNaN(parsed.getTime())) return parsed;
   }
@@ -617,8 +630,8 @@ export function calculateBillPurchaseCost(
 }
 
 /**
- * Convert an approved enquiry document into a normalized bill object.
- * Guarantees that approved orders seamlessly populate Bills, Dashboard, and PNL.
+ * Convert an enquiry document into a normalized bill object.
+ * Guarantees that approved orders and active enquiries seamlessly populate Bills, Dashboard, and PNL.
  */
 export function createBillFromApprovedEnquiry(enq: any): any {
   if (!enq) return null;
@@ -650,19 +663,44 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     };
   });
 
-  const totalAmount = Number(enq.finalTotal || enq.value || 0);
-  const subtotal = Number(enq.subtotal || enq.taxableValue || 0);
-  const taxAmount = Number(enq.gstAmount || 0);
-  const createdAt = enq.createdAt || new Date();
-  const invoiceNumber = enq.invoiceNumber || enq.proformaInvoiceNumber || `INV-${enq.enqId || String(enq.id || "").slice(-4)}`;
+  const computedItemsTotal = items.reduce((s, it) => s + (it.total || 0), 0);
+  const totalAmount = Number(enq.finalTotal || enq.value || computedItemsTotal || 0);
+  const subtotal = Number(enq.subtotal || enq.taxableValue || (items.length > 0 ? items.reduce((s, it) => s + (it.taxableValue || 0), 0) : totalAmount));
+  const taxAmount = Number(enq.gstAmount || (items.length > 0 ? items.reduce((s, it) => s + (it.taxAmount || 0), 0) : 0));
+
+  // If no material items but total amount is positive, provide a synthesized item for component analytics
+  if (items.length === 0 && totalAmount > 0) {
+    items.push({
+      productId: enq.enqId || "ORDER-ITEM",
+      productName: enq.customerName ? `Order: ${enq.customerName}` : "Order Items",
+      quantity: 1,
+      price: totalAmount,
+      total: totalAmount,
+      taxableValue: totalAmount,
+      taxAmount: 0,
+      taxRate: 0,
+      originalPrice: totalAmount,
+      hsn: "",
+    });
+  }
+
+  const statusLower = String(enq.status || "").toLowerCase().trim();
+  const paymentLower = String(enq.paymentStatus || "").toLowerCase().trim();
+  const isApproved = statusLower === "approved" || statusLower === "delivered" || statusLower === "dispatched";
+  const isPaid = paymentLower === "paid" || paymentLower === "completed";
+  const isQuotation = !isApproved && (statusLower === "quotation" || statusLower === "proforma invoice" || String(enq.type || "").toLowerCase().includes("quotation"));
+
+  // Effective transaction date: if approved, use approvedAt / updatedAt if newer than createdAt
+  const effectiveDate = enq.approvedAt || enq.billDate || (isApproved && enq.updatedAt ? enq.updatedAt : enq.createdAt) || new Date();
+  const invoiceNumber = enq.invoiceNumber || enq.proformaInvoiceNumber || (isQuotation ? `IBQ-${String(enq.enqId || Date.now()).replace(/\D/g, "").slice(-6)}` : `INV-${enq.enqId || String(enq.id || "").slice(-4)}`);
 
   return {
     id: enq.billId || `bill-enq-${enq.id || enq.enqId}`,
     billId: enq.billId || `BILL-${enq.enqId || Date.now()}`,
     invoiceNumber: invoiceNumber,
-    billDate: createdAt,
-    date: createdAt,
-    dueDate: createdAt,
+    billDate: effectiveDate,
+    date: effectiveDate,
+    dueDate: effectiveDate,
     customerName: enq.customerName || enq.name || "",
     customerContact: enq.contactNumber || enq.phone || "",
     customerCity: enq.city || "",
@@ -674,8 +712,8 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     assignedToName: enq.assignedTo || "Unassigned",
     createdBy: enq.assignedTo || "",
     createdByRole: "staff",
-    status: "completed",
-    paymentStatus: String(enq.paymentStatus || "").toLowerCase() === "paid" ? "paid" : "pending",
+    status: isApproved || isPaid ? "completed" : (isQuotation ? "quotation" : "completed"),
+    paymentStatus: isPaid ? "paid" : "pending",
     paymentType: enq.paymentType || "",
     paymentSubStatus: enq.paymentSubStatus || "",
     items: items,
@@ -698,12 +736,12 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     placeOfSupply: enq.state || "",
     enquiryId: enq.id || "",
     enquiryEnqId: enq.enqId || "",
-    enquiryStatus: "Approved",
-    isQuotation: false,
-    deductFromInventory: true,
-    inventoryUpdated: true,
-    stockDeducted: true,
-    createdAt: createdAt,
-    updatedAt: enq.updatedAt || createdAt,
+    enquiryStatus: enq.status || (isApproved ? "Approved" : "Quotation"),
+    isQuotation: isQuotation,
+    deductFromInventory: isApproved,
+    inventoryUpdated: isApproved,
+    stockDeducted: isApproved,
+    createdAt: effectiveDate,
+    updatedAt: enq.updatedAt || effectiveDate,
   };
 }

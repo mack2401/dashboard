@@ -905,7 +905,8 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
       }
     }
 
-    const finalTotal = calculateFinalTotal();
+    const calculatedTotal = calculateFinalTotal();
+    const finalTotal = calculatedTotal > 0 ? calculatedTotal : (Number(formData.value) || 0);
     setFormData(prev => ({
       ...prev,
       value: finalTotal
@@ -1021,77 +1022,155 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         console.log("Created new enquiry with current date:", docRef.id);
       }
 
-      // Auto-sync bill record when enquiry is Approved or Quotation
-      try {
-        const billsRef = collection(db, "bills");
-        const bq = query(billsRef, where("enquiryEnqId", "==", payload.enqId));
-        const bSnap = await getDocs(bq);
+      // --- Unified Real-time Bill Synchronization ---
+      const oldStatus = initial ? (initial as any).status : undefined;
+      const newStatus = formData.status;
+      const wasApproved = oldStatus === "Approved";
+      const isApproved = newStatus === "Approved";
+      const isQuotationDoc = formData.status === "Quotation";
+      const isProformaDoc = formData.status === "Proforma Invoice";
+      const isDroppedDoc = formData.status === "Dropped";
+      const isPaidDoc = formData.paymentStatus === "Paid" || formData.paymentStatus === "PAID";
 
-        const isQuotationDoc = formData.status === "Quotation";
-        const isApprovedDoc = formData.status === "Approved";
-        const isPaidDoc = formData.paymentStatus === "Paid" || formData.paymentStatus === "PAID";
+      try {
         const cleanEnqNum = String(payload.enqId || Date.now()).replace(/\D/g, "");
         const autoInvNumber = isQuotationDoc
           ? `IBQ-${cleanEnqNum.slice(-6) || Date.now().toString().slice(-6)}`
-          : `IBIN-${cleanEnqNum.slice(-8) || Date.now().toString().slice(-8)}`;
+          : `INV-${payload.enqId}`;
+
+        // Effective bill transaction date: if approved, use Timestamp.now() so it counts towards today's billing & executive dashboard!
+        const effectiveBillDate = isApproved
+          ? ((initial as any)?.approvedAt || Timestamp.now())
+          : createdAtValue;
+
+        // Construct bill items from materialsData, falling back to a synthesized item if materials is empty but value > 0
+        let billItems = materialsData.map((m) => {
+          const lineTaxable = (Number(m.price) || 0) * (Number(m.quantity) || 1);
+          const rate = m.taxRate !== undefined && m.taxRate !== null ? Number(m.taxRate) : gstRate;
+          const lineTax = (lineTaxable * rate) / 100;
+          return {
+            productId: m.productId || m.id || "",
+            productName: m.productName || "Item",
+            quantity: Number(m.quantity) || 1,
+            price: Number(m.price) || 0,
+            total: Number(m.totalAmount) || (lineTaxable + lineTax),
+            taxableValue: lineTaxable,
+            taxAmount: lineTax,
+            taxRate: rate,
+            originalPrice: Number(m.originalPrice) || Number(m.price) || 0,
+            hsn: m.hsnCode || "",
+          };
+        });
+
+        if (billItems.length === 0 && finalTotal > 0) {
+          billItems = [{
+            productId: payload.enqId || "ORDER-ITEM",
+            productName: payload.customerName ? `Order for ${payload.customerName}` : "Order Items",
+            quantity: 1,
+            price: finalTotal,
+            total: finalTotal,
+            taxableValue: finalTotal,
+            taxAmount: 0,
+            taxRate: 0,
+            originalPrice: finalTotal,
+            hsn: "",
+          }];
+        }
+
+        const assignedEmpName = employees.find(
+          e => e.id === formData.assignedTo || (e as any).uid === formData.assignedTo
+        )?.employeeName || formData.assignedTo || currentUserProfile?.employeeName || currentUserProfile?.name || "Unassigned";
+
+        const billStatus = isDroppedDoc ? "dropped" : (isQuotationDoc ? "quotation" : "completed");
+        const billPaymentStatus = isPaidDoc ? "paid" : "pending";
 
         const billPayload: any = {
-          customerName: payload.customerName,
-          customerContact: payload.contactNumber,
-          customerAddress: payload.customerAddress || payload.address || "",
+          invoiceNumber: (initial as any)?.invoiceNumber || payload.invoiceNumber || autoInvNumber,
+          billDate: effectiveBillDate,
+          dueDate: Timestamp.fromDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)),
+          customerName: isProformaInvoiceMode ? companyDetails.companyName : (payload.customerName ?? ""),
+          customerContact: isProformaInvoiceMode ? companyDetails.companyMobile : (payload.contactNumber ?? ""),
+          customerAddress: isProformaInvoiceMode ? companyDetails.companyAddress : (payload.customerAddress || payload.address || "").trim(),
           customerCity: payload.city || "",
           billedTo: {
-            name: payload.customerName,
+            name: isProformaInvoiceMode ? companyDetails.companyName : (payload.customerName ?? ""),
             enqId: payload.enqId,
-            contactNumber: payload.contactNumber,
+            contactNumber: isProformaInvoiceMode ? companyDetails.companyMobile : (payload.contactNumber ?? ""),
             city: payload.city || "",
             state: payload.state || "Tamil Nadu",
-            address: payload.customerAddress || payload.address || "",
+            address: isProformaInvoiceMode ? companyDetails.companyAddress : (payload.customerAddress || payload.address || "").trim(),
             gstin: payload.companyDetails?.companyGST || payload.gstin || "",
           },
-          items: materialsData.map(m => ({
-            productId: m.productId,
-            productName: m.productName,
-            quantity: m.quantity,
-            price: m.price,
-            total: m.totalAmount,
-            taxableValue: m.taxableValue,
-            taxRate: m.taxRate,
-            taxAmount: m.taxAmount,
-            hsn: m.hsnCode || "",
-          })),
-          subtotal: calculateSubtotal(),
+          billedBy: {
+            name: "Protowiz Private Limited",
+            address: "Trichy, Tamil Nadu, India",
+            gstin: "33AAKCP9459K1ZO",
+            pan: "AAKCP9459K",
+          },
+          items: billItems,
+          subtotal: calculateSubtotal() || finalTotal,
           taxAmount: calculateGST(),
           totalAmount: finalTotal,
           taxRate: gstRate,
-          enquiryId: currentDocId || payload.enqId,
-          enquiryEnqId: payload.enqId,
-          status: isQuotationDoc ? "quotation" : "completed",
-          paymentStatus: isPaidDoc ? "paid" : "pending",
+          discountAmount: 0,
+          taxType: "GST",
+          assignedTo: formData.assignedTo || currentUserProfile?.id || "",
+          assignedToName: assignedEmpName,
+          createdBy: currentUserProfile?.id || "",
+          createdByRole: currentUserProfile?.role || "staff",
+          status: billStatus,
+          paymentStatus: billPaymentStatus,
           paymentType: payload.paymentType || payload.paymentSubStatus || "",
           paymentSubStatus: payload.paymentSubStatus || "",
           shipmentStatus: payload.shipmentStatus || "",
+          enquiryId: currentDocId || savedDocId || payload.enqId,
+          enquiryEnqId: payload.enqId,
+          enquiryStatus: formData.status || (isApproved ? "Approved" : "Quotation"),
           isQuotation: isQuotationDoc,
-          deductFromInventory: deductFromInventory,
+          deductFromInventory: isApproved || deductFromInventory,
+          inventoryUpdated: isApproved || deductFromInventory,
+          stockDeducted: isApproved || deductFromInventory,
+          notes: isApproved ? `Approved order created from enquiry ${payload.enqId}` : `Enquiry record ${payload.enqId}`,
           updatedAt: serverTimestamp(),
         };
 
-        if (!bSnap.empty) {
-          const existingDoc = bSnap.docs[0];
-          await updateDoc(existingDoc.ref, billPayload);
+        const billsRef = collection(db, "bills");
+        let existingBillDoc: any = null;
+
+        if ((initial as any)?.billId) {
+          try {
+            const bDocSnap = await getDoc(doc(db, "bills", (initial as any).billId));
+            if (bDocSnap.exists()) existingBillDoc = bDocSnap;
+          } catch (_) {}
+        }
+
+        if (!existingBillDoc && payload.enqId) {
+          const bq = query(billsRef, where("enquiryEnqId", "==", payload.enqId));
+          const bSnap = await getDocs(bq);
+          if (!bSnap.empty) {
+            existingBillDoc = bSnap.docs[0];
+          }
+        }
+
+        if (existingBillDoc) {
+          await updateDoc(existingBillDoc.ref, billPayload);
           console.log("Auto-updated existing bill in bills collection for enquiry:", payload.enqId);
-        } else if ((isApprovedDoc || isQuotationDoc) && materialsData.length > 0) {
-          await addDoc(billsRef, {
+        } else if (isApproved || isQuotationDoc || isProformaDoc || materialsData.length > 0 || finalTotal > 0) {
+          const newDocRef = await addDoc(billsRef, {
             ...billPayload,
-            invoiceNumber: autoInvNumber,
-            billDate: createdAtValue,
-            dueDate: Timestamp.fromDate(new Date(Date.now() + 15 * 24 * 60 * 60 * 1000)),
             billId: `BILL-${Date.now()}`,
-            createdAt: serverTimestamp(),
-            createdBy: currentUserProfile?.id || "",
-            createdByName: currentUserProfile?.employeeName || currentUserProfile?.name || "System",
+            createdAt: effectiveBillDate,
           });
-          console.log("Auto-created new bill in bills collection for enquiry:", payload.enqId);
+          const targetEnqDocId = currentDocId || savedDocId;
+          if (targetEnqDocId) {
+            await updateDoc(doc(db, "enquiries", targetEnqDocId), {
+              billId: newDocRef.id,
+              invoiceNumber: billPayload.invoiceNumber,
+              billGenerated: true,
+              approvedAt: isApproved ? Timestamp.now() : null,
+            });
+          }
+          console.log("Auto-created new bill in bills collection for enquiry:", payload.enqId, newDocRef.id);
         }
       } catch (billSyncErr) {
         console.warn("Could not auto-sync bill record for enquiry:", billSyncErr);
@@ -1111,130 +1190,6 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
 
       const enquiryQtyChanges: Record<string, number> = {};
       const approvedBillQtyChanges: Record<string, number> = {};
-
-      const oldStatus = initial ? (initial as any).status : undefined;
-      const newStatus = formData.status;
-      
-      const wasApproved = oldStatus === "Approved";
-      const isApproved = newStatus === "Approved";
-
-      // Sync with Firestore bills collection when status is Approved
-      if (isApproved) {
-        try {
-          let existingBillDocId: string | null = (initial as any)?.billId || null;
-          if (!existingBillDocId && payload.enqId) {
-            const bQuery = query(collection(db, "bills"), where("enquiryEnqId", "==", payload.enqId));
-            const bSnap = await getDocs(bQuery);
-            if (!bSnap.empty) {
-              existingBillDocId = bSnap.docs[0].id;
-            }
-          }
-
-          const billItems = materialsData.map(item => {
-            const lineTaxable = (Number(item.price) || 0) * (Number(item.quantity) || 1);
-            const rate = item.taxRate !== undefined && item.taxRate !== null ? Number(item.taxRate) : gstRate;
-            const lineTax = (lineTaxable * rate) / 100;
-            return {
-              productId: item.productId || item.id || "",
-              productName: item.productName || item.name || "Item",
-              quantity: Number(item.quantity) || 1,
-              price: Number(item.price) || 0,
-              total: lineTaxable + lineTax,
-              taxableValue: lineTaxable,
-              taxAmount: lineTax,
-              taxRate: rate,
-              originalPrice: item.originalPrice || item.price || 0,
-              hsn: item.hsnCode || item.hsn || "",
-            };
-          });
-
-          const assignedEmpName = employees.find(
-            e => e.id === formData.assignedTo || (e as any).uid === formData.assignedTo
-          )?.employeeName || formData.assignedTo || currentUserProfile?.employeeName || currentUserProfile?.name || "Unassigned";
-
-          const billPayload: any = {
-            invoiceNumber: (initial as any)?.invoiceNumber || `INV-${payload.enqId}`,
-            billDate: createdAtValue,
-            dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
-            customerName: isProformaInvoiceMode ? companyDetails.companyName : (formData.customerName ?? ""),
-            customerContact: isProformaInvoiceMode ? companyDetails.companyMobile : (formData.contactNumber ?? ""),
-            customerCity: formData.city ?? "",
-            billedTo: {
-              name: isProformaInvoiceMode ? companyDetails.companyName : (formData.customerName ?? ""),
-              enqId: payload.enqId,
-              contactNumber: isProformaInvoiceMode ? companyDetails.companyMobile : (formData.contactNumber ?? ""),
-              city: formData.city ?? "",
-              state: formData.state ?? "",
-              address: isProformaInvoiceMode ? companyDetails.companyAddress : (formData.customerAddress || formData.address || "").trim(),
-            },
-            billedBy: {
-              name: "Protowiz Private Limited",
-              address: "Trichy, Tamil Nadu, India",
-              gstin: "33AAKCP9459K1ZO",
-              pan: "AAKCP9459K",
-            },
-            totalAmount: finalTotal,
-            subtotal: calculateSubtotal(),
-            taxAmount: calculateGST(),
-            taxRate: gstRate,
-            discountAmount: 0,
-            taxType: "GST",
-            assignedTo: formData.assignedTo || currentUserProfile?.id || "",
-            assignedToName: assignedEmpName,
-            createdBy: currentUserProfile?.id || "",
-            createdByRole: currentUserProfile?.role || "staff",
-            status: "completed",
-            paymentStatus: formData.paymentStatus === "Paid" ? "paid" : "pending",
-            paymentType: formData.paymentType || "",
-            paymentSubStatus: formData.paymentSubStatus || "",
-            items: billItems,
-            enquiryId: savedDocId || "",
-            enquiryEnqId: payload.enqId,
-            isQuotation: false,
-            deductFromInventory: true,
-            inventoryUpdated: true,
-            stockDeducted: true,
-            notes: `Approved order created from enquiry ${payload.enqId}`,
-            updatedAt: serverTimestamp(),
-          };
-
-          if (existingBillDocId) {
-            await updateDoc(doc(db, "bills", existingBillDocId), billPayload);
-            console.log("Updated existing bill for approved enquiry:", existingBillDocId);
-          } else {
-            const newBillId = await billService.createBill({
-              ...billPayload,
-              billId: `BILL-${Date.now()}`,
-              createdAt: createdAtValue,
-            });
-            console.log("Created new bill in bills collection for approved enquiry:", newBillId);
-            if (savedDocId) {
-              await updateDoc(doc(db, "enquiries", savedDocId), {
-                billId: newBillId,
-                invoiceNumber: billPayload.invoiceNumber,
-                billGenerated: true,
-              });
-            }
-          }
-        } catch (bErr) {
-          console.error("Error creating/updating bill for approved enquiry:", bErr);
-        }
-      } else if (wasApproved && !isApproved && payload.enqId) {
-        try {
-          const bQuery = query(collection(db, "bills"), where("enquiryEnqId", "==", payload.enqId));
-          const bSnap = await getDocs(bQuery);
-          bSnap.forEach(async (bDoc) => {
-            const newBillStatus = newStatus === "Dropped" ? "dropped" : "quotation";
-            await updateDoc(doc(db, "bills", bDoc.id), {
-              status: newBillStatus,
-              isQuotation: newStatus === "Quotation",
-              updatedAt: serverTimestamp(),
-            });
-          });
-        } catch (bErr) {
-          console.error("Error updating bill status on unapproval:", bErr);
-        }
-      }
 
       // 1. Subtract old quantities
       oldMaterials.forEach(item => {
