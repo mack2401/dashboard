@@ -954,11 +954,23 @@ const InventoryManagement: React.FC = () => {
     return set.size;
   }, [approvedFastMovingItems, enquiryFastMovingItems]);
 
+  // Set of current valid product IDs and names to verify against
+  const currentProductIds = useMemo(() => new Set(products.map(p => p.id)), [products]);
+  const currentProductNames = useMemo(() => new Set(products.map(p => (p.name || '').trim().toLowerCase()).filter(Boolean)), [products]);
+
   // ============ FILTERED TRANSACTIONS ============
   const filteredTransactions = useMemo(() => {
     let filtered = transactions;
     
-    if (transactionFilter !== 'all') {
+    // When filtering by 'add', exclude any orphaned transactions for products that have been deleted from inventory
+    if (transactionFilter === 'add') {
+      filtered = filtered.filter(t => {
+        if (t.type !== 'add') return false;
+        const hasId = t.productId && currentProductIds.has(t.productId);
+        const hasName = t.productName && currentProductNames.has(t.productName.trim().toLowerCase());
+        return hasId || hasName;
+      });
+    } else if (transactionFilter !== 'all') {
       filtered = filtered.filter(t => t.type === transactionFilter);
     }
 
@@ -982,7 +994,7 @@ const InventoryManagement: React.FC = () => {
     }
     
     return filtered;
-  }, [transactions, transactionFilter, txDatePreset, txStartDate, txEndDate, txSearchTerm]);
+  }, [transactions, transactionFilter, txDatePreset, txStartDate, txEndDate, txSearchTerm, currentProductIds, currentProductNames]);
 
   // Transactions Pagination Calculations
   const totalTxPages = Math.max(1, Math.ceil(filteredTransactions.length / transactionItemsPerPage));
@@ -1396,36 +1408,29 @@ const InventoryManagement: React.FC = () => {
     try {
       const productRef = doc(db, 'products', productId);
       const product = products.find(p => p.id === productId);
+      const productName = product?.name || '';
       
       // 1. Optimistically remove from state immediately so Total SOH and Total Purchase Value reduce immediately
       setProducts(prev => prev.filter(p => p.id !== productId));
       setIsDeleteConfirmOpen(false);
       setProductToDelete(null);
 
-      // 2. Safely record transaction audit in background so it never blocks deletion
-      if (product) {
-        try {
-          await addDoc(collection(db, 'transactions'), {
-            productId: productId,
-            productName: product.name || 'Unknown Product',
-            type: 'delete',
-            quantity: Number(product.totalQuantity) || 0,
-            previousQuantity: Number(product.totalQuantity) || 0,
-            newQuantity: 0,
-            price: Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0,
-            totalAmount: (Number(product.totalQuantity) || 0) * (Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0),
-            performedBy: user?.uid || 'user',
-            performedByName: user?.name || user?.email || 'User',
-            notes: 'Product deleted from inventory',
-            createdAt: serverTimestamp(),
-          });
-        } catch (auditErr) {
-          console.warn('Could not record delete transaction audit log:', auditErr);
-        }
-      }
-      
-      // 3. Delete document from Firestore
+      // 2. Also optimistically remove associated transactions so they disappear immediately from Transaction History
+      setTransactions(prev => prev.filter(t => t.productId !== productId && (!productName || t.productName?.toLowerCase() !== productName.toLowerCase())));
+
+      // 3. Delete product document from Firestore
       await deleteDoc(productRef);
+
+      // 4. Cascade delete associated transactions from Firestore
+      try {
+        const qById = query(collection(db, 'transactions'), where('productId', '==', productId));
+        const snap = await getDocs(qById);
+        const batch = writeBatch(db);
+        snap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      } catch (cascadeErr) {
+        console.warn('Could not cascade delete transactions:', cascadeErr);
+      }
       
     } catch (error) {
       console.error('Error deleting product:', error);
@@ -1459,29 +1464,22 @@ const InventoryManagement: React.FC = () => {
       
       // 1. Optimistically update local state immediately
       setProducts(prev => prev.filter(p => p.id !== product.id));
+      setTransactions(prev => prev.filter(t => t.productId !== product.id && (!product.name || t.productName?.toLowerCase() !== product.name.toLowerCase())));
 
-      // 2. Record deletion transaction safely
-      try {
-        await addDoc(collection(db, 'transactions'), {
-          productId: product.id,
-          productName: product.name || 'Unknown Product',
-          type: 'delete',
-          quantity: Number(product.totalQuantity) || 0,
-          previousQuantity: Number(product.totalQuantity) || 0,
-          newQuantity: 0,
-          price: Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0,
-          totalAmount: (Number(product.totalQuantity) || 0) * (Number(product.currentPrice) || Number(getProductPurchasePrice(product)) || 0),
-          performedBy: user?.uid || 'user',
-          performedByName: user?.name || user?.email || 'Admin',
-          notes: `Product deleted from inventory (Requested by ${product.deleteRequestedByName || 'User'})`,
-          createdAt: serverTimestamp(),
-        });
-      } catch (auditErr) {
-        console.warn('Could not record audit log:', auditErr);
-      }
-      
-      // 3. Delete document from Firestore
+      // 2. Delete document from Firestore
       await deleteDoc(productRef);
+
+      // 3. Cascade delete associated transactions from Firestore
+      try {
+        const qById = query(collection(db, 'transactions'), where('productId', '==', product.id));
+        const snap = await getDocs(qById);
+        const batch = writeBatch(db);
+        snap.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      } catch (cascadeErr) {
+        console.warn('Could not cascade delete transactions:', cascadeErr);
+      }
+
       alert('Product delete request approved and product removed.');
     } catch (error) {
       console.error('Error approving delete request:', error);
@@ -1607,16 +1605,57 @@ const InventoryManagement: React.FC = () => {
   };
 
   const handleDeleteSingleTransaction = async (transactionId: string) => {
-    if (!window.confirm('Are you sure you want to delete this transaction? This action cannot be undone.')) {
-      return;
+    const tx = transactions.find(t => t.id === transactionId);
+    if (!tx) return;
+
+    const matchedProduct = products.find(p => p.id === tx.productId || (p.name && tx.productName && p.name.trim().toLowerCase() === tx.productName.trim().toLowerCase()));
+
+    let alsoDeleteProduct = false;
+    if (matchedProduct && tx.type === 'add') {
+      const confirmed = window.confirm(
+        `Delete this transaction record for "${tx.productName || 'product'}"?\n\n` +
+        `• Click OK to delete this transaction record AND completely remove "${tx.productName}" from the Inventory Catalogue.\n` +
+        `• Click Cancel to abort.`
+      );
+      if (!confirmed) return;
+      alsoDeleteProduct = true;
+    } else {
+      if (!window.confirm(`Are you sure you want to delete this transaction record for "${tx.productName || 'product'}"? This action cannot be undone.`)) {
+        return;
+      }
     }
 
     try {
+      // 1. Optimistically update local transactions state immediately
+      setTransactions(prev => prev.filter(t => t.id !== transactionId));
+      if (alsoDeleteProduct && matchedProduct) {
+        setProducts(prev => prev.filter(p => p.id !== matchedProduct.id));
+      }
+
+      // 2. Delete the transaction doc from Firestore
       const transactionRef = doc(db, 'transactions', transactionId);
       await deleteDoc(transactionRef);
+
+      // 3. If also removing product from inventory, delete product doc and cascade delete related transactions
+      if (alsoDeleteProduct && matchedProduct) {
+        const productRef = doc(db, 'products', matchedProduct.id);
+        await deleteDoc(productRef);
+
+        try {
+          const qById = query(collection(db, 'transactions'), where('productId', '==', matchedProduct.id));
+          const snap = await getDocs(qById);
+          const batch = writeBatch(db);
+          snap.forEach(d => {
+            if (d.id !== transactionId) batch.delete(d.ref);
+          });
+          await batch.commit();
+        } catch (cascadeErr) {
+          console.warn('Could not cascade delete remaining transactions:', cascadeErr);
+        }
+      }
     } catch (error) {
       console.error('Error deleting transaction:', error);
-      alert('Failed to delete transaction');
+      alert('Failed to delete transaction: ' + (error instanceof Error ? error.message : 'Unknown error'));
     }
   };
 
@@ -3166,6 +3205,14 @@ const InventoryManagement: React.FC = () => {
   // ============ FILTERED AND SORTED DATA WITH PAGINATION ============
   const filteredProducts = useMemo(() => {
     let filtered = products;
+
+    // Filter out deleted products
+    filtered = filtered.filter(product => {
+      if ((product as any).isDeleted === true || (product as any).status === 'deleted') {
+        return false;
+      }
+      return true;
+    });
     
     if (searchTerm) {
       filtered = filtered.filter(product =>
@@ -6264,6 +6311,15 @@ const InventoryManagement: React.FC = () => {
                               {(product.isQuoteOnly || product.productType === 'quote_purpose') && (
                                 <span className="px-1.5 py-0.2 text-[10px] font-semibold bg-purple-50 text-purple-700 rounded-full border border-purple-200/80">
                                   Quote Item
+                                </span>
+                              )}
+                              {product.deleteRequested && (
+                                <span 
+                                  className="px-1.5 py-0.5 text-[10px] font-bold bg-rose-50 text-rose-700 rounded-md border border-rose-300/80 inline-flex items-center gap-1 shadow-2xs" 
+                                  title={`Deletion requested by ${product.deleteRequestedByName || 'Staff'}`}
+                                >
+                                  <AlertCircle className="w-2.5 h-2.5 text-rose-600" />
+                                  Delete Requested
                                 </span>
                               )}
                             </div>
