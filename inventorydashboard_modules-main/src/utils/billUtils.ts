@@ -619,3 +619,95 @@ export function calculateBillPurchaseCost(
 
   return { billPurchase, billItemsQty };
 }
+
+/**
+ * Convert an approved enquiry document into a normalized bill object.
+ * Guarantees that approved orders seamlessly populate Bills, Dashboard, and PNL.
+ */
+export function createBillFromApprovedEnquiry(enq: any): any {
+  if (!enq) return null;
+
+  let materials: any[] = [];
+  try {
+    materials = typeof enq.materials === "string" ? JSON.parse(enq.materials) : (enq.materials || []);
+  } catch {
+    materials = [];
+  }
+
+  const items = (Array.isArray(materials) ? materials : []).map((m: any) => {
+    const qty = Number(m.quantity) || 1;
+    const price = Number(m.price) || 0;
+    const rate = m.taxRate !== undefined && m.taxRate !== null ? Number(m.taxRate) : (Number(enq.gstRate) || 0);
+    const taxable = m.taxableValue !== undefined ? Number(m.taxableValue) : (price * qty);
+    const tax = m.taxAmount !== undefined ? Number(m.taxAmount) : ((taxable * rate) / 100);
+    return {
+      productId: m.productId || m.id || "",
+      productName: m.productName || m.name || "Item",
+      quantity: qty,
+      price: price,
+      total: Number(m.totalAmount) || (taxable + tax),
+      taxableValue: taxable,
+      taxAmount: tax,
+      taxRate: rate,
+      originalPrice: Number(m.originalPrice) || price,
+      hsn: m.hsnCode || m.hsn || "",
+    };
+  });
+
+  const totalAmount = Number(enq.finalTotal || enq.value || 0);
+  const subtotal = Number(enq.subtotal || enq.taxableValue || 0);
+  const taxAmount = Number(enq.gstAmount || 0);
+  const createdAt = enq.createdAt || new Date();
+  const invoiceNumber = enq.invoiceNumber || enq.proformaInvoiceNumber || `INV-${enq.enqId || String(enq.id || "").slice(-4)}`;
+
+  return {
+    id: enq.billId || `bill-enq-${enq.id || enq.enqId}`,
+    billId: enq.billId || `BILL-${enq.enqId || Date.now()}`,
+    invoiceNumber: invoiceNumber,
+    billDate: createdAt,
+    date: createdAt,
+    dueDate: createdAt,
+    customerName: enq.customerName || enq.name || "",
+    customerContact: enq.contactNumber || enq.phone || "",
+    customerCity: enq.city || "",
+    totalAmount: totalAmount,
+    subtotal: subtotal,
+    taxAmount: taxAmount,
+    discountAmount: 0,
+    assignedTo: enq.assignedTo || "",
+    assignedToName: enq.assignedTo || "Unassigned",
+    createdBy: enq.assignedTo || "",
+    createdByRole: "staff",
+    status: "completed",
+    paymentStatus: String(enq.paymentStatus || "").toLowerCase() === "paid" ? "paid" : "pending",
+    paymentType: enq.paymentType || "",
+    paymentSubStatus: enq.paymentSubStatus || "",
+    items: items,
+    billedBy: {
+      name: "Protowiz Private Limited",
+      address: "Trichy, Tamil Nadu, India",
+      gstin: "33AAKCP9459K1ZO",
+      pan: "AAKCP9459K",
+    },
+    billedTo: {
+      name: enq.customerName || enq.name || "",
+      enqId: enq.enqId || "",
+      contactNumber: enq.contactNumber || enq.phone || "",
+      city: enq.city || "",
+      state: enq.state || "",
+      address: enq.customerAddress || enq.address || "",
+    },
+    taxType: "GST",
+    taxRate: Number(enq.gstRate) || 0,
+    placeOfSupply: enq.state || "",
+    enquiryId: enq.id || "",
+    enquiryEnqId: enq.enqId || "",
+    enquiryStatus: "Approved",
+    isQuotation: false,
+    deductFromInventory: true,
+    inventoryUpdated: true,
+    stockDeducted: true,
+    createdAt: createdAt,
+    updatedAt: enq.updatedAt || createdAt,
+  };
+}

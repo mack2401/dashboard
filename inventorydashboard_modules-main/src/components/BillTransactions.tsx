@@ -38,6 +38,7 @@ import {
   getBillTotal,
   getBillDate,
   calculateBillPurchaseCost,
+  createBillFromApprovedEnquiry,
 } from "../utils/billUtils";
 import { generateBillPrintHTML, numberToWords as formatNumberToWords } from "../utils/billPrintTemplate";
 import {
@@ -599,8 +600,42 @@ const BillTransactions: React.FC = () => {
         console.warn("Could not batch load enquiries in BillTransactions:", err);
       }
 
+      // Check for approved enquiries without a bill and add them to the bill processing list
+      const billedKeys = new Set<string>();
+      deduplicatedBills.forEach((b: any) => {
+        if (b.enquiryEnqId) billedKeys.add(String(b.enquiryEnqId).trim().toLowerCase());
+        if (b.enquiryId) billedKeys.add(String(b.enquiryId).trim().toLowerCase());
+        if (b.billedTo?.enqId) billedKeys.add(String(b.billedTo.enqId).trim().toLowerCase());
+        if (b.enqId) billedKeys.add(String(b.enqId).trim().toLowerCase());
+        if (b.id) billedKeys.add(String(b.id).trim().toLowerCase());
+        if (b.invoiceNumber) billedKeys.add(String(b.invoiceNumber).trim().toLowerCase());
+      });
+
+      const missingApprovedBills: any[] = [];
+      allEnquiriesList.forEach((e: any) => {
+        if (e.status === "Approved") {
+          const enqIdStr = String(e.enqId || "").trim().toLowerCase();
+          const docIdStr = String(e.id || "").trim().toLowerCase();
+          const billIdStr = String(e.billId || "").trim().toLowerCase();
+          const invNumStr = String(e.invoiceNumber || `INV-${e.enqId}`).trim().toLowerCase();
+
+          const alreadyInBills =
+            (enqIdStr && billedKeys.has(enqIdStr)) ||
+            (docIdStr && billedKeys.has(docIdStr)) ||
+            (billIdStr && billedKeys.has(billIdStr)) ||
+            (invNumStr && billedKeys.has(invNumStr));
+
+          if (!alreadyInBills) {
+            const synthBill = createBillFromApprovedEnquiry(e);
+            if (synthBill) missingApprovedBills.push(synthBill);
+          }
+        }
+      });
+
+      const allBillsToProcess = [...deduplicatedBills, ...missingApprovedBills];
+
       // Process each bill with enquiry data
-      const processedTransactions = deduplicatedBills.map((bill) => {
+      const processedTransactions = allBillsToProcess.map((bill) => {
         // Step 1: Find matching enquiry across all possible bill identifiers
         const enqKeys = [
           bill.enquiryEnqId,

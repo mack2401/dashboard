@@ -1140,32 +1140,6 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                         </div>
                                       </div>
                                     </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="flex flex-wrap items-center gap-2.5">
-                                      <button
-                                        onClick={handleRefresh}
-                                        className="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-xs transition cursor-pointer"
-                                      >
-                                        <RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? "animate-spin" : ""}`} />
-                                        Refresh
-                                      </button>
-                                      <button
-                                        onClick={async () => {
-                                          const nextId = await generateNextEnqId();
-                                          setSelectedEnquiry({
-                                            enqId: nextId,
-                                            assignedTo: user?.uid ?? "",
-                                            statusHistory: [],
-                                          } as Enquiry);
-                                          setModalOpen(true);
-                                        }}
-                                        className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition cursor-pointer"
-                                      >
-                                        <Plus className="w-4 h-4" />
-                                        + New Enquiry
-                                      </button>
-                                    </div>
                                   </div>
 
                                   {/* Top Summary Statistics KPI Cards */}

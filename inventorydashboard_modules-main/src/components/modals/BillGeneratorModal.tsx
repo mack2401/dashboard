@@ -878,7 +878,8 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
         const wasPreviouslyApprovedAndDeducted = 
           existingBillData?.inventoryUpdated === true || 
           existingBillData?.status === "paid" || 
-          existingBillData?.isApprovedAndPaid === true;
+          existingBillData?.isApprovedAndPaid === true ||
+          enquiryData?.stockDeducted === true;
 
         if (wasPreviouslyApprovedAndDeducted && originalMaterials.length > 0) {
           const adjustments = calculateInventoryAdjustments(editableMaterials, originalMaterials);

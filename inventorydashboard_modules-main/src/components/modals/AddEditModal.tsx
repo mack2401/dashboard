@@ -1,11 +1,12 @@
 // components/modals/AddEditModal.tsx
 
 import React, { useEffect, useState, useRef, useCallback } from "react";
-import { X, Plus, Trash2, RefreshCw, FileText, PackagePlus, Package, ExternalLink, AlertTriangle, Building, MapPin, Phone, Mail, CreditCard } from "lucide-react";
+import { X, Plus, Trash2, RefreshCw, FileText, PackagePlus, Package, ExternalLink, AlertTriangle, Building, MapPin, Phone, Mail, CreditCard, Check, Percent } from "lucide-react";
 import {
   addDoc,
   collection,
   doc,
+  getDoc,
   serverTimestamp,
   updateDoc,
   deleteField,
@@ -24,6 +25,7 @@ import ProformaInvoiceGeneratorModal from "./ProformaInvoiceGeneratorModal";
 import { useAuth } from "../../App";
 import InventoryManagement from "../../pages/InventoryManagement";
 import BillGeneratorModal from "./BillGeneratorModal";
+import { billService } from "../../services/billService";
 // --- Types for props ---
 type UserProfile = {
   id: string;
@@ -186,10 +188,12 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
   const [productSearch, setProductSearch] = useState<string>("");
   const [showProductDropdown, setShowProductDropdown] = useState<boolean>(false);
   const [gstRate, setGstRate] = useState<number>(18);
+  const [isWithoutGst, setIsWithoutGst] = useState<boolean>(false);
   const [priceUpdateNotification, setPriceUpdateNotification] = useState<string | null>(null);
   const [showBillGenerator, setShowBillGenerator] = useState<boolean>(false);
   const [showStockWarningModal, setShowStockWarningModal] = useState<boolean>(false);
   const [stockWarnings, setStockWarnings] = useState<{productName: string, available: number, required: number}[]>([]);
+  const [bypassStockWarning, setBypassStockWarning] = useState<boolean>(false);
   const [deductFromInventory, setDeductFromInventory] = useState<boolean>(false);
 
   const [showInventoryManagement, setShowInventoryManagement] = useState<boolean>(false);
@@ -318,6 +322,10 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
           };
         });
         setMaterials(formattedMaterials);
+        if (formattedMaterials.length > 0 && formattedMaterials.every(m => (m.taxRate || 0) === 0)) {
+          setIsWithoutGst(true);
+          setGstRate(0);
+        }
         const finalTotal = formattedMaterials.reduce((sum, item) => sum + item.totalAmount, 0);
         setFormData(prev => ({
           ...prev,
@@ -344,7 +352,7 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
       setDeductFromInventory(
         (initial as any).deductFromInventory !== undefined
           ? !!(initial as any).deductFromInventory
-          : (initial.status === "Approved" && (initial.paymentStatus === "Paid" || (initial as any).paymentStatus === "PAID"))
+          : (initial.status === "Approved")
       );
     } else {
       setDeductFromInventory(false);
@@ -384,16 +392,18 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     
-    if (name === "status" && value === "Approved" && materials.length > 0) {
-      const stockIssues = validateStockAvailability();
-      if (stockIssues.length > 0) {
-        setStockWarnings(stockIssues);
-        setShowStockWarningModal(true);
-        return;
-      }
-    }
-
     if (name === "status") {
+      const isApproved = value === "Approved";
+      if (isApproved) {
+        setDeductFromInventory(true);
+        if (materials.length > 0 && !bypassStockWarning) {
+          const stockIssues = validateStockAvailability();
+          if (stockIssues.length > 0) {
+            setStockWarnings(stockIssues);
+            setShowStockWarningModal(true);
+          }
+        }
+      }
       const relevantSubStatuses = statusMappings[value] || [];
       setFormData((prev) => ({
         ...prev,
@@ -429,7 +439,6 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
   );
 
   const validateStockAvailability = (): {productName: string, available: number, required: number}[] => {
-    if (!deductFromInventory) return [];
     const issues: {productName: string, available: number, required: number}[] = [];
     
     materials.forEach(material => {
@@ -516,34 +525,30 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
     const existingIndex = materials.findIndex(m => m.productId === selectedProduct);
     const newQuantity = existingIndex >= 0 ? materials[existingIndex].quantity + quantity : quantity;
 
-    if (deductFromInventory && formData.status === "Approved") {
-      if (product.totalQuantity !== undefined && newQuantity > product.totalQuantity) {
-        setError(`⚠️ Only ${product.totalQuantity} items available in stock. If this is a quotation or vendor-sourced, please uncheck "Deduct from Inventory Stock".`);
-        return;
-      }
+    if (formData.status === "Approved" && product.totalQuantity !== undefined && newQuantity > product.totalQuantity && !bypassStockWarning) {
+      setStockValidationError(`⚠️ Notice: Required quantity (${newQuantity}) exceeds current warehouse stock (${product.totalQuantity}). Available stock will be deducted.`);
     }
 
+    const chosenTaxRate = isWithoutGst || gstRate === 0
+      ? 0
+      : (gstRate !== undefined && gstRate !== null
+          ? gstRate
+          : ((product.taxRate !== undefined && product.taxRate !== null) ? product.taxRate : 18));
     const taxableValue = product.price * quantity;
-    const taxRate = (product.taxRate !== undefined && product.taxRate !== null)
-      ? product.taxRate
-      : ((gstRate !== undefined && gstRate !== null) ? gstRate : 18);
-    const taxAmount = (taxableValue * taxRate) / 100;
+    const taxAmount = (taxableValue * chosenTaxRate) / 100;
     const totalAmount = taxableValue + taxAmount;
 
     let updatedMaterials;
     if (existingIndex >= 0) {
       updatedMaterials = [...materials];
       
-      if (deductFromInventory && formData.status === "Approved") {
-        if (product.totalQuantity !== undefined && newQuantity > product.totalQuantity) {
-          setError(`⚠️ Total quantity would exceed available stock (${product.totalQuantity}). If this is a quotation or vendor-sourced, please uncheck "Deduct from Inventory Stock".`);
-          return;
-        }
+      if (formData.status === "Approved" && product.totalQuantity !== undefined && newQuantity > product.totalQuantity && !bypassStockWarning) {
+        setStockValidationError(`⚠️ Notice: Required quantity (${newQuantity}) exceeds current warehouse stock (${product.totalQuantity}). Available stock will be deducted.`);
       }
 
       const existing = updatedMaterials[existingIndex];
       const newTaxableValue = product.price * newQuantity;
-      const existingTaxRate = existing.taxRate !== undefined && existing.taxRate !== null ? existing.taxRate : taxRate;
+      const existingTaxRate = isWithoutGst ? 0 : (existing.taxRate !== undefined && existing.taxRate !== null ? existing.taxRate : chosenTaxRate);
       const newTaxAmount = (newTaxableValue * existingTaxRate) / 100;
       
       updatedMaterials[existingIndex] = {
@@ -565,7 +570,7 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         quantity: quantity,
         totalAmount: totalAmount,
         taxableValue: taxableValue,
-        taxRate: taxRate,
+        taxRate: chosenTaxRate,
         taxAmount: taxAmount,
         availableQuantity: product.totalQuantity,
         hsnCode: product.hsnCode || "",
@@ -598,11 +603,8 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
 
     const product = products.get(material.productId);
 
-    if (deductFromInventory && formData.status === "Approved") {
-      if (product && product.totalQuantity !== undefined && newQuantity > product.totalQuantity) {
-        setError(`⚠️ Only ${product.totalQuantity} items available in stock. If this is a quotation or vendor-sourced, please uncheck "Deduct from Inventory Stock".`);
-        return;
-      }
+    if (formData.status === "Approved" && product && product.totalQuantity !== undefined && newQuantity > product.totalQuantity && !bypassStockWarning) {
+      setStockValidationError(`⚠️ Notice: Required quantity (${newQuantity}) exceeds current warehouse stock (${product.totalQuantity}). Available stock will be deducted.`);
     }
 
     const updatedMaterials = materials.map(m => {
@@ -651,6 +653,45 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
     updateValueWithFinalTotal(updatedMaterials);
   };
 
+  const handleToggleWithoutGst = () => {
+    const allZero = materials.length > 0 && materials.every(m => (m.taxRate || 0) === 0) && (isWithoutGst || gstRate === 0);
+    if (!allZero) {
+      setIsWithoutGst(true);
+      setGstRate(0);
+      const updatedMaterials = materials.map(m => {
+        const taxableValue = (m.price || 0) * (m.quantity || 1);
+        return {
+          ...m,
+          originalTaxRate: m.taxRate !== undefined && m.taxRate !== null && m.taxRate !== 0 
+            ? m.taxRate 
+            : ((m as any).originalTaxRate || 18),
+          taxRate: 0,
+          taxAmount: 0,
+          totalAmount: taxableValue,
+        };
+      });
+      setMaterials(updatedMaterials);
+      updateValueWithFinalTotal(updatedMaterials);
+    } else {
+      setIsWithoutGst(false);
+      setGstRate(18);
+      const updatedMaterials = materials.map(m => {
+        const product = products.get(m.productId);
+        const restoredRate = (m as any).originalTaxRate ?? product?.taxRate ?? 18;
+        const taxableValue = (m.price || 0) * (m.quantity || 1);
+        const taxAmount = (taxableValue * restoredRate) / 100;
+        return {
+          ...m,
+          taxRate: restoredRate,
+          taxAmount: taxAmount,
+          totalAmount: taxableValue + taxAmount,
+        };
+      });
+      setMaterials(updatedMaterials);
+      updateValueWithFinalTotal(updatedMaterials);
+    }
+  };
+
   const handleUpdateTaxRate = (id: string, newTaxRate: number) => {
     const updatedMaterials = materials.map(m => {
       if (m.id === id) {
@@ -663,11 +704,17 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
           taxRate: newTaxRate,
           taxAmount: taxAmount,
           totalAmount: totalAmount,
+          originalTaxRate: newTaxRate > 0 ? newTaxRate : (m as any).originalTaxRate,
         };
       }
       return m;
     });
     setMaterials(updatedMaterials);
+    if (newTaxRate > 0) {
+      setIsWithoutGst(false);
+    } else if (updatedMaterials.every(m => (m.taxRate || 0) === 0)) {
+      setIsWithoutGst(true);
+    }
     updateValueWithFinalTotal(updatedMaterials);
   };
 
@@ -809,8 +856,10 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
   
   const handleProceedWithStockIssues = () => {
     setShowStockWarningModal(false);
+    setBypassStockWarning(true);
     setFormData((p) => ({ ...p, status: "Approved" }));
-    setStockValidationError("⚠️ Some products have stock issues. Please update inventory or reduce quantities.");
+    setDeductFromInventory(true);
+    setStockValidationError("⚠️ Proceeding with stock issues: Available stock will be deducted down to 0.");
     setTimeout(() => setStockValidationError(null), 10000);
   };
 
@@ -847,7 +896,7 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
       }
     }
 
-    if (formData.status === "Approved") {
+    if (formData.status === "Approved" && !bypassStockWarning) {
       const stockIssues = validateStockAvailability();
       if (stockIssues.length > 0) {
         setStockWarnings(stockIssues);
@@ -938,7 +987,8 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         finalTotal: finalTotal,
         materialsCount: materials.length,
         stockValidated: formData.status === "Approved" ? true : false,
-        deductFromInventory: deductFromInventory,
+        deductFromInventory: formData.status === "Approved" || deductFromInventory,
+        stockDeducted: formData.status === "Approved" || deductFromInventory,
         isProformaInvoice: formData.status === "Proforma Invoice" || false,
         companyDetails: isProformaInvoiceMode ? companyDetails : null,
       };
@@ -955,6 +1005,7 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         payload.paymentSubStatus = "";
 
       // Check if we're editing an existing enquiry (has an ID)
+      let savedDocId = currentDocId;
       if (currentDocId) {
         // Update existing enquiry by ID
         payload.droppedReason = deleteField();
@@ -967,6 +1018,7 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
           ...payload,
           createdAt: createdAtValue,
         });
+        savedDocId = docRef.id;
         console.log("Created new enquiry with current date:", docRef.id);
       }
 
@@ -990,6 +1042,124 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
       
       const wasApproved = oldStatus === "Approved";
       const isApproved = newStatus === "Approved";
+
+      // Sync with Firestore bills collection when status is Approved
+      if (isApproved) {
+        try {
+          let existingBillDocId: string | null = (initial as any)?.billId || null;
+          if (!existingBillDocId && payload.enqId) {
+            const bQuery = query(collection(db, "bills"), where("enquiryEnqId", "==", payload.enqId));
+            const bSnap = await getDocs(bQuery);
+            if (!bSnap.empty) {
+              existingBillDocId = bSnap.docs[0].id;
+            }
+          }
+
+          const billItems = materialsData.map(item => {
+            const lineTaxable = (Number(item.price) || 0) * (Number(item.quantity) || 1);
+            const rate = item.taxRate !== undefined && item.taxRate !== null ? Number(item.taxRate) : gstRate;
+            const lineTax = (lineTaxable * rate) / 100;
+            return {
+              productId: item.productId || item.id || "",
+              productName: item.productName || item.name || "Item",
+              quantity: Number(item.quantity) || 1,
+              price: Number(item.price) || 0,
+              total: lineTaxable + lineTax,
+              taxableValue: lineTaxable,
+              taxAmount: lineTax,
+              taxRate: rate,
+              originalPrice: item.originalPrice || item.price || 0,
+              hsn: item.hsnCode || item.hsn || "",
+            };
+          });
+
+          const assignedEmpName = employees.find(
+            e => e.id === formData.assignedTo || (e as any).uid === formData.assignedTo
+          )?.employeeName || formData.assignedTo || currentUserProfile?.employeeName || currentUserProfile?.name || "Unassigned";
+
+          const billPayload: any = {
+            invoiceNumber: (initial as any)?.invoiceNumber || `INV-${payload.enqId}`,
+            billDate: createdAtValue,
+            dueDate: Timestamp.fromDate(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)),
+            customerName: isProformaInvoiceMode ? companyDetails.companyName : (formData.customerName ?? ""),
+            customerContact: isProformaInvoiceMode ? companyDetails.companyMobile : (formData.contactNumber ?? ""),
+            customerCity: formData.city ?? "",
+            billedTo: {
+              name: isProformaInvoiceMode ? companyDetails.companyName : (formData.customerName ?? ""),
+              enqId: payload.enqId,
+              contactNumber: isProformaInvoiceMode ? companyDetails.companyMobile : (formData.contactNumber ?? ""),
+              city: formData.city ?? "",
+              state: formData.state ?? "",
+              address: isProformaInvoiceMode ? companyDetails.companyAddress : (formData.customerAddress || formData.address || "").trim(),
+            },
+            billedBy: {
+              name: "Protowiz Private Limited",
+              address: "Trichy, Tamil Nadu, India",
+              gstin: "33AAKCP9459K1ZO",
+              pan: "AAKCP9459K",
+            },
+            totalAmount: finalTotal,
+            subtotal: calculateSubtotal(),
+            taxAmount: calculateGST(),
+            taxRate: gstRate,
+            discountAmount: 0,
+            taxType: "GST",
+            assignedTo: formData.assignedTo || currentUserProfile?.id || "",
+            assignedToName: assignedEmpName,
+            createdBy: currentUserProfile?.id || "",
+            createdByRole: currentUserProfile?.role || "staff",
+            status: "completed",
+            paymentStatus: formData.paymentStatus === "Paid" ? "paid" : "pending",
+            paymentType: formData.paymentType || "",
+            paymentSubStatus: formData.paymentSubStatus || "",
+            items: billItems,
+            enquiryId: savedDocId || "",
+            enquiryEnqId: payload.enqId,
+            isQuotation: false,
+            deductFromInventory: true,
+            inventoryUpdated: true,
+            stockDeducted: true,
+            notes: `Approved order created from enquiry ${payload.enqId}`,
+            updatedAt: serverTimestamp(),
+          };
+
+          if (existingBillDocId) {
+            await updateDoc(doc(db, "bills", existingBillDocId), billPayload);
+            console.log("Updated existing bill for approved enquiry:", existingBillDocId);
+          } else {
+            const newBillId = await billService.createBill({
+              ...billPayload,
+              billId: `BILL-${Date.now()}`,
+              createdAt: createdAtValue,
+            });
+            console.log("Created new bill in bills collection for approved enquiry:", newBillId);
+            if (savedDocId) {
+              await updateDoc(doc(db, "enquiries", savedDocId), {
+                billId: newBillId,
+                invoiceNumber: billPayload.invoiceNumber,
+                billGenerated: true,
+              });
+            }
+          }
+        } catch (bErr) {
+          console.error("Error creating/updating bill for approved enquiry:", bErr);
+        }
+      } else if (wasApproved && !isApproved && payload.enqId) {
+        try {
+          const bQuery = query(collection(db, "bills"), where("enquiryEnqId", "==", payload.enqId));
+          const bSnap = await getDocs(bQuery);
+          bSnap.forEach(async (bDoc) => {
+            const newBillStatus = newStatus === "Dropped" ? "dropped" : "quotation";
+            await updateDoc(doc(db, "bills", bDoc.id), {
+              status: newBillStatus,
+              isQuotation: newStatus === "Quotation",
+              updatedAt: serverTimestamp(),
+            });
+          });
+        } catch (bErr) {
+          console.error("Error updating bill status on unapproval:", bErr);
+        }
+      }
 
       // 1. Subtract old quantities
       oldMaterials.forEach(item => {
@@ -1035,6 +1205,121 @@ const AddEditModal: React.FC<AddEditModalProps> = ({
         console.log("Committed fast moving items counter updates.");
       } catch (err) {
         console.error("Error updating fast moving items counters:", err);
+      }
+      // ------------------------------------------------
+
+      // --- Automatic Inventory Stock Deduction & Restoration ---
+      const shouldDeductStock = formData.status === "Approved" || deductFromInventory;
+      const wasStockDeducted = !!(initial && ((initial as any).stockDeducted === true));
+      
+      const previouslyDeductedQty: Record<string, number> = {};
+      if (wasStockDeducted) {
+        oldMaterials.forEach(item => {
+          if (item.productId) {
+            previouslyDeductedQty[item.productId] = (previouslyDeductedQty[item.productId] || 0) + (Number(item.quantity) || 0);
+          }
+        });
+      }
+
+      const targetDeductedQty: Record<string, number> = {};
+      if (shouldDeductStock) {
+        materialsData.forEach(item => {
+          if (item.productId) {
+            targetDeductedQty[item.productId] = (targetDeductedQty[item.productId] || 0) + (Number(item.quantity) || 0);
+          }
+        });
+      }
+
+      const allAffectedProductIds = Array.from(new Set([...Object.keys(previouslyDeductedQty), ...Object.keys(targetDeductedQty)]));
+
+      const performerId = currentUserProfile?.id || currentUser?.uid || 'system';
+      const performerName = currentUserProfile?.employeeName || currentUserProfile?.name || currentUser?.email || 'User';
+
+      for (const prodId of allAffectedProductIds) {
+        const oldQty = previouslyDeductedQty[prodId] || 0;
+        const newQty = targetDeductedQty[prodId] || 0;
+        const qtyDiff = newQty - oldQty; // > 0 means deduct more; < 0 means return / add back
+
+        if (qtyDiff === 0) continue;
+
+        try {
+          const prodDocRef = doc(db, "products", prodId);
+          const prodSnap = await getDoc(prodDocRef);
+
+          if (!prodSnap.exists()) {
+            console.warn(`Product ${prodId} not found in Firestore when updating stock.`);
+            continue;
+          }
+
+          const productData = prodSnap.data();
+          const currentQuantity = Number(productData.totalQuantity ?? 0);
+          const currentTotalValue = Number(productData.totalValue ?? 0);
+          const unitPrice = Number(productData.currentPrice ?? productData.price ?? 0);
+
+          let updatedQuantity: number;
+          let transactionType: 'deliver' | 'add';
+          const actualAdjustedQty = Math.abs(qtyDiff);
+          const valueChange = actualAdjustedQty * unitPrice;
+          let updatedTotalValue: number;
+
+          if (qtyDiff > 0) {
+            // Deduct from inventory
+            transactionType = 'deliver';
+            updatedQuantity = Math.max(0, currentQuantity - qtyDiff);
+            updatedTotalValue = Math.max(0, currentTotalValue - valueChange);
+          } else {
+            // Restore back to inventory
+            transactionType = 'add';
+            updatedQuantity = currentQuantity + actualAdjustedQty;
+            updatedTotalValue = currentTotalValue + valueChange;
+          }
+
+          const newStockEntry = {
+            type: transactionType,
+            date: new Date(),
+            quantity: actualAdjustedQty,
+            unitPrice: unitPrice,
+            totalPrice: actualAdjustedQty * unitPrice,
+            addedBy: performerId,
+            addedByName: performerName,
+            notes: qtyDiff > 0
+              ? `Enquiry #${payload.enqId} Approved - Stock deducted (${actualAdjustedQty} units)`
+              : `Enquiry #${payload.enqId} - Restored to inventory (${actualAdjustedQty} units)`,
+          };
+
+          const existingEntries = Array.isArray(productData.stockEntries) ? productData.stockEntries : [];
+          const updatedStockEntries = [...existingEntries, newStockEntry];
+
+          await updateDoc(prodDocRef, {
+            totalQuantity: updatedQuantity,
+            totalValue: updatedTotalValue,
+            stockEntries: updatedStockEntries,
+            updatedAt: serverTimestamp(),
+          });
+
+          // Also record transaction in transactions collection
+          await addDoc(collection(db, 'transactions'), {
+            productId: prodId,
+            productName: productData.name || materialsData.find(m => m.productId === prodId)?.productName || "Product",
+            type: transactionType,
+            quantity: actualAdjustedQty,
+            previousQuantity: currentQuantity,
+            newQuantity: updatedQuantity,
+            price: unitPrice,
+            totalAmount: actualAdjustedQty * unitPrice,
+            performedBy: performerId,
+            performedByName: performerName,
+            notes: qtyDiff > 0
+              ? `Enquiry #${payload.enqId} Approved - Stock deducted (${actualAdjustedQty} units)`
+              : `Enquiry #${payload.enqId} - Restored to inventory (${actualAdjustedQty} units)`,
+            createdAt: serverTimestamp(),
+            enquiryId: payload.enqId,
+          });
+
+          console.log(`Successfully updated inventory for ${prodId}: ${currentQuantity} -> ${updatedQuantity} (delta: ${-qtyDiff})`);
+        } catch (stockErr) {
+          console.error(`Error updating stock for product ${prodId}:`, stockErr);
+        }
       }
       // ------------------------------------------------
 
@@ -1653,6 +1938,11 @@ Date: ${currentDate}`;
                                 setSelectedProduct(product.id);
                                 setProductSearch(product.name);
                                 setShowProductDropdown(false);
+                                if (!isWithoutGst && gstRate !== 0) {
+                                  if (product.taxRate !== undefined && product.taxRate !== null) {
+                                    setGstRate(product.taxRate);
+                                  }
+                                }
                               }}
                             >
                               <div className="font-medium">{product.name}</div>
@@ -1703,10 +1993,39 @@ Date: ${currentDate}`;
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-600">Tax Rate</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-sm font-medium text-gray-600">Tax Rate</label>
+                    <button
+                      type="button"
+                      onClick={handleToggleWithoutGst}
+                      className={`text-[11px] px-2 py-0.5 rounded font-semibold transition cursor-pointer border flex items-center gap-1 ${
+                        isWithoutGst || (materials.length > 0 && materials.every(m => (m.taxRate || 0) === 0))
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                          : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border-gray-300'
+                      }`}
+                      title="Set 0% GST to all products"
+                    >
+                      {isWithoutGst || (materials.length > 0 && materials.every(m => (m.taxRate || 0) === 0)) ? (
+                        <>
+                          <Check className="w-3 h-3 text-emerald-600" />
+                          <span>Without GST (0%)</span>
+                        </>
+                      ) : (
+                        <span>Without GST</span>
+                      )}
+                    </button>
+                  </div>
                   <select
                     value={gstRate}
-                    onChange={(e) => setGstRate(parseFloat(e.target.value))}
+                    onChange={(e) => {
+                      const val = parseFloat(e.target.value);
+                      setGstRate(val);
+                      if (val > 0) {
+                        setIsWithoutGst(false);
+                      } else if (val === 0) {
+                        setIsWithoutGst(true);
+                      }
+                    }}
                     className="w-full px-3 py-2 border rounded-lg"
                   >
                     {TAX_RATES.map((rate) => (
@@ -1741,7 +2060,46 @@ Date: ${currentDate}`;
               {/* Materials List */}
               {materials.length > 0 && (
                 <div className="mt-4">
-                  <h4 className="text-sm font-medium text-gray-700 mb-2">Added Products</h4>
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-sm font-semibold text-gray-800">Added Products</h4>
+                      <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+                        {materials.length} {materials.length === 1 ? 'item' : 'items'}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={handleToggleWithoutGst}
+                        className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition cursor-pointer shadow-xs ${
+                          isWithoutGst || materials.every(m => (m.taxRate || 0) === 0)
+                            ? 'bg-emerald-600 hover:bg-emerald-700 text-white border-emerald-600'
+                            : 'bg-white hover:bg-gray-50 text-gray-700 border-gray-300'
+                        }`}
+                        title="Click to set 0% GST to all selected products"
+                      >
+                        {isWithoutGst || materials.every(m => (m.taxRate || 0) === 0) ? (
+                          <>
+                            <Check className="w-3.5 h-3.5 text-white" />
+                            <span>Without GST (0% Applied)</span>
+                          </>
+                        ) : (
+                          <>
+                            <Percent className="w-3.5 h-3.5 text-gray-500" />
+                            <span>Without GST</span>
+                          </>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleRefreshPrices}
+                        className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 font-medium px-2 py-1 rounded hover:bg-blue-50 transition"
+                      >
+                        <RefreshCw className="w-3 h-3" />
+                        Refresh Prices
+                      </button>
+                    </div>
+                  </div>
                   <div className="border rounded-lg overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
@@ -1907,31 +2265,47 @@ Date: ${currentDate}`;
 
               {/* Deduct from Inventory Toggle Card */}
               {materials.length > 0 && (
-                <div className="mt-3 bg-white p-3.5 border border-gray-200 rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className={`mt-3 p-3.5 border rounded-lg shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  isApprovedMode 
+                    ? 'bg-emerald-50/70 border-emerald-200' 
+                    : 'bg-white border-gray-200'
+                }`}>
                   <div className="flex items-start sm:items-center gap-3">
                     <input
                       type="checkbox"
                       id="enquiryDeductInventory"
-                      checked={deductFromInventory}
+                      checked={deductFromInventory || isApprovedMode}
                       onChange={(e) => setDeductFromInventory(e.target.checked)}
-                      className="w-4 h-4 mt-0.5 sm:mt-0 text-purple-600 rounded border-gray-300 focus:ring-purple-500 cursor-pointer"
+                      disabled={isApprovedMode}
+                      className="w-4 h-4 mt-0.5 sm:mt-0 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500 cursor-pointer disabled:opacity-75"
                     />
                     <label htmlFor="enquiryDeductInventory" className="cursor-pointer select-none">
                       <div className="text-sm font-semibold text-gray-800 flex items-center gap-1.5">
-                        <Package className="w-4 h-4 text-purple-600" />
+                        <Package className={`w-4 h-4 ${isApprovedMode ? 'text-emerald-600' : 'text-purple-600'}`} />
                         Deduct from Inventory Stock
+                        {isApprovedMode && (
+                          <span className="text-[11px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            Automatic for Approved
+                          </span>
+                        )}
                       </div>
                       <div className="text-xs text-gray-500 font-normal mt-0.5">
-                        {deductFromInventory
-                          ? "Enabled — Warehouse inventory stock will reduce when approved & billed."
+                        {isApprovedMode
+                          ? "Automatic — Product stock will be deducted from warehouse inventory immediately upon saving."
+                          : deductFromInventory
+                          ? "Enabled — Warehouse inventory stock will reduce when approved & saved."
                           : "Disabled — Quotation / Vendor-sourced items. Warehouse inventory stock will NOT be reduced."}
                       </div>
                     </label>
                   </div>
-                  <span className={`text-xs px-2.5 py-1 rounded-full font-medium whitespace-nowrap self-start sm:self-auto ${
-                    deductFromInventory ? "bg-purple-100 text-purple-700" : "bg-gray-100 text-gray-600"
+                  <span className={`text-xs px-2.5 py-1 rounded-full font-semibold whitespace-nowrap self-start sm:self-auto ${
+                    isApprovedMode
+                      ? "bg-emerald-100 text-emerald-800 border border-emerald-300"
+                      : deductFromInventory 
+                      ? "bg-purple-100 text-purple-700" 
+                      : "bg-gray-100 text-gray-600"
                   }`}>
-                    {deductFromInventory ? "Stock Active" : "Quotation/Vendor Mode"}
+                    {isApprovedMode ? "✓ Automatic Deduction" : deductFromInventory ? "Stock Active" : "Quotation/Vendor Mode"}
                   </span>
                 </div>
               )}
@@ -2224,6 +2598,10 @@ Date: ${currentDate}`;
                 });
                 
                 setMaterials(formattedMaterials);
+        if (formattedMaterials.length > 0 && formattedMaterials.every(m => (m.taxRate || 0) === 0)) {
+          setIsWithoutGst(true);
+          setGstRate(0);
+        }
                 
                 const subtotal = formattedMaterials.reduce((sum: number, item: MaterialItem) => sum + (item.price * item.quantity), 0);
                 const gstAmount = formattedMaterials.reduce((sum: number, item: MaterialItem) => sum + (item.taxAmount || 0), 0);

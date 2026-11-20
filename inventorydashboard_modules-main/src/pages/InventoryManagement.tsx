@@ -448,9 +448,19 @@ const InventoryManagement: React.FC = () => {
     }
   }, [highlightId, targetSearch, products]);
 
-  // Transactions Pagination State
+  // Transactions Pagination & Filter State
   const [transactionPage, setTransactionPage] = useState(1);
   const transactionItemsPerPage = 10;
+  const [txSearchTerm, setTxSearchTerm] = useState('');
+  const [txDatePreset, setTxDatePreset] = useState<string>('all');
+  const [txStartDate, setTxStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split('T')[0];
+  });
+  const [txEndDate, setTxEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
 
   // Fast Moving Pagination States
   const [approvedFastMovingPage, setApprovedFastMovingPage] = useState(1);
@@ -464,7 +474,7 @@ const InventoryManagement: React.FC = () => {
 
   useEffect(() => {
     setTransactionPage(1);
-  }, [transactionFilter]);
+  }, [transactionFilter, txSearchTerm, txDatePreset, txStartDate, txEndDate]);
 
   // Form states
   const [newProduct, setNewProduct] = useState({
@@ -951,9 +961,28 @@ const InventoryManagement: React.FC = () => {
     if (transactionFilter !== 'all') {
       filtered = filtered.filter(t => t.type === transactionFilter);
     }
+
+    if (txDatePreset !== 'all') {
+      filtered = filtered.filter(t => {
+        if (!t.createdAt) return false;
+        const dateObj = t.createdAt instanceof Timestamp ? t.createdAt.toDate() : new Date(t.createdAt);
+        return isDateInPresetRange(dateObj, txDatePreset, txStartDate, txEndDate);
+      });
+    }
+
+    const term = txSearchTerm.trim().toLowerCase();
+    if (term) {
+      filtered = filtered.filter(t => 
+        (t.productName && t.productName.toLowerCase().includes(term)) ||
+        (t.performedByName && t.performedByName.toLowerCase().includes(term)) ||
+        (t.notes && t.notes.toLowerCase().includes(term)) ||
+        (t.id && t.id.toLowerCase().includes(term)) ||
+        (t.type && t.type.toLowerCase().includes(term))
+      );
+    }
     
     return filtered;
-  }, [transactions, transactionFilter]);
+  }, [transactions, transactionFilter, txDatePreset, txStartDate, txEndDate, txSearchTerm]);
 
   // Transactions Pagination Calculations
   const totalTxPages = Math.max(1, Math.ceil(filteredTransactions.length / transactionItemsPerPage));
@@ -2813,6 +2842,286 @@ const InventoryManagement: React.FC = () => {
     }
   };
 
+  const handleExportTransactionsExcel = () => {
+    try {
+      if (filteredTransactions.length === 0) {
+        alert("No transactions found to export with the current filter and date range.");
+        return;
+      }
+
+      const rows: any[][] = [
+        ["INVENTORY TRANSACTION HISTORY REPORT"],
+        [
+          `Generated: ${new Date().toLocaleString('en-IN')}`,
+          `Type Filter: ${transactionFilter.toUpperCase()}`,
+          `Date Filter: ${txDatePreset === 'all' ? 'All Dates' : txDatePreset === 'custom' ? `${txStartDate} to ${txEndDate}` : txDatePreset.replace(/_/g, ' ').toUpperCase()}`,
+          txSearchTerm ? `Search: "${txSearchTerm}"` : ''
+        ],
+        [],
+        [
+          "SL NO",
+          "TRANSACTION ID",
+          "DATE & TIME",
+          "ITEM NAME",
+          "TYPE",
+          "QTY",
+          "PREV QTY",
+          "NEW QTY",
+          "UNIT PRICE (₹)",
+          "TOTAL AMOUNT (₹)",
+          "PERFORMED BY",
+          "NOTES"
+        ]
+      ];
+
+      filteredTransactions.forEach((t, index) => {
+        const typeLabel = t.type === 'add' ? 'Added' : t.type === 'deliver' ? 'Delivered' : t.type === 'delete' ? 'Deleted' : 'Adjusted';
+        const dateStr = formatDateTime(t.createdAt);
+        rows.push([
+          index + 1,
+          t.id || '-',
+          dateStr,
+          t.productName || '-',
+          typeLabel,
+          t.quantity || 0,
+          t.previousQuantity != null ? t.previousQuantity : '-',
+          t.newQuantity != null ? t.newQuantity : '-',
+          t.price || 0,
+          t.totalAmount || 0,
+          t.performedByName || t.performedBy || '-',
+          t.notes || '-'
+        ]);
+      });
+
+      const totalAmountSum = filteredTransactions.reduce((acc, t) => acc + (t.totalAmount || 0), 0);
+      const totalQtySum = filteredTransactions.reduce((acc, t) => acc + (t.quantity || 0), 0);
+      rows.push([]);
+      rows.push([
+        "",
+        "",
+        "",
+        "TOTAL",
+        "",
+        totalQtySum,
+        "",
+        "",
+        "",
+        totalAmountSum,
+        "",
+        ""
+      ]);
+
+      const ws = XLSX.utils.aoa_to_sheet(rows);
+
+      ws['!cols'] = [
+        { wch: 8 },  // SL NO
+        { wch: 20 }, // Transaction ID
+        { wch: 22 }, // Date & Time
+        { wch: 32 }, // Item Name
+        { wch: 14 }, // Type
+        { wch: 10 }, // Qty
+        { wch: 12 }, // Prev Qty
+        { wch: 12 }, // New Qty
+        { wch: 16 }, // Unit Price
+        { wch: 18 }, // Total Amount
+        { wch: 22 }, // Performed By
+        { wch: 30 }  // Notes
+      ];
+
+      const headerRowIdx = 3;
+      const range = XLSX.utils.decode_range(ws['!ref'] || 'A1:L1');
+      for (let C = range.s.c; C <= range.e.c; ++C) {
+        const cellAddress = XLSX.utils.encode_cell({ r: headerRowIdx, c: C });
+        if (ws[cellAddress]) {
+          ws[cellAddress].s = {
+            fill: { fgColor: { rgb: "0F172A" } },
+            font: { color: { rgb: "FFFFFF" }, bold: true, sz: 10 },
+            alignment: { horizontal: "center", vertical: "center" }
+          };
+        }
+      }
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Transactions");
+      
+      const dateSuffix = new Date().toISOString().split('T')[0];
+      XLSX.writeFile(wb, `Inventory_Transactions_${dateSuffix}.xlsx`);
+    } catch (err) {
+      console.error("Error exporting Excel:", err);
+      alert("Failed to export Excel report. Please try again.");
+    }
+  };
+
+  const handleExportTransactionsPDF = () => {
+    try {
+      if (filteredTransactions.length === 0) {
+        alert("No transactions found to export with the current filter and date range.");
+        return;
+      }
+
+      const LOGO_URL = "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
+      const totalAmountSum = filteredTransactions.reduce((acc, t) => acc + (t.totalAmount || 0), 0);
+      const totalQtySum = filteredTransactions.reduce((acc, t) => acc + (t.quantity || 0), 0);
+      const addCount = filteredTransactions.filter(t => t.type === 'add').length;
+      const deliverCount = filteredTransactions.filter(t => t.type === 'deliver').length;
+      const deleteCount = filteredTransactions.filter(t => t.type === 'delete').length;
+
+      const dateRangeStr = txDatePreset === 'all'
+        ? 'All Time'
+        : txDatePreset === 'custom'
+        ? `${txStartDate} to ${txEndDate}`
+        : txDatePreset.replace(/_/g, ' ').toUpperCase();
+
+      const tableRowsHtml = filteredTransactions.map((t, idx) => {
+        const typeBadge = t.type === 'add'
+          ? '<span style="background:#ecfdf5;color:#047857;border:1px solid #a7f3d0;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;">+ Added</span>'
+          : t.type === 'deliver'
+          ? '<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #bfdbfe;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;">Deliver</span>'
+          : t.type === 'delete'
+          ? '<span style="background:#fff1f2;color:#be123c;border:1px solid #fecdd3;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;">Delete</span>'
+          : '<span style="background:#fffbeb;color:#b45309;border:1px solid #fde68a;padding:2px 8px;border-radius:12px;font-size:10px;font-weight:700;">Adjust</span>';
+
+        return `<tr>
+          <td style="text-align:center;color:#64748b;">${idx + 1}</td>
+          <td style="white-space:nowrap;color:#475569;">${formatDateTime(t.createdAt)}</td>
+          <td style="font-weight:600;color:#0f172a;">${t.productName || '-'}</td>
+          <td style="text-align:center;">${typeBadge}</td>
+          <td style="text-align:center;font-weight:700;">${t.quantity || 0}</td>
+          <td style="text-align:right;">₹${(t.price || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td style="text-align:right;font-weight:700;">₹${(t.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td>${t.performedByName || t.performedBy || '-'}</td>
+          <td style="color:#64748b;font-size:10px;">${t.notes || '-'}</td>
+        </tr>`;
+      }).join('');
+
+      const reportHtml = `<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Transaction History - ${dateRangeStr}</title>
+    <script>
+      try {
+        window.opener = null;
+      } catch(e) {}
+    </script>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 25px 30px; background: white; color: #1e293b; font-size: 11px; }
+      .header-container { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #0f172a; padding-bottom: 12px; margin-bottom: 18px; }
+      .company-info h2 { font-size: 19px; color: #0f172a; font-weight: 800; letter-spacing: -0.02em; }
+      .company-info p { color: #64748b; font-size: 11px; margin-top: 2px; }
+      .report-title-box { text-align: right; }
+      .report-title { font-size: 16px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.05em; }
+      .report-date { font-size: 11px; color: #64748b; font-weight: 600; margin-top: 3px; }
+      
+      .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 18px; }
+      .kpi-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; }
+      .kpi-label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; letter-spacing: 0.04em; }
+      .kpi-value { font-size: 16px; font-weight: 800; color: #0f172a; margin-top: 3px; }
+      
+      table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+      th { background: #0f172a; color: #ffffff; font-weight: 700; text-align: left; padding: 7px 8px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.04em; }
+      td { padding: 6px 8px; border-bottom: 1px solid #e2e8f0; color: #334155; }
+      tr:nth-child(even) td { background: #f8fafc; }
+      .total-row td { background: #f1f5f9; font-weight: 800; color: #0f172a; border-top: 2px solid #cbd5e1; }
+      
+      .footer { margin-top: 25px; padding-top: 10px; border-top: 1px solid #e2e8f0; display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8; }
+      
+      @media print {
+        .no-print { display: none !important; }
+        body { padding: 0; }
+        @page { margin: 12mm; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="no-print" style="text-align: center; margin-bottom: 18px; background: #f1f5f9; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1;">
+      <button onclick="setTimeout(function(){ window.print(); }, 50);" style="padding: 8px 20px; background: #0f172a; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 700; margin-right: 12px; font-size: 12px;">🖨 Print / Save as PDF</button>
+      <button onclick="window.close();" style="padding: 8px 16px; background: #64748b; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600;">✕ Close</button>
+    </div>
+
+    <div class="header-container">
+      <div style="display: flex; align-items: center; gap: 12px;">
+        <img src="${LOGO_URL}" alt="Logo" style="height: 38px;" onerror="this.style.display='none'" />
+        <div class="company-info">
+          <h2>Protowiz Private Limited</h2>
+          <p>Inventory Transaction History Report</p>
+        </div>
+      </div>
+      <div class="report-title-box">
+        <div class="report-title">Transaction Report</div>
+        <div class="report-date">Range: ${dateRangeStr}</div>
+        <div class="report-date" style="font-size: 10px;">Generated: ${new Date().toLocaleString('en-IN')}</div>
+      </div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Transactions</div>
+        <div class="kpi-value">${filteredTransactions.length}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Added</div>
+        <div class="kpi-value" style="color: #059669;">${addCount}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Delivered</div>
+        <div class="kpi-value" style="color: #2563eb;">${deliverCount}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Total Amount</div>
+        <div class="kpi-value">₹${totalAmountSum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+      </div>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th style="width: 35px; text-align: center;">#</th>
+          <th style="width: 125px;">DATE & TIME</th>
+          <th>ITEM NAME</th>
+          <th style="width: 80px; text-align: center;">TYPE</th>
+          <th style="width: 60px; text-align: center;">QTY</th>
+          <th style="width: 90px; text-align: right;">UNIT PRICE</th>
+          <th style="width: 100px; text-align: right;">TOTAL AMOUNT</th>
+          <th style="width: 120px;">PERFORMED BY</th>
+          <th>NOTES</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableRowsHtml}
+        <tr class="total-row">
+          <td colspan="4" style="text-align: right; padding-right: 12px;">TOTAL:</td>
+          <td style="text-align: center; font-weight: 800;">${totalQtySum}</td>
+          <td></td>
+          <td style="text-align: right; font-weight: 800;">₹${totalAmountSum.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+          <td colspan="2"></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="footer">
+      <span>Protowiz ERP &bull; Inventory Management</span>
+      <span>Page 1 &bull; Auto-generated Report</span>
+    </div>
+  </body>
+</html>`;
+
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        try {
+          printWindow.opener = null;
+        } catch (_) {}
+        printWindow.document.open();
+        printWindow.document.write(reportHtml);
+        printWindow.document.close();
+      }
+    } catch (err) {
+      console.error("Error generating PDF:", err);
+      alert("Failed to generate PDF. Please try again.");
+    }
+  };
+
   // ============ PERMISSION CHECKS ============
   const canEditProduct = (product: Product): boolean => {
     if (user?.role === 'admin') return true;
@@ -2983,13 +3292,33 @@ const InventoryManagement: React.FC = () => {
   }, [products, transactions]);
 
   const transactionStats = useMemo(() => {
-    const addCount = transactions.filter(t => t.type === 'add').length;
-    const deliverCount = transactions.filter(t => t.type === 'deliver').length;
-    const deleteCount = transactions.filter(t => t.type === 'delete').length;
-    const totalCount = transactions.length;
+    let base = transactions;
+
+    if (txDatePreset !== 'all') {
+      base = base.filter(t => {
+        if (!t.createdAt) return false;
+        const dateObj = t.createdAt instanceof Timestamp ? t.createdAt.toDate() : new Date(t.createdAt);
+        return isDateInPresetRange(dateObj, txDatePreset, txStartDate, txEndDate);
+      });
+    }
+
+    const term = txSearchTerm.trim().toLowerCase();
+    if (term) {
+      base = base.filter(t => 
+        (t.productName && t.productName.toLowerCase().includes(term)) ||
+        (t.performedByName && t.performedByName.toLowerCase().includes(term)) ||
+        (t.notes && t.notes.toLowerCase().includes(term)) ||
+        (t.id && t.id.toLowerCase().includes(term))
+      );
+    }
+
+    const addCount = base.filter(t => t.type === 'add').length;
+    const deliverCount = base.filter(t => t.type === 'deliver').length;
+    const deleteCount = base.filter(t => t.type === 'delete').length;
+    const totalCount = base.length;
     
     return { addCount, deliverCount, deleteCount, totalCount };
-  }, [transactions]);
+  }, [transactions, txDatePreset, txStartDate, txEndDate, txSearchTerm]);
 
   // ============ RENDER FUNCTIONS ============
   const renderStockBadge = (product: Product) => {
@@ -5316,163 +5645,352 @@ const InventoryManagement: React.FC = () => {
               </div>
             </div>
 
-        {/* Transactions History */}
+        {/* Transactions History matching Inventory Catalogue Theme */}
         {showTransactions && canViewTransactions() && (
-          <div className="bg-white rounded-xl p-6 mb-6 shadow-sm border border-gray-200">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-bold text-gray-900">Transaction History</h2>
-              <div className="flex space-x-3">
-                <div className="flex bg-gray-100 rounded-lg p-1">
+          <div className="bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-hidden mb-6">
+            {/* Top Toolbar matching Inventory Catalogue */}
+            <div className="px-4 py-3 bg-slate-900 text-white font-bold text-sm flex flex-wrap items-center justify-between gap-3 border-b border-white/10">
+              <div className="flex items-center gap-2.5">
+                <History className="w-4 h-4 text-blue-400" />
+                <span className="text-xs font-bold uppercase tracking-wider text-white/95">
+                  TRANSACTION HISTORY
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/15 text-slate-200">
+                  {filteredTransactions.length} {filteredTransactions.length === 1 ? 'record' : 'records'}
+                </span>
+                {(txSearchTerm || txDatePreset !== 'all' || transactionFilter !== 'all') && (
+                  <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-blue-500/30 text-blue-200 border border-blue-400/30">
+                    Filtered ({filteredTransactions.length} of {transactions.length})
+                  </span>
+                )}
+              </div>
+
+              {/* Right Toolbar Options */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportTransactionsExcel}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl transition cursor-pointer text-white flex items-center gap-1.5 text-xs font-medium px-2.5 shadow-xs"
+                  title="Export Transactions as Excel (.xlsx)"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Export Excel</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleExportTransactionsPDF}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl transition cursor-pointer text-white flex items-center gap-1.5 text-xs font-medium px-2.5 shadow-xs"
+                  title="Export / Print Transactions as PDF"
+                >
+                  <FileText className="w-3.5 h-3.5 text-blue-400" />
+                  <span>Export PDF</span>
+                </button>
+
+                {canDeleteTransactions() && (
                   <button
+                    type="button"
+                    onClick={handleDeleteAllTransactions}
+                    disabled={isDeletingTransactions}
+                    className="p-1.5 bg-rose-500/25 hover:bg-rose-500/40 text-rose-200 rounded-xl transition cursor-pointer flex items-center gap-1.5 text-xs font-medium px-2.5 border border-rose-400/30 shadow-xs disabled:opacity-50"
+                    title={transactionFilter === 'all' ? 'Delete all transactions' : `Delete all ${transactionFilter} transactions`}
+                  >
+                    {isDeletingTransactions ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Deleting...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Delete {transactionFilter === 'all' ? 'All' : transactionFilter === 'add' ? 'Added' : transactionFilter === 'deliver' ? 'Delivered' : 'Deleted'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => setShowTransactions(false)}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl transition cursor-pointer text-white flex items-center gap-1 text-xs font-medium px-2 shadow-xs"
+                  title="Close Transaction History"
+                >
+                  <X className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Close</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Controls Bar: Search, Type Pills, Date Presets */}
+            <div className="p-3.5 bg-slate-50/70 border-b border-gray-200/80 flex flex-wrap items-center justify-between gap-3">
+              {/* Search input */}
+              <div className="relative flex-1 min-w-[220px] max-w-sm">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  type="text"
+                  value={txSearchTerm}
+                  onChange={(e) => setTxSearchTerm(e.target.value)}
+                  placeholder="Search item, user, notes, ID..."
+                  className="w-full text-xs font-medium rounded-xl border border-gray-300 bg-white text-gray-900 pl-9 pr-8 py-2 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 shadow-2xs"
+                />
+                {txSearchTerm && (
+                  <button
+                    type="button"
+                    onClick={() => setTxSearchTerm('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 cursor-pointer"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Type Pills & Date Selector */}
+              <div className="flex flex-wrap items-center gap-2.5">
+                {/* Type Filter Buttons */}
+                <div className="flex bg-gray-200/70 p-1 rounded-xl gap-0.5 text-xs">
+                  <button
+                    type="button"
                     onClick={() => setTransactionFilter('all')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium ${
-                      transactionFilter === 'all' 
-                        ? 'bg-white shadow text-gray-900' 
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer ${
+                      transactionFilter === 'all'
+                        ? 'bg-white shadow-2xs text-gray-900'
                         : 'text-gray-600 hover:text-gray-900'
                     }`}
                   >
                     All ({transactionStats.totalCount})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setTransactionFilter('add')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium ${
-                      transactionFilter === 'add' 
-                        ? 'bg-white shadow text-green-600' 
-                        : 'text-green-600 hover:text-green-700'
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      transactionFilter === 'add'
+                        ? 'bg-emerald-600 text-white shadow-2xs'
+                        : 'text-emerald-700 hover:bg-emerald-50'
                     }`}
                   >
-                    <Plus className="w-3 h-3 inline mr-1" />
+                    <Plus className="w-3 h-3" />
                     Added ({transactionStats.addCount})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setTransactionFilter('deliver')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium ${
-                      transactionFilter === 'deliver' 
-                        ? 'bg-white shadow text-blue-600' 
-                        : 'text-blue-600 hover:text-blue-700'
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      transactionFilter === 'deliver'
+                        ? 'bg-blue-600 text-white shadow-2xs'
+                        : 'text-blue-700 hover:bg-blue-50'
                     }`}
                   >
-                    <Truck className="w-3 h-3 inline mr-1" />
+                    <Truck className="w-3 h-3" />
                     Delivered ({transactionStats.deliverCount})
                   </button>
                   <button
+                    type="button"
                     onClick={() => setTransactionFilter('delete')}
-                    className={`px-3 py-1 rounded-md text-sm font-medium ${
-                      transactionFilter === 'delete' 
-                        ? 'bg-white shadow text-red-600' 
-                        : 'text-red-600 hover:text-red-700'
+                    className={`px-3 py-1.5 rounded-lg font-semibold transition cursor-pointer flex items-center gap-1 ${
+                      transactionFilter === 'delete'
+                        ? 'bg-rose-600 text-white shadow-2xs'
+                        : 'text-rose-700 hover:bg-rose-50'
                     }`}
                   >
-                    <Trash2 className="w-3 h-3 inline mr-1" />
+                    <Trash2 className="w-3 h-3" />
                     Deleted ({transactionStats.deleteCount})
                   </button>
                 </div>
-                
-                {canDeleteTransactions() && (
-                  <button
-                    onClick={handleDeleteAllTransactions}
-                    disabled={isDeletingTransactions}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 flex items-center text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    title={transactionFilter === 'all' ? 'Delete all transactions' : `Delete all ${transactionFilter} transactions`}
+
+                {/* Date Preset Selector */}
+                <div className="relative flex items-center">
+                  <Calendar className="w-4 h-4 text-gray-400 absolute left-3 pointer-events-none" />
+                  <select
+                    value={txDatePreset}
+                    onChange={(e) => setTxDatePreset(e.target.value as any)}
+                    className="text-xs font-semibold rounded-xl border border-gray-300 bg-white text-gray-800 py-2 pl-9 pr-8 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-2xs transition hover:border-gray-400"
+                    aria-label="Select transaction date range"
                   >
-                    {isDeletingTransactions ? (
-                      <>
-                        <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 className="w-4 h-4 mr-2" />
-                        Delete {transactionFilter === 'all' ? 'All' : transactionFilter === 'add' ? 'Added' : transactionFilter === 'deliver' ? 'Delivered' : 'Deleted'}
-                      </>
-                    )}
+                    <option value="all">All Dates</option>
+                    <option value="today">Today</option>
+                    <option value="yesterday">Yesterday</option>
+                    <option value="custom">Between Two Dates (Custom)</option>
+                    <option value="last_7_days">Past 7 Days</option>
+                    <option value="this_week">This Week</option>
+                    <option value="this_month">This Month</option>
+                    <option value="last_month">Last Month</option>
+                    <option value="last_30_days">Past 30 Days</option>
+                    <option value="this_fy">This Financial Year</option>
+                  </select>
+                </div>
+
+                {/* Reset button if any filter is active */}
+                {(txSearchTerm || txDatePreset !== 'all' || transactionFilter !== 'all') && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTxSearchTerm('');
+                      setTxDatePreset('all');
+                      setTransactionFilter('all');
+                    }}
+                    className="px-2.5 py-1.5 bg-gray-200/80 hover:bg-gray-300 text-gray-700 text-xs font-semibold rounded-xl flex items-center gap-1 transition cursor-pointer"
+                    title="Reset transaction search and filters"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Reset
                   </button>
                 )}
-                <button
-                  onClick={() => setShowTransactions(false)}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 flex items-center text-sm"
-                >
-                  <X className="w-4 h-4 mr-2" />
-                  Close
-                </button>
               </div>
             </div>
-            
+
+            {/* Between Two Dates Range Picker Panel */}
+            {txDatePreset === 'custom' && (
+              <div className="px-4 py-2.5 bg-blue-50/70 border-b border-blue-200/70 flex flex-wrap items-center gap-3 text-xs animate-in fade-in duration-200">
+                <span className="font-bold text-blue-900 flex items-center gap-1.5">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                  Date Range:
+                </span>
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">From</span>
+                  <input
+                    type="date"
+                    value={txStartDate}
+                    max={txEndDate || new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setTxStartDate(e.target.value)}
+                    className="text-xs font-semibold text-gray-800 bg-transparent focus:outline-hidden cursor-pointer"
+                  />
+                </div>
+                <span className="text-gray-400 font-bold">to</span>
+                <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-2xs">
+                  <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">To</span>
+                  <input
+                    type="date"
+                    value={txEndDate}
+                    min={txStartDate}
+                    max={new Date().toISOString().split('T')[0]}
+                    onChange={(e) => setTxEndDate(e.target.value)}
+                    className="text-xs font-semibold text-gray-800 bg-transparent focus:outline-hidden cursor-pointer"
+                  />
+                </div>
+              </div>
+            )}
+
             {filteredTransactions.length === 0 ? (
-              <div className="text-center py-8">
-                <Clock className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-600">No transactions found.</p>
+              <div className="text-center py-12 bg-white">
+                <Clock className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm font-semibold text-gray-700">No transactions found</p>
+                <p className="text-xs text-gray-400 mt-1">Try adjusting your search terms or date range filters.</p>
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Item name</th>
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Type</th>
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Quantity</th>
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Amount</th>
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Date</th>
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Performed By</th>
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Notes</th>
-                        <th className="py-3 px-4 text-left text-sm font-semibold text-gray-700">Actions</th>
+                <div className="overflow-x-auto min-h-[300px]">
+                  <table className="w-full text-xs">
+                    <thead className="bg-slate-50/90 border-b border-gray-200/90 text-[11px] font-bold text-slate-800 uppercase tracking-wider">
+                      <tr>
+                        <th className="py-3 px-3 text-center w-12 border-r border-gray-100 font-bold uppercase tracking-wider">
+                          #
+                        </th>
+                        <th className="py-3 px-3 text-left border-r border-gray-100 font-bold uppercase tracking-wider">
+                          ITEM NAME
+                        </th>
+                        <th className="py-3 px-3 text-center border-r border-gray-100 font-bold uppercase tracking-wider">
+                          TYPE
+                        </th>
+                        <th className="py-3 px-3 text-center border-r border-gray-100 font-bold uppercase tracking-wider">
+                          QUANTITY
+                        </th>
+                        <th className="py-3 px-3 text-right border-r border-gray-100 font-bold uppercase tracking-wider">
+                          UNIT PRICE
+                        </th>
+                        <th className="py-3 px-3 text-right border-r border-gray-100 font-bold uppercase tracking-wider">
+                          TOTAL AMOUNT
+                        </th>
+                        <th className="py-3 px-3 text-center border-r border-gray-100 font-bold uppercase tracking-wider">
+                          DATE & TIME
+                        </th>
+                        <th className="py-3 px-3 text-left border-r border-gray-100 font-bold uppercase tracking-wider">
+                          PERFORMED BY
+                        </th>
+                        <th className="py-3 px-3 text-left border-r border-gray-100 font-bold uppercase tracking-wider">
+                          NOTES
+                        </th>
+                        {canDeleteSingleTransaction() && (
+                          <th className="py-3 px-3 text-center font-bold uppercase tracking-wider">
+                            ACTIONS
+                          </th>
+                        )}
                       </tr>
                     </thead>
-                    <tbody>
-                      {currentTransactions.map((transaction) => (
-                        <tr key={transaction.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4">{transaction.productName}</td>
-                          <td className="py-3 px-4">
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
-                              transaction.type === 'add' 
-                                ? 'bg-green-100 text-green-800' 
+                    <tbody className="divide-y divide-gray-100">
+                      {currentTransactions.map((transaction, idx) => (
+                        <tr key={transaction.id} className="border-b border-gray-100 hover:bg-blue-50/40 transition-colors">
+                          <td className="py-3 px-3 text-center text-gray-400 font-mono text-[11px] border-r border-gray-100">
+                            {txStartIndex + idx + 1}
+                          </td>
+                          <td className="py-3 px-3 font-semibold text-gray-900 border-r border-gray-100">
+                            {transaction.productName}
+                          </td>
+                          <td className="py-3 px-3 text-center border-r border-gray-100">
+                            <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-semibold border ${
+                              transaction.type === 'add'
+                                ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                                 : transaction.type === 'deliver'
-                                ? 'bg-blue-100 text-blue-800'
+                                ? 'bg-blue-50 text-blue-700 border-blue-200'
                                 : transaction.type === 'delete'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
+                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                : 'bg-amber-50 text-amber-700 border-amber-200'
                             }`}>
-                              {transaction.type === 'add' && <Plus className="w-3 h-3 mr-1" />}
-                              {transaction.type === 'deliver' && <Truck className="w-3 h-3 mr-1" />}
-                              {transaction.type === 'delete' && <Trash2 className="w-3 h-3 mr-1" />}
-                              {transaction.type === 'add' ? 'Add' : 
-                               transaction.type === 'deliver' ? 'Deliver' : 
-                               transaction.type === 'delete' ? 'Delete' : 'Adjust'}
+                              {transaction.type === 'add' && <Plus className="w-3 h-3" />}
+                              {transaction.type === 'deliver' && <Truck className="w-3 h-3" />}
+                              {transaction.type === 'delete' && <Trash2 className="w-3 h-3" />}
+                              {transaction.type === 'add' ? 'Added' :
+                               transaction.type === 'deliver' ? 'Delivered' :
+                               transaction.type === 'delete' ? 'Deleted' : 'Adjusted'}
                             </span>
                           </td>
-                          <td className="py-3 px-4">{transaction.quantity}</td>
-                          <td className="py-3 px-4">{formatCurrency(transaction.totalAmount)}</td>
-                          <td className="py-3 px-4">{formatDate(transaction.createdAt)}</td>
-                          <td className="py-3 px-4">{transaction.performedByName}</td>
-                          <td className="py-3 px-4 text-sm text-gray-600">{transaction.notes || '-'}</td>
-                          <td className="py-3 px-4">
-                            {canDeleteSingleTransaction() && (
-                              <button
-                                onClick={() => handleDeleteSingleTransaction(transaction.id)}
-                                className="p-1 text-red-600 hover:bg-red-50 rounded"
-                                title="Delete transaction"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
+                          <td className="py-3 px-3 text-center font-bold text-gray-900 border-r border-gray-100">
+                            {transaction.quantity}
                           </td>
+                          <td className="py-3 px-3 text-right font-medium text-gray-600 border-r border-gray-100">
+                            {formatCurrency(transaction.price || 0)}
+                          </td>
+                          <td className="py-3 px-3 text-right font-bold text-gray-900 border-r border-gray-100">
+                            {formatCurrency(transaction.totalAmount || 0)}
+                          </td>
+                          <td className="py-3 px-3 text-center text-gray-600 text-[11px] whitespace-nowrap border-r border-gray-100">
+                            {formatDateTime(transaction.createdAt)}
+                          </td>
+                          <td className="py-3 px-3 text-gray-700 font-medium border-r border-gray-100">
+                            {transaction.performedByName || transaction.performedBy || '-'}
+                          </td>
+                          <td className="py-3 px-3 text-gray-500 text-[11px] max-w-xs truncate border-r border-gray-100" title={transaction.notes || ''}>
+                            {transaction.notes || '-'}
+                          </td>
+                          {canDeleteSingleTransaction() && (
+                            <td className="py-3 px-3 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteSingleTransaction(transaction.id)}
+                                className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition cursor-pointer"
+                                title="Delete transaction record"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          )}
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-                
+
                 {filteredTransactions.length > 0 && (
-                  <Pagination
-                    currentPage={transactionPage}
-                    totalPages={totalTxPages}
-                    onPageChange={setTransactionPage}
-                    totalItems={filteredTransactions.length}
-                    itemsPerPage={transactionItemsPerPage}
-                    itemLabel="transactions"
-                    className="mt-4 border border-[#E1E5F0] rounded-xl"
-                  />
+                  <div className="p-3 border-t border-gray-100 bg-slate-50/50">
+                    <Pagination
+                      currentPage={transactionPage}
+                      totalPages={totalTxPages}
+                      onPageChange={setTransactionPage}
+                      totalItems={filteredTransactions.length}
+                      itemsPerPage={transactionItemsPerPage}
+                      itemLabel="transactions"
+                      className="border border-[#E1E5F0] rounded-xl"
+                    />
+                  </div>
                 )}
               </>
             )}
