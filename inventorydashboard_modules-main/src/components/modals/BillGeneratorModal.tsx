@@ -1869,11 +1869,13 @@ const BillGeneratorModal: React.FC<BillGeneratorModalProps> = ({
                 </div>
               </div>
             ) : (
-              <ul className="list-none space-y-0.5">
-                {terms.map((term, index) => (
-                  <li key={term.id}>{index + 1}. {term.text}</li>
-                ))}
-              </ul>
+              <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                <ul className="list-none space-y-0.5 text-gray-800">
+                  {terms.map((term, index) => (
+                    <li key={term.id}>{index + 1}. {term.text}</li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
 

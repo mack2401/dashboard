@@ -9,6 +9,93 @@
  * - Reports (Client reports & comparisons)
  */
 
+/**
+ * Detect if a string appears to be a raw Firebase UID (e.g. "IEXYOxpBHJcVaCBAkvrW8xSrZD23").
+ * Firebase Auth UIDs are typically 20-36 alphanumeric characters without spaces.
+ */
+export function isFirebaseUid(val?: string | null): boolean {
+  if (!val || typeof val !== "string") return false;
+  const trimmed = val.trim();
+  return trimmed.length >= 20 && /^[a-zA-Z0-9_-]{20,}$/.test(trimmed);
+}
+
+/**
+ * Universal helper to resolve employee / staff display name from a UID, email, or name.
+ * Prevents raw Firebase UIDs (e.g. "IEXYOxpBHJcVaCBAkvrW8xSrZD23") from ever leaking into the UI.
+ */
+export function resolveStaffName(
+  val?: string | null,
+  employeesMap?: Record<string, string> | Map<string, any> | any[]
+): string {
+  if (!val || typeof val !== "string") return "Staff";
+  const str = val.trim();
+  if (!str || str === "-" || str.toLowerCase() === "unassigned") return "Staff";
+
+  // Check lookup map if provided
+  if (employeesMap) {
+    if (employeesMap instanceof Map) {
+      if (employeesMap.has(str)) {
+        const found = employeesMap.get(str);
+        const name = typeof found === "string" ? found : (found?.employeeName || found?.name || found?.displayName);
+        if (name && !isFirebaseUid(name)) return name;
+      }
+      const lower = str.toLowerCase();
+      if (employeesMap.has(lower)) {
+        const found = employeesMap.get(lower);
+        const name = typeof found === "string" ? found : (found?.employeeName || found?.name || found?.displayName);
+        if (name && !isFirebaseUid(name)) return name;
+      }
+    } else if (Array.isArray(employeesMap)) {
+      const lower = str.toLowerCase();
+      const found = employeesMap.find(
+        (e) =>
+          e?.id === str ||
+          e?.uid === str ||
+          e?.id?.toLowerCase() === lower ||
+          e?.uid?.toLowerCase() === lower ||
+          e?.email?.toLowerCase() === lower ||
+          e?.employeeId?.toLowerCase() === lower
+      );
+      if (found) {
+        const name = found.employeeName || found.name || found.displayName;
+        if (name && !isFirebaseUid(name)) return name;
+      }
+    } else if (typeof employeesMap === "object") {
+      if (employeesMap[str]) {
+        const name = employeesMap[str];
+        if (name && !isFirebaseUid(name)) return name;
+      }
+      const lower = str.toLowerCase();
+      if (employeesMap[lower]) {
+        const name = employeesMap[lower];
+        if (name && !isFirebaseUid(name)) return name;
+      }
+    }
+  }
+
+  // If it's a raw Firebase UID that couldn't be found in the employees map:
+  // Never show "IEXYOxpBHJcVaCBAkvrW8xSrZD23" to the user!
+  if (isFirebaseUid(str)) {
+    return "Staff";
+  }
+
+  // If it's an email address, format it into a readable name (e.g. "john.doe@ibots.in" -> "John Doe")
+  if (str.includes("@")) {
+    const part = str.split("@")[0];
+    const cleaned = part.replace(/[0-9]/g, "").replace(/[._-]+/g, " ").trim();
+    if (cleaned) {
+      return cleaned
+        .split(" ")
+        .filter(Boolean)
+        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+        .join(" ");
+    }
+    return part;
+  }
+
+  return str;
+}
+
 export const isDroppedBill = (bill: any): boolean => {
   if (!bill) return false;
   const status = String(bill.status || "").toLowerCase().trim();
@@ -339,7 +426,11 @@ export function findMatchingEnquiry(bill: any, enquiriesMap: Map<string, any>): 
 /**
  * Enrich a bill with its linked enquiry details and normalize its status.
  */
-export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any>): any {
+export function resolveBillWithEnquiry(
+  bill: any,
+  enquiriesMap?: Map<string, any>,
+  employeesMap?: any
+): any {
   if (!bill) return bill;
   const enquiryData = enquiriesMap ? findMatchingEnquiry(bill, enquiriesMap) : null;
 
@@ -652,7 +743,15 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
     }];
   }
 
-  const assignedToName = bill.assignedToName || enquiryData?.assignedToName || bill.assignedTo || enquiryData?.assignedTo || "Unassigned";
+  const rawAssigned =
+    bill.assignedToName ||
+    enquiryData?.assignedToName ||
+    bill.assignedTo ||
+    enquiryData?.assignedTo ||
+    bill.createdByName ||
+    bill.createdBy ||
+    "";
+  const assignedToName = resolveStaffName(rawAssigned, employeesMap);
 
   return {
     ...bill,
@@ -938,7 +1037,7 @@ export function calculateBillPurchaseCost(
  * Convert an enquiry document into a normalized bill object.
  * Guarantees that approved orders and active enquiries seamlessly populate Bills, Dashboard, and PNL.
  */
-export function createBillFromApprovedEnquiry(enq: any): any {
+export function createBillFromApprovedEnquiry(enq: any, employeesMap?: any): any {
   if (!enq) return null;
 
   let materials: any[] = [];
@@ -1044,7 +1143,7 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     sgst,
     igst,
     assignedTo: enq.assignedTo || "",
-    assignedToName: enq.assignedTo || "Unassigned",
+    assignedToName: resolveStaffName(enq.assignedToName || enq.assignedTo, employeesMap),
     createdBy: enq.assignedTo || "",
     createdByRole: "staff",
     status: isApproved || isPaid ? "paid" : (isQuotation ? "quotation" : "paid"),
@@ -1125,7 +1224,8 @@ export function buildProductsLookupMaps(productsList: any[]): {
 export function getUnifiedBillsWithEnquiries(
   rawBills: any[],
   rawEnquiries: any[],
-  defaultBankDetailsObj?: any
+  defaultBankDetailsObj?: any,
+  employeesMap?: any
 ): any[] {
   const dedupedBills = deduplicateBills(rawBills || []);
   const enquiriesMap = buildEnquiriesMap(rawEnquiries || []);
@@ -1158,7 +1258,7 @@ export function getUnifiedBillsWithEnquiries(
       (invNumStr && billedKeys.has(invNumStr));
 
     if (!alreadyInBills) {
-      const synthBill = createBillFromApprovedEnquiry(e);
+      const synthBill = createBillFromApprovedEnquiry(e, employeesMap);
       if (synthBill) {
         if (defaultBankDetailsObj && !synthBill.billedBy) {
           synthBill.billedBy = defaultBankDetailsObj;
@@ -1169,7 +1269,7 @@ export function getUnifiedBillsWithEnquiries(
   });
 
   const allBills = [...dedupedBills, ...missingEnquiryBills];
-  const resolved = allBills.map((b) => resolveBillWithEnquiry(b, enquiriesMap));
+  const resolved = allBills.map((b) => resolveBillWithEnquiry(b, enquiriesMap, employeesMap));
 
   resolved.sort((a, b) => {
     const da = getBillDate(a)?.getTime() || 0;

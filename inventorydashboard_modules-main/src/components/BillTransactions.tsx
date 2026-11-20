@@ -41,6 +41,7 @@ import {
   calculateBillPurchaseCost,
   createBillFromApprovedEnquiry,
   getUnifiedBillsWithEnquiries,
+  resolveStaffName,
 } from "../utils/billUtils";
 import { generateBillPrintHTML, numberToWords as formatNumberToWords, getContextualTerms, isLegacyDefaultTerms } from "../utils/billPrintTemplate";
 import {
@@ -298,6 +299,41 @@ const BillTransactions: React.FC = () => {
   const [editTerms, setEditTerms] = useState<TermsCondition[]>(defaultTerms);
   const [editIncludeSignature, setEditIncludeSignature] = useState<boolean>(true);
   const [newTerm, setNewTerm] = useState("");
+  const [employees, setEmployees] = useState<Record<string, string>>({});
+
+  // Real-time synchronization with employees collection
+  useEffect(() => {
+    const employeesRef = collection(db, "employees");
+    const unsubscribe = onSnapshot(
+      employeesRef,
+      (snap) => {
+        const empMap: Record<string, string> = {};
+        snap.forEach((doc) => {
+          const d = doc.data();
+          const name = d.employeeName || d.name || (d.email ? resolveStaffName(d.email) : "Staff");
+          empMap[doc.id] = name;
+          empMap[doc.id.toLowerCase()] = name;
+          if (d.uid) {
+            empMap[d.uid] = name;
+            empMap[d.uid.toLowerCase()] = name;
+          }
+          if (d.email) {
+            empMap[d.email] = name;
+            empMap[d.email.toLowerCase()] = name;
+          }
+          if (d.employeeId) {
+            empMap[d.employeeId] = name;
+            empMap[d.employeeId.toLowerCase()] = name;
+          }
+        });
+        setEmployees(empMap);
+      },
+      (err) => {
+        console.warn("Error listening to employees collection:", err);
+      }
+    );
+    return () => unsubscribe();
+  }, []);
 
   // Logo & Signature URL constants
   const LOGO_URL = typeof window !== 'undefined' && window.location?.origin ? `${window.location.origin}/ibots-logo.png` : "https://ibots.in/wp-content/uploads/2024/07/ibots-logo.png";
@@ -622,11 +658,40 @@ const BillTransactions: React.FC = () => {
         console.warn("Could not batch load enquiries in BillTransactions:", err);
       }
 
+      // Ensure employee map is populated for resolving staff names
+      let currentEmpMap = employees;
+      if (Object.keys(currentEmpMap).length === 0) {
+        try {
+          const empSnap = await getDocs(collection(db, "employees"));
+          const map: Record<string, string> = {};
+          empSnap.forEach((doc) => {
+            const d = doc.data();
+            const name = d.employeeName || d.name || (d.email ? resolveStaffName(d.email) : "Staff");
+            map[doc.id] = name;
+            map[doc.id.toLowerCase()] = name;
+            if (d.uid) {
+              map[d.uid] = name;
+              map[d.uid.toLowerCase()] = name;
+            }
+            if (d.email) {
+              map[d.email] = name;
+              map[d.email.toLowerCase()] = name;
+            }
+            if (d.employeeId) {
+              map[d.employeeId] = name;
+              map[d.employeeId.toLowerCase()] = name;
+            }
+          });
+          currentEmpMap = map;
+        } catch (_) {}
+      }
+
       // Universal unified bills engine: single source of truth across Billing, PNL, and Dashboard
       const allTransactions = getUnifiedBillsWithEnquiries(
         fetchedBills,
         allEnquiriesList,
-        defaultBankDetails
+        defaultBankDetails,
+        currentEmpMap
       ) as BillTransaction[];
 
       console.log("Final processed transactions:", allTransactions.length);
@@ -661,7 +726,7 @@ const BillTransactions: React.FC = () => {
 
   useEffect(() => {
     filterTransactions();
-  }, [transactions, searchTerm, billTypeFilter, orderStatusFilter, monthFilter, startDate, endDate]);
+  }, [transactions, searchTerm, billTypeFilter, orderStatusFilter, monthFilter, startDate, endDate, employees]);
 
   useEffect(() => {
     calculateStatistics();
@@ -683,6 +748,7 @@ const BillTransactions: React.FC = () => {
         const contact = (bill.customerContact || bill.billedTo?.contactNumber || (bill as any).phone || (bill as any).mobile || "").toLowerCase();
         const bId = (bill.billId || bill.id || "").toLowerCase();
         const enq = (bill.enquiryEnqId || "").toLowerCase();
+        const staff = resolveStaffName(bill.assignedToName || bill.assignedTo || bill.createdBy, employees).toLowerCase();
 
         return (
           custName.includes(term) ||
@@ -691,7 +757,8 @@ const BillTransactions: React.FC = () => {
           inv.includes(term) ||
           contact.includes(term) ||
           bId.includes(term) ||
-          enq.includes(term)
+          enq.includes(term) ||
+          staff.includes(term)
         );
       });
     }
@@ -1580,7 +1647,7 @@ const BillTransactions: React.FC = () => {
           orderStatus: getStatusDisplay(bill.status) || "-",
           paymentStatus: (bill.status === "paid" || bill.paymentStatus === "completed") ? "Paid" : "Pending",
           paymentType: bill.paymentType || "-",
-          assignedToName: bill.assignedToName || "Staff",
+          assignedToName: resolveStaffName(bill.assignedToName || bill.assignedTo, employees),
         };
 
         allSheetData.push(allCols.map((col) => (rowObj as any)[col.key]));
@@ -1680,7 +1747,7 @@ const BillTransactions: React.FC = () => {
           totalAmount: total,
           orderStatus: getStatusDisplay(bill.status) || "-",
           paymentStatus: (bill.status === "paid" || bill.paymentStatus === "completed") ? "Paid" : "Pending",
-          assignedToName: bill.assignedToName || "Staff",
+          assignedToName: resolveStaffName(bill.assignedToName || bill.assignedTo, employees),
         };
 
         b2bSheetData.push(b2bCols.map((col) => (rowObj as any)[col.key]));
@@ -1775,7 +1842,7 @@ const BillTransactions: React.FC = () => {
           totalAmount: total,
           orderStatus: getStatusDisplay(bill.status) || "-",
           paymentStatus: (bill.status === "paid" || bill.paymentStatus === "completed") ? "Paid" : "Pending",
-          assignedToName: bill.assignedToName || "Staff",
+          assignedToName: resolveStaffName(bill.assignedToName || bill.assignedTo, employees),
         };
 
         b2cSheetData.push(b2cCols.map((col) => (rowObj as any)[col.key]));
@@ -2374,7 +2441,7 @@ const BillTransactions: React.FC = () => {
                       </span>
                     </td>
                     <td className={`${cellBase} whitespace-nowrap text-center`}>
-                      <div className="text-xs text-slate-800 font-semibold">{bill.assignedToName || "-"}</div>
+                      <div className="text-xs text-slate-800 font-semibold">{resolveStaffName(bill.assignedToName || bill.assignedTo || bill.createdBy, employees)}</div>
                       <div className="text-[10px] text-slate-400 capitalize">{bill.createdByRole}</div>
                     </td>
                     <td className={`${cellBase} whitespace-nowrap text-center w-16 border-r rounded-r-xl ${isRowMatch ? "border-r-amber-400" : "border-r-slate-200/80"}`}>
@@ -2966,14 +3033,16 @@ const BillTransactions: React.FC = () => {
                         </div>
                       </div>
                     ) : (
-                      <ul className="list-none space-y-1 text-xs text-gray-700">
-                        {editTerms.map((term, index) => (
-                          <li key={term.id} className="flex items-start gap-1.5">
-                            <span className="text-gray-400 font-mono text-[11px]">{index + 1}.</span>
-                            <span className="leading-tight">{term.text}</span>
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200">
+                        <ul className="list-none space-y-1 text-xs text-gray-800">
+                          {editTerms.map((term, index) => (
+                            <li key={term.id} className="flex items-start gap-1.5">
+                              <span className="text-gray-500 font-medium text-[11px]">{index + 1}.</span>
+                              <span className="leading-tight">{term.text}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
                     )}
                   </div>
                 </div>

@@ -45,6 +45,7 @@ import {
   getBillDate,
   createBillFromApprovedEnquiry,
   getUnifiedBillsWithEnquiries,
+  resolveStaffName,
 } from "../utils/billUtils";
 
 // Clean professional slate & subtle accent palette
@@ -246,9 +247,21 @@ const Dashboard: React.FC = () => {
         const empMap: Record<string, string> = {};
         snap.forEach((doc) => {
           const data = doc.data();
-          const name = data.employeeName || data.name || data.email || doc.id;
+          const name = data.employeeName || data.name || (data.email ? resolveStaffName(data.email) : "Staff");
           empMap[doc.id] = name;
-          if (data.uid) empMap[data.uid] = name;
+          empMap[doc.id.toLowerCase()] = name;
+          if (data.uid) {
+            empMap[data.uid] = name;
+            empMap[data.uid.toLowerCase()] = name;
+          }
+          if (data.email) {
+            empMap[data.email] = name;
+            empMap[data.email.toLowerCase()] = name;
+          }
+          if (data.employeeId) {
+            empMap[data.employeeId] = name;
+            empMap[data.employeeId.toLowerCase()] = name;
+          }
         });
         setEmployees(empMap);
       },
@@ -266,8 +279,8 @@ const Dashboard: React.FC = () => {
 
   // Deduplicate and resolve bills with linked enquiry context (100% parity with BillTransactions and PNL)
   const resolvedBills = useMemo(() => {
-    return getUnifiedBillsWithEnquiries(bills, enquiries);
-  }, [bills, enquiries]);
+    return getUnifiedBillsWithEnquiries(bills, enquiries, undefined, employees);
+  }, [bills, enquiries, employees]);
 
   const formatDisplayDate = (dateStr: string): string => {
     if (!dateStr) return "";
@@ -475,16 +488,10 @@ const Dashboard: React.FC = () => {
     const staffMap: Record<string, StaffPerformance> = {};
 
     sourceBills.forEach((bill) => {
-      let staffName = "Unassigned Staff";
-      if (bill.assignedToName && String(bill.assignedToName).trim() !== "") {
-        staffName = String(bill.assignedToName).trim();
-      } else if (bill.assignedTo && employees[bill.assignedTo]) {
-        staffName = employees[bill.assignedTo];
-      } else if (bill.createdByName && String(bill.createdByName).trim() !== "") {
-        staffName = String(bill.createdByName).trim();
-      } else if (bill.createdBy && employees[bill.createdBy]) {
-        staffName = employees[bill.createdBy];
-      }
+      const staffName = resolveStaffName(
+        bill.assignedToName || bill.assignedTo || bill.createdByName || bill.createdBy,
+        employees
+      );
 
       if (!staffMap[staffName]) {
         staffMap[staffName] = {

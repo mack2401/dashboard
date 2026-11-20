@@ -23,6 +23,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
+import { resolveStaffName } from "../utils/billUtils";
 import {
   User,
   Phone,
@@ -996,10 +997,12 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
         accessorFn: (row: any) => row.assignedTo ?? null,
                         cell: ({row}) => {
           const assignedUid = row.original.assignedTo as string;
-          if (!assignedUid) return <span className="text-gray-400 text-xs">Unassigned</span>;
-          const employee = employeesByUid[assignedUid];
-          const name = employee?.employeeName || employee?.name || "Unassigned";
-          return <span className="text-xs font-medium text-gray-700 max-w-[110px] truncate block" title={name}>{name}</span>;
+          const assignedName = row.original.assignedToName;
+          const resolved = resolveStaffName(
+            assignedName || (assignedUid ? employeesByUid[assignedUid]?.employeeName || employeesByUid[assignedUid]?.name : null) || assignedUid,
+            employeesByUid
+          );
+          return <span className="text-xs font-medium text-gray-700 max-w-[110px] truncate block" title={resolved}>{resolved}</span>;
         },
       },
                         {
@@ -1366,7 +1369,8 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                   const enqDate = getEnquiryDate(selectedEnquiry.createdAt);
                                   const dateStr = enqDate ? enqDate.toLocaleDateString("en-IN") : "-";
                                   const assignedUid = (selectedEnquiry as any).assignedTo;
-                                  const assignedName = assignedUid ? (employeesByUid[assignedUid]?.employeeName || employeesByUid[assignedUid]?.name || "Unassigned") : "Unassigned";
+                                  const rawAssigned = (selectedEnquiry as any).assignedToName || (assignedUid ? employeesByUid[assignedUid]?.employeeName || employeesByUid[assignedUid]?.name : null) || assignedUid;
+                                  const assignedName = resolveStaffName(rawAssigned, employeesByUid);
 
                                   return (
                                     <div

@@ -736,25 +736,26 @@ export const generateBillPrintHTML = (data: BillPrintData): string => {
 
     /* Terms Card */
     .terms-card {
-      border: 1px solid #e2e8f0;
+      border: 1px solid #fef08a;
       border-radius: 4px;
-      background: #ffffff;
-      padding: 4px 6px;
+      background: #fefce8;
+      padding: 5px 7px;
       font-size: 8px;
-      color: #475569;
+      color: #713f12;
     }
     .terms-header {
       font-size: 8px;
       font-weight: 800;
       text-transform: uppercase;
-      color: #1e293b;
+      color: #854d0e;
       margin-bottom: 2px;
       letter-spacing: 0.4px;
     }
     .terms-list {
       list-style-type: decimal;
       padding-left: 11px;
-      line-height: 1.25;
+      line-height: 1.3;
+      color: #713f12;
     }
 
     /* Client Acceptance Box for Quotation */
