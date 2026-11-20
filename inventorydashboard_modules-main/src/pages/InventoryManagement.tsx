@@ -2983,40 +2983,60 @@ const InventoryManagement: React.FC = () => {
     );
 
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-black bg-opacity-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-gray-100">
-          <div className="flex justify-between items-center pb-4 border-b border-gray-100 mb-5">
-            <div className="flex items-center gap-2">
-              <div className="w-10 h-10 bg-emerald-100 text-emerald-700 rounded-xl flex items-center justify-center font-bold">
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
+        onClick={() => setIsAddStockModalOpen(false)}
+      >
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+          className="bg-white rounded-3xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-hidden my-6 animate-fade-in flex flex-col border border-gray-100 overscroll-contain"
+        >
+          {/* Modal Header */}
+          <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-xs border-b border-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-600 text-white flex items-center justify-center shadow-xs">
                 <Plus className="w-5 h-5" />
               </div>
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Add Stock to Existing Product</h3>
-                <p className="text-xs text-gray-500">Restock already registered inventory items</p>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900">Add Stock to Existing Product</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200 uppercase tracking-wider">
+                    Restock
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">Restock already registered inventory or quotation items</p>
               </div>
             </div>
             <button
               onClick={() => setIsAddStockModalOpen(false)}
-              className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              title="Close"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
 
-          <div className="space-y-4">
-            {/* Search and Select Product */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1.5">
-                Select Existing Product *
-              </label>
-              <div className="relative mb-2">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          {/* Modal Body */}
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {/* Box 1: Select Product */}
+            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  Select Existing Product <span className="text-rose-500">*</span>
+                </label>
+                <span className="text-[11px] text-slate-400 font-medium">
+                  {filteredProdList.length} products available
+                </span>
+              </div>
+              <div className="relative">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                 <input
                   type="text"
                   value={stockProductSearch}
                   onChange={(e) => setStockProductSearch(e.target.value)}
                   placeholder="Filter product by name or category..."
-                  className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-emerald-400 outline-none"
+                  className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs"
                 />
               </div>
 
@@ -3031,7 +3051,7 @@ const InventoryManagement: React.FC = () => {
                     unitPrice: found ? found.currentPrice || 0 : 0
                   }));
                 }}
-                className="w-full px-3 py-2.5 border rounded-lg text-sm bg-white font-medium text-gray-800 focus:ring-2 focus:ring-emerald-400 outline-none"
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs"
               >
                 <option value="">-- Choose Product ({filteredProdList.length} items) --</option>
                 {filteredProdList.map((p) => (
@@ -3040,110 +3060,119 @@ const InventoryManagement: React.FC = () => {
                   </option>
                 ))}
               </select>
+
+              {selectedProd && (
+                <div className="p-3 bg-white rounded-xl border border-emerald-200/80 shadow-2xs flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                    <span className="font-semibold text-slate-600">On-Shelf Stock:</span>
+                    <span className="font-bold text-slate-900">{selectedProd.totalQuantity} units</span>
+                  </div>
+                  <div>
+                    <span className="font-semibold text-slate-600">Current Catalog Price:</span>{" "}
+                    <span className="font-bold text-emerald-700">₹{selectedProd.currentPrice || 0}</span>
+                  </div>
+                </div>
+              )}
             </div>
 
-            {selectedProd && (
-              <div className="p-3 bg-emerald-50/60 rounded-xl border border-emerald-100 flex items-center justify-between text-xs text-emerald-900">
+            {/* Box 2: Quantity & Purchase Unit Price */}
+            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
                 <div>
-                  <span className="font-semibold">Current On-Shelf Stock:</span> {selectedProd.totalQuantity} units
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Quantity to Add <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={stockFormData.quantity}
+                    onChange={(e) => setStockFormData(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 0) }))}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs"
+                  />
                 </div>
                 <div>
-                  <span className="font-semibold">Current Price:</span> ₹{selectedProd.currentPrice || 0}
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Purchase Unit Price (₹)
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={stockFormData.unitPrice}
+                    onChange={(e) => setStockFormData(prev => ({ ...prev, unitPrice: Math.max(0, parseFloat(e.target.value) || 0) }))}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs"
+                  />
                 </div>
               </div>
-            )}
+            </div>
 
-            {/* Quantity and Price */}
-            <div className="grid grid-cols-2 gap-4">
+            {/* Box 3: Arrival Date & Remarks */}
+            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Quantity to Add *
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Stock Arrival Date
                 </label>
                 <input
-                  type="number"
-                  min="1"
-                  value={stockFormData.quantity}
-                  onChange={(e) => setStockFormData(prev => ({ ...prev, quantity: Math.max(1, parseInt(e.target.value) || 0) }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm font-semibold focus:ring-2 focus:ring-emerald-400 outline-none"
+                  type="date"
+                  value={stockFormData.date}
+                  onChange={(e) => setStockFormData(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-semibold text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs"
                 />
               </div>
+
               <div>
-                <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                  Purchase Unit Price (₹)
+                <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                  Vendor / Supplier / Batch Remarks
                 </label>
                 <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={stockFormData.unitPrice}
-                  onChange={(e) => setStockFormData(prev => ({ ...prev, unitPrice: Math.max(0, parseFloat(e.target.value) || 0) }))}
-                  className="w-full px-3 py-2 border rounded-lg text-sm font-semibold focus:ring-2 focus:ring-emerald-400 outline-none"
+                  type="text"
+                  value={stockFormData.vendorNotes}
+                  onChange={(e) => setStockFormData(prev => ({ ...prev, vendorNotes: e.target.value }))}
+                  placeholder="e.g. Batch #402, Supplier XYZ Corp"
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs"
                 />
               </div>
             </div>
 
-            {/* Date & Vendor Notes */}
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                Stock Arrival Date
-              </label>
-              <input
-                type="date"
-                value={stockFormData.date}
-                onChange={(e) => setStockFormData(prev => ({ ...prev, date: e.target.value }))}
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 uppercase mb-1">
-                Vendor / Supplier / Batch Remarks
-              </label>
-              <input
-                type="text"
-                value={stockFormData.vendorNotes}
-                onChange={(e) => setStockFormData(prev => ({ ...prev, vendorNotes: e.target.value }))}
-                placeholder="e.g. Batch #402, Supplier XYZ Corp"
-                className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-emerald-400 outline-none"
-              />
-            </div>
-
+            {/* Summary Preview Box */}
             {selectedProd && stockFormData.quantity > 0 && (
-              <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 text-xs text-gray-700">
-                <div className="flex justify-between font-bold text-gray-900">
-                  <span>New Total Stock:</span>
-                  <span>{selectedProd.totalQuantity + stockFormData.quantity} units</span>
+              <div className="p-3.5 bg-gradient-to-r from-emerald-50/70 to-teal-50/70 rounded-2xl border border-emerald-200/80 text-xs text-slate-800">
+                <div className="flex items-center justify-between font-bold text-slate-900 mb-1.5">
+                  <span className="text-slate-600">New Total Stock Level:</span>
+                  <span className="text-emerald-700 text-sm font-black">{selectedProd.totalQuantity + stockFormData.quantity} units</span>
                 </div>
-                <div className="flex justify-between mt-1 text-gray-600">
-                  <span>Batch Added Value:</span>
-                  <span>₹{(stockFormData.quantity * (stockFormData.unitPrice || 0)).toFixed(2)}</span>
+                <div className="flex items-center justify-between text-slate-600 font-semibold border-t border-emerald-200/60 pt-1.5">
+                  <span>Batch Added Purchase Value:</span>
+                  <span className="text-slate-900 font-bold">₹{(stockFormData.quantity * (stockFormData.unitPrice || 0)).toFixed(2)}</span>
                 </div>
               </div>
             )}
           </div>
 
-          <div className="mt-6 flex flex-wrap items-center justify-end gap-2.5 pt-4 border-t border-gray-100">
+          {/* Modal Footer */}
+          <div className="sticky bottom-0 z-10 bg-slate-50/95 backdrop-blur-xs border-t border-gray-100 px-6 py-3.5 flex flex-wrap items-center justify-end gap-2.5 shadow-md flex-shrink-0">
             <button
               type="button"
               onClick={() => setIsAddStockModalOpen(false)}
-              className="px-4 py-2 text-gray-600 hover:text-gray-800 text-sm font-medium rounded-xl hover:bg-gray-100 transition"
+              className="px-4 py-2 text-slate-600 hover:text-slate-800 text-xs font-semibold rounded-xl hover:bg-slate-200/70 transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => handleSaveAddStock('quote_purpose')}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition active:scale-[0.98] cursor-pointer"
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3.5 h-3.5" />
               Quote Purpose Stock
             </button>
             <button
               type="button"
               onClick={() => handleSaveAddStock('standard')}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition active:scale-[0.98] cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               New Stock
             </button>
           </div>
@@ -3153,208 +3182,258 @@ const InventoryManagement: React.FC = () => {
   };
 
   const renderAddProductModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">Add New Product</h2>
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
+      onClick={() => setIsAddModalOpen(false)}
+    >
+      <div 
+        onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden my-6 animate-fade-in flex flex-col border border-gray-100 overscroll-contain"
+      >
+        {/* Modal Header */}
+        <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-xs border-b border-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+              <Package className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-slate-900">Add New Product</h3>
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-800 border border-blue-200 uppercase tracking-wider">
+                  New SKU
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">Register a new product in the central catalog with SKU & inventory tracking</p>
+            </div>
+          </div>
           <button
             onClick={() => setIsAddModalOpen(false)}
-            className="p-2 hover:bg-gray-100 rounded-lg"
+            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+            title="Close"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
         
-        <form onSubmit={handleAddProduct} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Product Name *
-              </label>
-              <input
-                type="text"
-                value={newProduct.name}
-                onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="Enter product name"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                SKU *
-              </label>
-              <input
-                type="text"
-                value={newProduct.sku}
-                onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., CEL-4-7619"
-                required
-              />
-              <p className="text-xs text-gray-500 mt-1">Enter a unique SKU for this product</p>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Category *
-              </label>
-              <input
-                type="text"
-                value={newProduct.category}
-                onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., Electronics, Clothing, Food"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                HSN Code
-              </label>
-              <input
-                type="text"
-                value={newProduct.hsnCode}
-                onChange={(e) => setNewProduct({...newProduct, hsnCode: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="e.g., 84713000, 61091000"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Price (per unit) *
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                min="0"
-                value={newProduct.price}
-                onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value) || 0})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="0.00"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Initial Quantity
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={newProduct.quantity}
-                onChange={(e) => setNewProduct({...newProduct, quantity: parseInt(e.target.value) || 0})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                placeholder="0"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Low Stock Threshold
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={newProduct.lowStockThreshold}
-                onChange={(e) => setNewProduct({...newProduct, lowStockThreshold: parseInt(e.target.value) || 10})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              />
-            </div>
-          </div>
-
-          {/* Image Upload Section */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Product Image
-            </label>
-            <div className="flex items-center space-x-4">
-              <div className="flex-shrink-0">
-                {newProduct.image ? (
-                  <div className="relative">
-                    <img 
-                      src={newProduct.image} 
-                      alt="Product preview" 
-                      className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={handleRemoveAddImage}
-                      className="absolute -top-2 -right-2 p-1 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ) : (
-                  <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
-                    <ImageIcon className="w-8 h-8 text-gray-400" />
-                  </div>
-                )}
+        <form onSubmit={handleAddProduct} className="flex-1 flex flex-col min-h-0">
+          {/* Modal Body */}
+          <div className="p-6 space-y-4 overflow-y-auto flex-1">
+            {/* Box 1: Product Identification */}
+            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3.5">
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                <Tag className="w-4 h-4 text-blue-600" />
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Product Identification</h4>
               </div>
-              <div className="flex-1">
-                <input
-                  ref={addImageInputRef}
-                  type="file"
-                  accept="image/*"
-                  onChange={handleAddImageUpload}
-                  className="hidden"
-                  id="add-image-upload"
-                />
-                <label
-                  htmlFor="add-image-upload"
-                  className={`px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer inline-flex items-center ${
-                    imageUploading ? 'opacity-50 cursor-not-allowed' : ''
-                  }`}
-                >
-                  <Upload className="w-4 h-4 mr-2" />
-                  {imageUploading ? 'Uploading...' : 'Upload Image'}
-                </label>
-                <p className="text-xs text-gray-500 mt-1">
-                  Max size: 2MB. Supported: JPG, PNG, GIF
-                </p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Product Name <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.name}
+                    onChange={(e) => setNewProduct({...newProduct, name: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                    placeholder="Enter product name"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    SKU <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.sku}
+                    onChange={(e) => setNewProduct({...newProduct, sku: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                    placeholder="e.g., CEL-4-7619"
+                    required
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1 font-medium">Enter a unique SKU code for this item</p>
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Category <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.category}
+                    onChange={(e) => setNewProduct({...newProduct, category: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                    placeholder="e.g., Electronics, Hardware, Sensor"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    HSN Code
+                  </label>
+                  <input
+                    type="text"
+                    value={newProduct.hsnCode}
+                    onChange={(e) => setNewProduct({...newProduct, hsnCode: e.target.value})}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                    placeholder="e.g., 84713000, 61091000"
+                  />
+                </div>
               </div>
             </div>
+
+            {/* Box 2: Pricing & Stock Parameters */}
+            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3.5">
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                <IndianRupee className="w-4 h-4 text-emerald-600" />
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Pricing & Stock Levels</h4>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Price (per unit) (₹) <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newProduct.price}
+                    onChange={(e) => setNewProduct({...newProduct, price: parseFloat(e.target.value) || 0})}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition shadow-2xs"
+                    placeholder="0.00"
+                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Initial Quantity
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newProduct.quantity}
+                    onChange={(e) => setNewProduct({...newProduct, quantity: parseInt(e.target.value) || 0})}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                    placeholder="0"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                    Low Stock Threshold
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={newProduct.lowStockThreshold}
+                    onChange={(e) => setNewProduct({...newProduct, lowStockThreshold: parseInt(e.target.value) || 10})}
+                    className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-2xs"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Box 3: Product Image Upload */}
+            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                <ImageIcon className="w-4 h-4 text-indigo-600" />
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Product Image</h4>
+              </div>
+
+              <div className="flex items-center gap-4 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                <div className="flex-shrink-0">
+                  {newProduct.image ? (
+                    <div className="relative">
+                      <img 
+                        src={newProduct.image} 
+                        alt="Product preview" 
+                        className="w-20 h-20 object-cover rounded-xl border border-slate-200 shadow-2xs"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveAddImage}
+                        className="absolute -top-2 -right-2 p-1 bg-rose-100 text-rose-600 rounded-full hover:bg-rose-200 transition shadow-xs"
+                        title="Remove image"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="w-20 h-20 bg-slate-100 rounded-xl flex flex-col items-center justify-center border border-dashed border-slate-300 text-slate-400">
+                      <ImageIcon className="w-7 h-7 mb-1 text-slate-400" />
+                      <span className="text-[10px] font-semibold">No Image</span>
+                    </div>
+                  )}
+                </div>
+                <div className="flex-1">
+                  <input
+                    ref={addImageInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleAddImageUpload}
+                    className="hidden"
+                    id="add-image-upload"
+                  />
+                  <label
+                    htmlFor="add-image-upload"
+                    className={`inline-flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition ${
+                      imageUploading ? 'opacity-50 cursor-not-allowed' : ''
+                    }`}
+                  >
+                    <Upload className="w-3.5 h-3.5" />
+                    {imageUploading ? 'Uploading...' : 'Upload Image'}
+                  </label>
+                  <p className="text-[11px] text-slate-400 font-medium mt-1.5">
+                    Max size: 2MB. Supported: JPG, PNG, GIF
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Box 4: Product Description */}
+            <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+              <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                <FileText className="w-4 h-4 text-slate-600" />
+                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Description & Notes</h4>
+              </div>
+              <textarea
+                value={newProduct.description}
+                onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
+                className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                rows={3}
+                placeholder="Product description, technical specifications, or remarks..."
+              />
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Description
-            </label>
-            <textarea
-              value={newProduct.description}
-              onChange={(e) => setNewProduct({...newProduct, description: e.target.value})}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-              rows={3}
-              placeholder="Product description..."
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-end gap-2.5 pt-4 border-t border-gray-100">
+          {/* Modal Footer */}
+          <div className="sticky bottom-0 z-10 bg-slate-50/95 backdrop-blur-xs border-t border-gray-100 px-6 py-3.5 flex flex-wrap items-center justify-end gap-2.5 shadow-md flex-shrink-0">
             <button
               type="button"
               onClick={() => setIsAddModalOpen(false)}
-              className="px-4 py-2 border border-gray-300 rounded-xl text-gray-700 hover:bg-gray-50 text-sm font-medium transition"
+              className="px-4 py-2 text-slate-600 hover:text-slate-800 text-xs font-semibold rounded-xl hover:bg-slate-200/70 transition cursor-pointer"
             >
               Cancel
             </button>
             <button
               type="button"
               onClick={() => handleAddProduct('quote_purpose')}
-              className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition active:scale-[0.98] cursor-pointer"
             >
-              <FileText className="w-4 h-4" />
+              <FileText className="w-3.5 h-3.5" />
               For Quote Purpose
             </button>
             <button
               type="button"
               onClick={() => handleAddProduct('inventory')}
-              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center gap-1.5"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition active:scale-[0.98] cursor-pointer"
             >
-              <Package className="w-4 h-4" />
+              <Package className="w-3.5 h-3.5" />
               New Inventory Product
             </button>
           </div>
@@ -3367,243 +3446,299 @@ const InventoryManagement: React.FC = () => {
     if (!selectedProduct) return null;
 
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-bold text-gray-900">Edit Product</h2>
+      <div 
+        className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto overscroll-contain"
+        onClick={() => setIsEditModalOpen(false)}
+      >
+        <div 
+          onClick={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+          className="bg-white rounded-3xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden my-6 animate-fade-in flex flex-col border border-gray-100 overscroll-contain"
+        >
+          {/* Modal Header */}
+          <div className="sticky top-0 z-10 bg-slate-50/90 backdrop-blur-xs border-b border-gray-100 px-6 py-4 flex justify-between items-center flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center shadow-xs">
+                <Edit2 className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-base font-bold text-slate-900">Edit Product</h3>
+                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200 uppercase tracking-wider">
+                    {selectedProduct.sku || 'SKU'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500">Update item details, parameters, or manage on-shelf stock levels</p>
+              </div>
+            </div>
             <button
               onClick={() => setIsEditModalOpen(false)}
-              className="p-2 hover:bg-gray-100 rounded-lg"
+              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+              title="Close"
             >
               <X className="w-5 h-5" />
             </button>
           </div>
           
-          <form onSubmit={handleUpdateProduct} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Product Name *
-                </label>
-                <input
-                  type="text"
-                  value={editForm.name || selectedProduct.name}
-                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
+          <form onSubmit={handleUpdateProduct} className="flex-1 flex flex-col min-h-0">
+            {/* Modal Body */}
+            <div className="p-6 space-y-4 overflow-y-auto flex-1">
+              {/* Box 1: Product Identification */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3.5">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                  <Tag className="w-4 h-4 text-blue-600" />
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Product Identification</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Product Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.name || selectedProduct.name}
+                      onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      SKU <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.sku !== undefined ? editForm.sku : selectedProduct.sku || ''}
+                      onChange={(e) => setEditForm({...editForm, sku: e.target.value})}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                      required
+                      placeholder="Enter unique SKU"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Category <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.category || selectedProduct.category}
+                      onChange={(e) => setEditForm({...editForm, category: e.target.value})}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      HSN Code
+                    </label>
+                    <input
+                      type="text"
+                      value={editForm.hsnCode !== undefined ? editForm.hsnCode : selectedProduct.hsnCode || ''}
+                      onChange={(e) => setEditForm({...editForm, hsnCode: e.target.value})}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                      placeholder="e.g., 84713000, 61091000"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  SKU *
-                </label>
-                <input
-                  type="text"
-                  value={editForm.sku !== undefined ? editForm.sku : selectedProduct.sku || ''}
-                  onChange={(e) => setEditForm({...editForm, sku: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                  placeholder="Enter unique SKU"
-                />
+              {/* Box 2: Price & Threshold */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3.5">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                  <IndianRupee className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Pricing & Threshold</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Current Price (per unit) (₹)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={selectedProduct.currentPrice || 0}
+                      readOnly
+                      className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 cursor-not-allowed shadow-2xs"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1 font-medium">Price can only be updated when adding new stock batches</p>
+                  </div>
+
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Low Stock Threshold
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editForm.lowStockThreshold || selectedProduct.lowStockThreshold}
+                      onChange={(e) => setEditForm({...editForm, lowStockThreshold: parseInt(e.target.value) || 10})}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 transition shadow-2xs"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Category *
-                </label>
-                <input
-                  type="text"
-                  value={editForm.category || selectedProduct.category}
-                  onChange={(e) => setEditForm({...editForm, category: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
+              {/* Box 3: Product Image Upload */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                  <ImageIcon className="w-4 h-4 text-indigo-600" />
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Product Image</h4>
+                </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  HSN Code
-                </label>
-                <input
-                  type="text"
-                  value={editForm.hsnCode !== undefined ? editForm.hsnCode : selectedProduct.hsnCode || ''}
-                  onChange={(e) => setEditForm({...editForm, hsnCode: e.target.value})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., 84713000, 61091000"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Current Price (per unit)
-                </label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={selectedProduct.currentPrice || 0}
-                  readOnly
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                />
-                <p className="text-xs text-gray-500 mt-1">Price can only be changed when adding new stock</p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Low Stock Threshold
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  value={editForm.lowStockThreshold || selectedProduct.lowStockThreshold}
-                  onChange={(e) => setEditForm({...editForm, lowStockThreshold: parseInt(e.target.value) || 10})}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-
-              {/* Image Upload Section in Edit Modal */}
-              <div className="md:col-span-2">
-                <div className="border-t border-gray-200 pt-4 mt-2">
-                  <h3 className="text-md font-semibold text-gray-900 mb-3">Product Image</h3>
-                  <div className="flex items-center space-x-4">
-                    <div className="flex-shrink-0">
-                      {editForm.image !== undefined ? (
-                        editForm.image ? (
-                          <div className="relative">
-                            <img 
-                              src={editForm.image} 
-                              alt="Product preview" 
-                              className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                            />
-                            <button
-                              type="button"
-                              onClick={handleRemoveEditImage}
-                              className="absolute -top-2 -right-2 p-1 bg-red-100 text-red-600 rounded-full hover:bg-red-200"
-                            >
-                              <X className="w-4 h-4" />
-                            </button>
-                          </div>
-                        ) : (
-                          <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
-                            <ImageIcon className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )
+                <div className="flex items-center gap-4 bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-2xs">
+                  <div className="flex-shrink-0">
+                    {editForm.image !== undefined ? (
+                      editForm.image ? (
+                        <div className="relative">
+                          <img 
+                            src={editForm.image} 
+                            alt="Product preview" 
+                            className="w-20 h-20 object-cover rounded-xl border border-slate-200 shadow-2xs"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleRemoveEditImage}
+                            className="absolute -top-2 -right-2 p-1 bg-rose-100 text-rose-600 rounded-full hover:bg-rose-200 transition shadow-xs"
+                            title="Remove image"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       ) : (
-                        selectedProduct.image ? (
-                          <div className="relative">
-                            <img 
-                              src={selectedProduct.image} 
-                              alt={selectedProduct.name} 
-                              className="w-20 h-20 object-cover rounded-lg border border-gray-200"
-                            />
-                          </div>
-                        ) : (
-                          <div className="w-20 h-20 bg-gray-100 rounded-lg flex items-center justify-center border border-gray-200">
-                            <ImageIcon className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )
-                      )}
-                    </div>
-                    <div className="flex-1">
-                      <input
-                        ref={editImageInputRef}
-                        type="file"
-                        accept="image/*"
-                        onChange={handleEditImageUpload}
-                        className="hidden"
-                        id="edit-image-upload"
-                      />
-                      <label
-                        htmlFor="edit-image-upload"
-                        className={`px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 cursor-pointer inline-flex items-center ${
-                          imageUploading ? 'opacity-50 cursor-not-allowed' : ''
-                        }`}
-                      >
-                        <Upload className="w-4 h-4 mr-2" />
-                        {imageUploading ? 'Uploading...' : editForm.image !== undefined ? 'Change Image' : 'Upload Image'}
-                      </label>
-                      {editForm.image !== undefined && editForm.image === '' && (
-                        <span className="ml-2 text-sm text-red-600">Image removed</span>
-                      )}
-                      <p className="text-xs text-gray-500 mt-1">
-                        Max size: 2MB. Supported: JPG, PNG, GIF
+                        <div className="w-20 h-20 bg-slate-100 rounded-xl flex flex-col items-center justify-center border border-dashed border-slate-300 text-slate-400">
+                          <ImageIcon className="w-7 h-7 mb-1 text-slate-400" />
+                          <span className="text-[10px] font-semibold">No Image</span>
+                        </div>
+                      )
+                    ) : (
+                      selectedProduct.image ? (
+                        <div className="relative">
+                          <img 
+                            src={selectedProduct.image} 
+                            alt={selectedProduct.name} 
+                            className="w-20 h-20 object-cover rounded-xl border border-slate-200 shadow-2xs"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-20 h-20 bg-slate-100 rounded-xl flex flex-col items-center justify-center border border-dashed border-slate-300 text-slate-400">
+                          <ImageIcon className="w-7 h-7 mb-1 text-slate-400" />
+                          <span className="text-[10px] font-semibold">No Image</span>
+                        </div>
+                      )
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <input
+                      ref={editImageInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleEditImageUpload}
+                      className="hidden"
+                      id="edit-image-upload"
+                    />
+                    <label
+                      htmlFor="edit-image-upload"
+                      className={`inline-flex items-center gap-2 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-300 rounded-xl text-xs font-semibold cursor-pointer transition ${
+                        imageUploading ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      <Upload className="w-3.5 h-3.5" />
+                      {imageUploading ? 'Uploading...' : editForm.image !== undefined ? 'Change Image' : 'Upload Image'}
+                    </label>
+                    {editForm.image !== undefined && editForm.image === '' && (
+                      <span className="ml-2.5 text-xs text-rose-600 font-semibold">Image removed</span>
+                    )}
+                    <p className="text-[11px] text-slate-400 font-medium mt-1.5">
+                      Max size: 2MB. Supported: JPG, PNG, GIF
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Box 4: Quantity Management */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-3.5">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                  <Box className="w-4 h-4 text-emerald-600" />
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Quantity Management</h4>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      Current In-Stock Quantity
+                    </label>
+                    <input
+                      type="number"
+                      value={selectedProduct.totalQuantity}
+                      readOnly
+                      className="w-full px-3.5 py-2.5 bg-slate-100 border border-slate-200 rounded-xl text-sm font-bold text-slate-700 cursor-not-allowed shadow-2xs"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
+                      New Quantity Override
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      value={editForm.newQuantity !== undefined ? editForm.newQuantity : selectedProduct.totalQuantity}
+                      onChange={(e) => setEditForm({...editForm, newQuantity: parseInt(e.target.value) || 0})}
+                      className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                      placeholder="Enter new quantity"
+                    />
+                    {editForm.newQuantity !== undefined && editForm.newQuantity !== selectedProduct.totalQuantity && (
+                      <p className={`text-xs mt-1.5 font-bold ${
+                        editForm.newQuantity > selectedProduct.totalQuantity 
+                          ? 'text-emerald-600' 
+                          : 'text-rose-600'
+                      }`}>
+                        {editForm.newQuantity > selectedProduct.totalQuantity 
+                          ? `▲ Will add ${editForm.newQuantity - selectedProduct.totalQuantity} units to stock` 
+                          : `▼ Will remove ${selectedProduct.totalQuantity - editForm.newQuantity} units from stock`}
                       </p>
-                    </div>
+                    )}
                   </div>
                 </div>
+                <p className="text-[10px] text-slate-400 font-medium">
+                  Note: Modifying total quantity manually will register an automatic audit transaction record
+                </p>
               </div>
 
-              {/* Quantity Edit Section */}
-              <div className="md:col-span-2">
-                <div className="border-t border-gray-200 pt-4 mt-2">
-                  <h3 className="text-md font-semibold text-gray-900 mb-3">Quantity Management</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Current Quantity
-                      </label>
-                      <input
-                        type="number"
-                        value={selectedProduct.totalQuantity}
-                        readOnly
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        New Quantity
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        value={editForm.newQuantity !== undefined ? editForm.newQuantity : selectedProduct.totalQuantity}
-                        onChange={(e) => setEditForm({...editForm, newQuantity: parseInt(e.target.value) || 0})}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                        placeholder="Enter new quantity"
-                      />
-                      {editForm.newQuantity !== undefined && editForm.newQuantity !== selectedProduct.totalQuantity && (
-                        <p className={`text-xs mt-1 ${
-                          editForm.newQuantity > selectedProduct.totalQuantity 
-                            ? 'text-green-600' 
-                            : 'text-red-600'
-                        }`}>
-                          {editForm.newQuantity > selectedProduct.totalQuantity 
-                            ? `This will add ${editForm.newQuantity - selectedProduct.totalQuantity} units` 
-                            : `This will remove ${selectedProduct.totalQuantity - editForm.newQuantity} units`}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <p className="text-xs text-gray-500 mt-2">Changing quantity will create a transaction record</p>
+              {/* Box 5: Product Description */}
+              <div className="bg-slate-50/70 p-4 rounded-2xl border border-slate-200/80 space-y-2">
+                <div className="flex items-center gap-2 pb-1 border-b border-slate-200/60">
+                  <FileText className="w-4 h-4 text-slate-600" />
+                  <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Description & Notes</h4>
                 </div>
+                <textarea
+                  value={editForm.description !== undefined ? editForm.description : selectedProduct.description || ''}
+                  onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                  className="w-full px-3.5 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition shadow-2xs"
+                  rows={3}
+                />
               </div>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Description
-              </label>
-              <textarea
-                value={editForm.description !== undefined ? editForm.description : selectedProduct.description || ''}
-                onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                rows={3}
-              />
-            </div>
-
-            <div className="flex justify-end space-x-3 pt-4">
+            {/* Modal Footer */}
+            <div className="sticky bottom-0 z-10 bg-slate-50/95 backdrop-blur-xs border-t border-gray-100 px-6 py-3.5 flex items-center justify-end gap-2.5 shadow-md flex-shrink-0">
               <button
                 type="button"
                 onClick={() => setIsEditModalOpen(false)}
-                className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 text-slate-600 hover:text-slate-800 text-xs font-semibold rounded-xl hover:bg-slate-200/70 transition cursor-pointer"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                className="inline-flex items-center gap-1.5 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-xs hover:shadow transition active:scale-[0.98] cursor-pointer"
               >
+                <Save className="w-3.5 h-3.5" />
                 Update Product
               </button>
             </div>
@@ -4369,21 +4504,21 @@ const InventoryManagement: React.FC = () => {
             <h1 className="text-3xl font-bold text-gray-900">Inventory Management</h1>
           </div>
           
-          <div className="flex space-x-3 mt-4 md:mt-0">
+          <div className="flex items-center gap-2.5 mt-4 md:mt-0">
             {canAddProduct() && (
               <>
                 <button
                   onClick={() => setIsAddStockModalOpen(true)}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 flex items-center font-medium shadow-sm transition cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white rounded-xl text-sm font-semibold shadow-xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
                 >
-                  <Plus className="w-5 h-5 mr-1.5" />
+                  <Plus className="w-4 h-4" />
                   Add Stock
                 </button>
                 <button
                   onClick={() => setIsAddModalOpen(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center font-medium shadow-sm transition cursor-pointer"
+                  className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-xl text-sm font-semibold shadow-xs hover:shadow-md transition-all active:scale-[0.98] cursor-pointer"
                 >
-                  <Package className="w-5 h-5 mr-1.5" />
+                  <Package className="w-4 h-4" />
                   Add New Product
                 </button>
               </>
