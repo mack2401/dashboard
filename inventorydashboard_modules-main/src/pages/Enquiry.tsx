@@ -1165,7 +1165,7 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                       icon={<MessageSquare className="w-4 h-4" />}
                                       iconBg="bg-slate-100"
                                       iconColor="text-slate-700"
-                                      subtitle={`${statistics.activeCount} Active • ${statistics.conversionRate.toFixed(1)}% Conversion`}
+                                      subtitle={`${statistics.activeCount} Active`}
                                     />
 
                                     <KPICard
@@ -1176,7 +1176,6 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                       iconColor="text-emerald-600"
                                       valueColor="text-emerald-700"
                                       titleColor="text-emerald-700"
-                                      subtitle={`₹${statistics.approvedVal.toLocaleString("en-IN", { maximumFractionDigits: 0 })} Approved Value`}
                                     />
 
                                     <KPICard
@@ -1187,7 +1186,6 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                       iconColor="text-indigo-600"
                                       valueColor="text-indigo-700"
                                       titleColor="text-indigo-700"
-                                      subtitle={`${statistics.dispatchedCnt + statistics.deliveredCnt} Dispatched / Delivered`}
                                     />
 
                                     <KPICard
@@ -1198,103 +1196,11 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                       iconColor="text-amber-600"
                                       valueColor="text-amber-700"
                                       titleColor="text-amber-700"
-                                      subtitle={`${statistics.testingCnt} Testing • ${statistics.droppedCnt} Dropped`}
                                     />
                                   </div>
 
-                                  {/* Channel / Category Selector (All Channels / E-commerce / Academic) */}
-                                  <div className="bg-white p-3 rounded-2xl border border-gray-200/90 shadow-xs flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
-                                    <div className="flex items-center gap-2.5">
-                                      <div className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-semibold">
-                                        <Filter className="w-4 h-4 text-slate-600" />
-                                      </div>
-                                      <div>
-                                        <div className="flex items-center gap-2">
-                                          <h3 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Channel View</h3>
-                                          <span className="text-[10px] font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
-                                            {categoryFilter === "all" ? "Viewing Both" : categoryFilter === "ecommerce" ? "E-commerce Only" : "Academic Only"}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-1.5 p-1 bg-slate-100/80 rounded-xl overflow-x-auto">
-                                      <button
-                                        onClick={() => setCategoryFilter("all")}
-                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "all"
-                                          ? "bg-white text-gray-900 shadow-xs"
-                                          : "text-gray-600 hover:text-gray-900"
-                                          }`}
-                                      >
-                                        <Layers className="w-3.5 h-3.5" />
-                                        <span>All Channels ({categoryCounts.all})</span>
-                                      </button>
-
-                                      <button
-                                        onClick={() => setCategoryFilter("ecommerce")}
-                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "ecommerce"
-                                          ? "bg-slate-900 text-white shadow-xs"
-                                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-                                          }`}
-                                      >
-                                        <ShoppingCart className="w-3.5 h-3.5" />
-                                        <span>E-commerce ({categoryCounts.ecommerce})</span>
-                                      </button>
-
-                                      <button
-                                        onClick={() => setCategoryFilter("academic")}
-                                        className={`flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer whitespace-nowrap ${categoryFilter === "academic"
-                                          ? "bg-purple-600 text-white shadow-xs"
-                                          : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/50"
-                                          }`}
-                                      >
-                                        <GraduationCap className="w-3.5 h-3.5" />
-                                        <span>Academic ({categoryCounts.academic})</span>
-                                      </button>
-                                    </div>
-                                  </div>
-
-                                  {/* Status Filter Tabs (Segmented Control Pill Bar) */}
-                                  <div className="flex items-center gap-1.5 p-1 bg-white rounded-2xl border border-gray-200/90 shadow-xs overflow-x-auto">
-                                    {[
-                                      { id: "all", label: "All Enquiries", count: statistics.totalCount },
-                                      { id: "approved", label: "Approved / Orders", count: statistics.approvedCnt },
-                                      { id: "testing", label: "Testing", count: statistics.testingCnt },
-                                      { id: "pending", label: "In Progress", count: statistics.inProgressCnt },
-                                      { id: "dropped", label: "Dropped", count: statistics.droppedCnt },
-                                    ].map((tab) => {
-                                      const isActive = statusFilter === tab.id;
-                                      return (
-                                        <button
-                                          key={tab.id}
-                                          onClick={() => setStatusFilter(tab.id as any)}
-                                          className={`
-                  flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all cursor-pointer whitespace-nowrap
-                  ${isActive
-                                              ? "bg-slate-900 text-white shadow-xs"
-                                              : "text-gray-600 hover:text-gray-900 hover:bg-gray-100/70"
-                                            }
-                `}
-                                        >
-                                          <span>{tab.label}</span>
-                                          <span
-                                            className={`
-                    px-2 py-0.5 rounded-full text-[10px] font-bold
-                    ${isActive
-                                                ? "bg-white/20 text-white"
-                                                : "bg-gray-100 text-gray-600"
-                                              }
-                  `}
-                                          >
-                                            {tab.count}
-                                          </span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-
-                                  {/* Multi-Criteria Filter & Search Panel */}
-                                  <div className="bg-white p-4 rounded-2xl shadow-xs border border-gray-200/90">
+                                  {/* Multi-Criteria Filter & Search Panel with Dropdown Lists on Right Side */}
+                                  <div className="bg-white p-3.5 sm:p-4 rounded-2xl shadow-xs border border-gray-200/90">
                                     <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3">
                                       {/* Search Input */}
                                       <div className="relative flex-1">
@@ -1304,12 +1210,12 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                           value={globalSearch}
                                           onChange={(e) => setGlobalSearch(e.target.value)}
                                           placeholder="Search by Customer, Mobile, Enq ID, City, Remarks..."
-                                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all"
+                                          className="w-full pl-10 pr-10 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all font-medium"
                                         />
                                         {globalSearch && (
                                           <button
                                             onClick={() => setGlobalSearch("")}
-                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5"
+                                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
                                             title="Clear search"
                                           >
                                             <X className="w-4 h-4" />
@@ -1317,13 +1223,45 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                         )}
                                       </div>
 
-                                      {/* Source / Mode Filter Dropdown */}
-                                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
-                                        <div className="relative w-full sm:w-56">
+                                      {/* Dropdown Filters on Right Side */}
+                                      <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 shrink-0">
+                                        {/* Status Filter Dropdown (Dropdown for Status Pills) */}
+                                        <div className="relative w-full sm:w-52">
+                                          <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value as any)}
+                                            className="w-full px-3 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all cursor-pointer font-semibold"
+                                            title="Filter by Status"
+                                          >
+                                            <option value="all">All Enquiries ({statistics.totalCount})</option>
+                                            <option value="approved">Approved / Orders ({statistics.approvedCnt})</option>
+                                            <option value="testing">Testing ({statistics.testingCnt})</option>
+                                            <option value="pending">In Progress ({statistics.inProgressCnt})</option>
+                                            <option value="dropped">Dropped ({statistics.droppedCnt})</option>
+                                          </select>
+                                        </div>
+
+                                        {/* Channel View Dropdown */}
+                                        <div className="relative w-full sm:w-44">
+                                          <select
+                                            value={categoryFilter}
+                                            onChange={(e) => setCategoryFilter(e.target.value as any)}
+                                            className="w-full px-3 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all cursor-pointer font-medium"
+                                            title="Filter by Channel"
+                                          >
+                                            <option value="all">All Channels ({categoryCounts.all})</option>
+                                            <option value="ecommerce">E-commerce ({categoryCounts.ecommerce})</option>
+                                            <option value="academic">Academic ({categoryCounts.academic})</option>
+                                          </select>
+                                        </div>
+
+                                        {/* Source / Mode Filter Dropdown */}
+                                        <div className="relative w-full sm:w-44">
                                           <select
                                             value={modeFilter}
                                             onChange={(e) => setModeFilter(e.target.value)}
                                             className="w-full px-3 py-2.5 bg-slate-50/70 border border-gray-200 rounded-xl text-xs sm:text-sm text-gray-700 focus:outline-none focus:ring-2 focus:ring-slate-300 focus:border-slate-400 focus:bg-white transition-all cursor-pointer font-medium"
+                                            title="Filter by Mode/Source"
                                           >
                                             <option value="all">All Sources / Modes</option>
                                             {availableModes.map((mode) => (
@@ -1350,30 +1288,6 @@ export default function EnquiryPage({ defaultCategory }: EnquiryPageProps = {}) 
                                         )}
                                       </div>
                                     </div>
-
-                                    {/* Active Filter notification badge */}
-                                    {(globalSearch || modeFilter !== "all" || statusFilter !== "all" || categoryFilter !== "all") && (
-                                      <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-xs text-gray-600">
-                                        <div className="flex items-center gap-2">
-                                          <span className="w-2 h-2 rounded-full bg-slate-700 animate-pulse"></span>
-                                          <span>
-                                            Showing <strong>{filteredEnquiries.length}</strong> of <strong>{enquiries.length}</strong> enquiries
-                                            {categoryFilter !== "all" && (
-                                              <span> &bull; Channel: <strong className="capitalize">{categoryFilter}</strong></span>
-                                            )}
-                                            {globalSearch && (
-                                              <span> matching "<strong>{globalSearch}</strong>"</span>
-                                            )}
-                                            {modeFilter !== "all" && (
-                                              <span> &bull; Mode: <strong>{modeFilter}</strong></span>
-                                            )}
-                                            {statusFilter !== "all" && (
-                                              <span> &bull; Status: <strong className="capitalize">{statusFilter}</strong></span>
-                                            )}
-                                          </span>
-                                        </div>
-                                      </div>
-                                    )}
                                   </div>
 
         {/* DataTable Container */}

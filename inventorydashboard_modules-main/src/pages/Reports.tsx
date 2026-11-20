@@ -1041,7 +1041,6 @@ const Reports: React.FC = () => {
           icon={<Users className="w-6 h-6" />}
           iconBg="bg-slate-100"
           iconColor="text-slate-700"
-          subtitle={`${totalMetrics.totalPurchasingClients} with completed purchases`}
         />
 
         <KPICard
@@ -1052,7 +1051,6 @@ const Reports: React.FC = () => {
           iconBg="bg-emerald-50"
           iconColor="text-emerald-600"
           valueColor="text-emerald-600"
-          subtitle="Across all client purchases"
         />
 
         <KPICard
@@ -1062,7 +1060,6 @@ const Reports: React.FC = () => {
           icon={<ShoppingCart className="w-6 h-6" />}
           iconBg="bg-blue-50"
           iconColor="text-blue-600"
-          subtitle="Completed client orders"
         />
 
         <KPICard
@@ -1072,7 +1069,6 @@ const Reports: React.FC = () => {
           icon={<TrendingUp className="w-6 h-6" />}
           iconBg="bg-amber-50"
           iconColor="text-amber-600"
-          subtitle="Per client transaction"
         />
       </div>
 

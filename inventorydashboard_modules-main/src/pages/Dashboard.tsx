@@ -691,9 +691,6 @@ const Dashboard: React.FC = () => {
                     <p className="text-sm font-medium text-gray-700">
                       No components sold in this period
                     </p>
-                    <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-                      Items sold from newly generated bills will immediately appear here.
-                    </p>
                     {timeFilter === "today" && bills.length > 0 && (
                       <button
                         onClick={() => setTimeFilter("past")}
@@ -805,9 +802,6 @@ const Dashboard: React.FC = () => {
                   </div>
                   <p className="text-sm font-semibold text-gray-700">
                     No Data Available for Pie Chart
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
-                    The chart will populate automatically as components are sold.
                   </p>
                 </div>
               ) : (

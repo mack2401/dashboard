@@ -16,7 +16,8 @@ import {
   GraduationCap,
   BarChart3,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  ShoppingCart
 } from "lucide-react";
 import { useAuth } from "../App"; 
 
@@ -33,6 +34,15 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
   const [isManagementOpen, setIsManagementOpen] = useState(() => 
     location.pathname.startsWith("/admin/manage-users") || location.pathname.startsWith("/manage-teams")
   );
+  const [isEnquiriesOpen, setIsEnquiriesOpen] = useState(() => 
+    location.pathname.startsWith("/enquiries")
+  );
+
+  React.useEffect(() => {
+    if (location.pathname.startsWith("/enquiries")) {
+      setIsEnquiriesOpen(true);
+    }
+  }, [location.pathname]);
 
   const navItems = [
     { name: "Dashboard", path: "/dashboard", icon: <LayoutDashboard size={19} /> },
@@ -51,11 +61,33 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
     { name: "Manage Teams", path: "/manage-teams", icon: <UsersRound size={16} /> },
   ];
 
+  const enquiryItems = [
+    { name: "All Enquiries", path: "/enquiries", icon: <Calculator size={15} /> },
+    { name: "E-commerce", path: "/enquiries/ecommerce", icon: <ShoppingCart size={15} /> },
+    { name: "Academic", path: "/enquiries/academic", icon: <GraduationCap size={15} /> },
+  ];
+
   const handleNavClick = (isAction: boolean) => {
     if (!isAction) {
       setIsOpen(false);
     }
   };
+
+  const handleEnquiriesClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (isCollapsed) {
+      navigate("/enquiries");
+      handleNavClick(false);
+    } else {
+      setIsEnquiriesOpen((prev) => !prev);
+      if (!location.pathname.startsWith("/enquiries")) {
+        navigate("/enquiries");
+        handleNavClick(false);
+      }
+    }
+  };
+
+  const isEnquiriesActive = location.pathname.startsWith("/enquiries");
 
   const handleManagementClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -152,7 +184,84 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
 
           {/* Navigation Items */}
           <nav className="flex flex-col gap-1 overflow-y-auto no-scrollbar flex-1 min-h-0 px-2.5">
-            {navItems.map((item) => (
+            {navItems.map((item) => {
+              if (item.name === "Enquiries") {
+                return (
+                  <div key={item.name} className="flex flex-col">
+                    <button
+                      onClick={handleEnquiriesClick}
+                      className={`relative flex items-center transition-colors duration-150 cursor-pointer group ${
+                        isCollapsed
+                          ? "justify-center mx-auto w-10 h-10 my-0.5 rounded-lg"
+                          : "justify-between px-3 py-2.5 rounded-lg text-sm"
+                      } ${
+                        isEnquiriesActive && !isEnquiriesOpen
+                          ? isCollapsed
+                            ? "bg-slate-800 text-white font-semibold shadow-xs"
+                            : "bg-slate-800 text-white font-semibold shadow-xs border-l-2 border-blue-500"
+                          : isEnquiriesActive
+                          ? "bg-slate-800/80 text-white font-semibold shadow-xs"
+                          : "text-slate-300 hover:text-white hover:bg-slate-800/60 font-medium"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`shrink-0 transition-transform duration-150 ${
+                            isEnquiriesActive ? "text-blue-400" : "text-slate-400 group-hover:text-white"
+                          }`}
+                        >
+                          {item.icon}
+                        </span>
+                        {!isCollapsed && <span className="truncate">{item.name}</span>}
+                      </div>
+
+                      {!isCollapsed && (
+                        <span className="text-slate-400 group-hover:text-white">
+                          {isEnquiriesOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                        </span>
+                      )}
+
+                      {/* Floating Flyout Tooltip (Collapsed Mode) */}
+                      {isCollapsed && (
+                        <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 p-2 bg-slate-800 text-white text-xs font-medium rounded-md shadow-lg opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-150 whitespace-nowrap z-50 border border-slate-700 flex flex-col gap-1">
+                          <span className="font-bold text-slate-300 pb-1 border-b border-slate-700">Enquiries</span>
+                          <NavLink to="/enquiries" end onClick={() => handleNavClick(false)} className="hover:text-blue-400 py-0.5">All Enquiries</NavLink>
+                          <NavLink to="/enquiries/ecommerce" onClick={() => handleNavClick(false)} className="hover:text-blue-400 py-0.5">E-commerce</NavLink>
+                          <NavLink to="/enquiries/academic" onClick={() => handleNavClick(false)} className="hover:text-blue-400 py-0.5">Academic</NavLink>
+                          <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-slate-800"></div>
+                        </div>
+                      )}
+                    </button>
+
+                    {/* Sub-items (Expanded Mode) */}
+                    {!isCollapsed && isEnquiriesOpen && (
+                      <div className="my-1 flex flex-col gap-0.5 ml-5 pl-2.5 border-l border-slate-800">
+                        {enquiryItems.map((subItem) => (
+                          <NavLink
+                            key={subItem.name}
+                            to={subItem.path}
+                            end={subItem.path === "/enquiries"}
+                            onClick={() => handleNavClick(false)}
+                            className={({ isActive }) => `
+                              flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-colors
+                              ${
+                                isActive
+                                  ? "bg-slate-800 text-white font-semibold border-l-2 border-blue-500"
+                                  : "text-slate-400 hover:text-white hover:bg-slate-800/50"
+                              }
+                            `}
+                          >
+                            <span className="shrink-0">{subItem.icon}</span>
+                            <span className="truncate">{subItem.name}</span>
+                          </NavLink>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
+              return (
               <NavLink
                 key={item.name}
                 to={item.path}
@@ -198,7 +307,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isCollapsed = false, onToggleCollapse
                   </>
                 )}
               </NavLink>
-            ))}
+              );
+            })}
 
             {/* Management Section (Admin Only) */}
             {user?.role === "admin" && (

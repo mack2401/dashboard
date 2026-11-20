@@ -2292,7 +2292,6 @@ const BillTransactions: React.FC = () => {
             icon={<ShoppingBag className="w-4 h-4" />}
             iconBg="bg-indigo-50"
             iconColor="text-indigo-600"
-            subtitle={`${statistics.purchaseItemsCount > 0 ? `${statistics.purchaseItemsCount} items billed` : "Cost of goods"} • Billed Purchase`}
           />
 
           <KPICard
@@ -2303,7 +2302,6 @@ const BillTransactions: React.FC = () => {
             iconColor="text-blue-600"
             valueColor="text-blue-700"
             titleColor="text-blue-700"
-            subtitle={`${statistics.activeBillsCount} Sold ${statistics.activeBillsCount === 1 ? "Bill" : "Bills"} • Confirmed Orders`}
           />
 
           <KPICard
@@ -2314,14 +2312,6 @@ const BillTransactions: React.FC = () => {
             iconColor="text-emerald-600"
             valueColor={statistics.netMargin >= 0 ? "text-emerald-700" : "text-rose-600"}
             titleColor="text-emerald-700"
-            subtitle={
-              <span>
-                <span className={statistics.marginPercentage >= 0 ? "text-emerald-700 font-semibold" : "text-rose-600 font-semibold"}>
-                  {statistics.marginPercentage >= 0 ? "+" : ""}{statistics.marginPercentage.toFixed(1)}% margin
-                </span>{" "}
-                • Sale - Purchase
-              </span>
-            }
           />
 
           <KPICard
@@ -2332,54 +2322,7 @@ const BillTransactions: React.FC = () => {
             iconColor="text-amber-600"
             valueColor="text-amber-700"
             titleColor="text-amber-700"
-            subtitle={`${statistics.refundCount} Dropped / Cancelled ${statistics.refundCount === 1 ? "Bill" : "Bills"}`}
           />
-        </div>
-
-        {/* Quick Filter Pill Tabs with Counts */}
-        <div className="p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/90 flex flex-wrap items-center gap-1.5">
-          <button
-            onClick={() => setOrderStatusFilter("all")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              orderStatusFilter === "all"
-                ? "bg-white text-gray-900 shadow-xs border border-gray-200/80"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
-            }`}
-          >
-            All ({allCount})
-          </button>
-          <button
-            onClick={() => setOrderStatusFilter("approved")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              orderStatusFilter === "approved"
-                ? "bg-white text-emerald-800 shadow-xs border border-emerald-200/80"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
-            }`}
-          >
-            Invoices ({invoiceCount})
-          </button>
-          <button
-            onClick={() => setOrderStatusFilter("quotation")}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              orderStatusFilter === "quotation"
-                ? "bg-white text-amber-800 shadow-xs border border-amber-200/80"
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
-            }`}
-          >
-            Quotations ({quotationCount})
-          </button>
-          {droppedCount > 0 && (
-            <button
-              onClick={() => setOrderStatusFilter("dropped")}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                orderStatusFilter === "dropped"
-                  ? "bg-white text-rose-800 shadow-xs border border-rose-200/80"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200/60"
-              }`}
-            >
-              Dropped ({droppedCount})
-            </button>
-          )}
         </div>
 
         {/* Multi-Criteria Filters Panel */}
@@ -2483,10 +2426,10 @@ const BillTransactions: React.FC = () => {
                 onChange={(e) => setOrderStatusFilter(e.target.value as any)}
                 className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
-                <option value="all">All Statuses</option>
-                <option value="approved">Approved</option>
-                <option value="quotation">Quotation</option>
-                <option value="dropped">Dropped</option>
+                <option value="all">All Statuses ({allCount})</option>
+                <option value="approved">Approved / Invoices ({invoiceCount})</option>
+                <option value="quotation">Quotations ({quotationCount})</option>
+                {droppedCount > 0 && <option value="dropped">Dropped ({droppedCount})</option>}
               </select>
             </div>
 
