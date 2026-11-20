@@ -32,6 +32,7 @@ import {
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useAuth } from "../App";
+import { isDateInPresetRange } from "../components/common/DateFilter";
 import {
   isSoldBill,
   isSoldBillRecord,
@@ -58,8 +59,17 @@ const PIE_COLORS = [
   "#0284c7", // Sky 600
 ];
 
-type TimeFilterMode = "yesterday" | "today" | "past";
-type PastMode = "past7" | "past30" | "allPast" | "specific";
+type DatePresetType =
+  | "today"
+  | "yesterday"
+  | "custom"
+  | "last_7_days"
+  | "this_week"
+  | "this_month"
+  | "last_month"
+  | "last_30_days"
+  | "this_fy"
+  | "all";
 
 interface ParsedItem {
   productName: string;
@@ -172,14 +182,17 @@ const Dashboard: React.FC = () => {
   const [employees, setEmployees] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState<boolean>(true);
 
-  // Time filter: yesterday, today, past
-  const [timeFilter, setTimeFilter] = useState<TimeFilterMode>("today");
-  const [pastMode, setPastMode] = useState<PastMode>("past7");
-  const [specificPastDate, setSpecificPastDate] = useState<string>(() => {
+  // Date range filter: today, yesterday, custom range between two dates, or presets
+  const [datePreset, setDatePreset] = useState<DatePresetType>("today");
+  const [startDate, setStartDate] = useState<string>(() => {
     const d = new Date();
-    d.setDate(d.getDate() - 2);
+    d.setDate(d.getDate() - 7);
     return d.toISOString().split("T")[0];
   });
+  const [endDate, setEndDate] = useState<string>(() => {
+    return new Date().toISOString().split("T")[0];
+  });
+  const [staffPeriodMode, setStaffPeriodMode] = useState<"period" | "all">("period");
 
   const [componentSearch, setComponentSearch] = useState<string>("");
 
@@ -255,76 +268,116 @@ const Dashboard: React.FC = () => {
     return dedup.map((b) => resolveBillWithEnquiry(b, enquiriesMap));
   }, [bills, enquiriesMap]);
 
-  // Filter bills based on selected timeframe (Yesterday, Today, Past Dates) - SOLD bills only
+  const formatDisplayDate = (dateStr: string): string => {
+    if (!dateStr) return "";
+    const [y, m, d] = dateStr.split("-").map(Number);
+    if (!y || !m || !d) return dateStr;
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const periodLabel = useMemo(() => {
+    switch (datePreset) {
+      case "today":
+        return "Today";
+      case "yesterday":
+        return "Yesterday";
+      case "custom": {
+        if (startDate && endDate) {
+          if (startDate === endDate) {
+            return formatDisplayDate(startDate);
+          }
+          return `${formatDisplayDate(startDate)} – ${formatDisplayDate(endDate)}`;
+        }
+        if (startDate) return `From ${formatDisplayDate(startDate)}`;
+        if (endDate) return `Up to ${formatDisplayDate(endDate)}`;
+        return "Between Two Dates";
+      }
+      case "last_7_days":
+        return "Past 7 Days";
+      case "this_week":
+        return "This Week";
+      case "this_month":
+        return "This Month";
+      case "last_month":
+        return "Last Month";
+      case "last_30_days":
+        return "Past 30 Days";
+      case "this_fy":
+        return "This Financial Year";
+      case "all":
+        return "All Time";
+      default:
+        return "Selected Range";
+    }
+  }, [datePreset, startDate, endDate]);
+
+  const rangeDaysCount = useMemo(() => {
+    if (datePreset !== "custom" || !startDate || !endDate) return null;
+    const [y1, m1, d1] = startDate.split("-").map(Number);
+    const [y2, m2, d2] = endDate.split("-").map(Number);
+    const start = new Date(y1, m1 - 1, d1);
+    const end = new Date(y2, m2 - 1, d2);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  }, [datePreset, startDate, endDate]);
+
+  // Filter bills based on selected timeframe / date range - SOLD bills only
   const filteredBills = useMemo(() => {
     const soldBills = resolvedBills.filter((b) => isSoldBillRecord(b));
+    return soldBills.filter((b) => {
+      const d = getBillDate(b);
+      return isDateInPresetRange(d, datePreset, startDate, endDate);
+    });
+  }, [resolvedBills, datePreset, startDate, endDate]);
 
-    if (timeFilter === "today") {
-      return soldBills.filter((b) => isToday(getBillDate(b)));
-    }
+  // Active bills (sold + pending quotations, excluding dropped) in selected period
+  const periodActiveBills = useMemo(() => {
+    const active = resolvedBills.filter(
+      (b) => !isDroppedBill(b) && b.status !== "dropped"
+    );
+    return active.filter((b) => {
+      const d = getBillDate(b);
+      return isDateInPresetRange(d, datePreset, startDate, endDate);
+    });
+  }, [resolvedBills, datePreset, startDate, endDate]);
 
-    if (timeFilter === "yesterday") {
-      return soldBills.filter((b) =>
-        isYesterday(getBillDate(b))
-      );
-    }
+  const periodPaidBillsCount = useMemo(() => {
+    return periodActiveBills.filter((b) => isSoldBillRecord(b)).length;
+  }, [periodActiveBills]);
 
-    if (timeFilter === "past") {
-      const now = new Date();
-      const startOfToday = new Date(
-        now.getFullYear(),
-        now.getMonth(),
-        now.getDate()
-      );
-
-      if (pastMode === "specific" && specificPastDate) {
-        const targetDate = new Date(specificPastDate);
-        return soldBills.filter((b) =>
-          isSameDay(getBillDate(b), targetDate)
-        );
-      }
-
-      if (pastMode === "past7") {
-        const sevenDaysAgo = new Date(startOfToday);
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-        return soldBills.filter((b) => {
-          const d = getBillDate(b);
-          return d && d >= sevenDaysAgo && d < startOfToday;
-        });
-      }
-
-      if (pastMode === "past30") {
-        const thirtyDaysAgo = new Date(startOfToday);
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        return soldBills.filter((b) => {
-          const d = getBillDate(b);
-          return d && d >= thirtyDaysAgo && d < startOfToday;
-        });
-      }
-
-      // allPast: all records created before today
-      return soldBills.filter((b) => {
-        const d = getBillDate(b);
-        return d && d < startOfToday;
-      });
-    }
-
-    return soldBills;
-  }, [resolvedBills, timeFilter, pastMode, specificPastDate]);
+  const periodPendingBillsCount = useMemo(() => {
+    return Math.max(0, periodActiveBills.length - periodPaidBillsCount);
+  }, [periodActiveBills, periodPaidBillsCount]);
 
   // Dynamic labels based on active filter
 
   const timeFilterCardLabel = useMemo(() => {
-    if (timeFilter === "today") return "Today's Total Sales";
-    if (timeFilter === "yesterday") return "Yesterday's Total Sales";
-    if (timeFilter === "past") {
-      if (pastMode === "specific") return "Selected Past Date Sales";
-      if (pastMode === "past7") return "Past 7 Days Sales";
-      if (pastMode === "past30") return "Past 30 Days Sales";
-      return "All Past Sales";
+    if (datePreset === "today") return "Today's Total Sales";
+    if (datePreset === "yesterday") return "Yesterday's Total Sales";
+    if (datePreset === "custom") {
+      if (startDate && endDate) {
+        if (startDate === endDate) {
+          return `Total Sales on ${formatDisplayDate(startDate)}`;
+        }
+        return `Total Sales (${formatDisplayDate(startDate)} – ${formatDisplayDate(endDate)})`;
+      }
+      return "Total Sales Between Selected Dates";
     }
+    if (datePreset === "last_7_days") return "Past 7 Days Total Sales";
+    if (datePreset === "this_week") return "This Week's Total Sales";
+    if (datePreset === "this_month") return "This Month's Total Sales";
+    if (datePreset === "last_month") return "Last Month's Total Sales";
+    if (datePreset === "last_30_days") return "Past 30 Days Total Sales";
+    if (datePreset === "this_fy") return "Financial Year Total Sales";
+    if (datePreset === "all") return "All-Time Total Sales";
     return "Total Sales";
-  }, [timeFilter, pastMode]);
+  }, [datePreset, startDate, endDate]);
 
   // Selected period total sales
   const periodSales = useMemo(() => {
@@ -401,35 +454,26 @@ const Dashboard: React.FC = () => {
   }, [componentsSold]);
 
   // All-time Total Sales (Sold bills only, excludes quotations and dropped)
+  const allTimeSoldBills = useMemo(() => {
+    return resolvedBills.filter((b) => isSoldBillRecord(b));
+  }, [resolvedBills]);
+
   const allTimeTotalSales = useMemo(() => {
-    return resolvedBills
-      .filter((b) => isSoldBillRecord(b))
-      .reduce((sum, b) => sum + getBillTotal(b), 0);
-  }, [resolvedBills]);
+    return allTimeSoldBills.reduce((sum, b) => sum + getBillTotal(b), 0);
+  }, [allTimeSoldBills]);
 
-  // Today's Bills Calculation (Active bills only, excludes dropped)
-  const todayBills = useMemo(() => {
+  const allTimeActiveBillsCount = useMemo(() => {
     return resolvedBills.filter(
-      (b) =>
-        !isDroppedBill(b) &&
-        b.status !== "dropped" &&
-        isToday(getBillDate(b))
-    );
+      (b) => !isDroppedBill(b) && b.status !== "dropped"
+    ).length;
   }, [resolvedBills]);
 
-  const todayPaidBillsCount = useMemo(() => {
-    return todayBills.filter((b) => isSoldBillRecord(b)).length;
-  }, [todayBills]);
-
-  const todayPendingBillsCount = useMemo(() => {
-    return todayBills.length - todayPaidBillsCount;
-  }, [todayBills, todayPaidBillsCount]);
-
-  // Staff Performance Leaderboard (Sold bills only)
+  // Staff Performance Leaderboard (Filtered by selected range or all-time)
   const staffLeaderboard = useMemo(() => {
+    const sourceBills = staffPeriodMode === "period" ? filteredBills : allTimeSoldBills;
     const staffMap: Record<string, StaffPerformance> = {};
 
-    resolvedBills.filter((b) => isSoldBillRecord(b)).forEach((bill) => {
+    sourceBills.forEach((bill) => {
       let staffName = "Unassigned Staff";
       if (bill.assignedToName && String(bill.assignedToName).trim() !== "") {
         staffName = String(bill.assignedToName).trim();
@@ -460,7 +504,7 @@ const Dashboard: React.FC = () => {
     });
 
     return Object.values(staffMap).sort((a, b) => b.totalSales - a.totalSales);
-  }, [resolvedBills, employees]);
+  }, [staffPeriodMode, filteredBills, allTimeSoldBills, employees]);
 
   // Table Pagination States
   const [componentPage, setComponentPage] = useState<number>(1);
@@ -470,11 +514,11 @@ const Dashboard: React.FC = () => {
 
   useEffect(() => {
     setComponentPage(1);
-  }, [timeFilter, pastMode, specificPastDate, componentSearch]);
+  }, [datePreset, startDate, endDate, componentSearch]);
 
   useEffect(() => {
     setStaffPage(1);
-  }, [timeFilter, pastMode, specificPastDate]);
+  }, [datePreset, startDate, endDate, staffPeriodMode]);
 
   const totalCompPages = Math.max(1, Math.ceil(displayComponents.length / componentPageSize));
   const compStartIndex = (componentPage - 1) * componentPageSize;
@@ -512,106 +556,124 @@ const Dashboard: React.FC = () => {
             </h1>
           </div>
 
-          {/* Top Right Header Controls: Timeframe pill selector */}
-          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200 self-start sm:self-auto shrink-0">
-            <button
-              onClick={() => setTimeFilter("yesterday")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                timeFilter === "yesterday"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
-            >
-              Yesterday
-            </button>
-            <button
-              onClick={() => setTimeFilter("today")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-                timeFilter === "today"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
-            >
-              Today
-            </button>
-            <button
-              onClick={() => setTimeFilter("past")}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 ${
-                timeFilter === "past"
-                  ? "bg-slate-900 text-white shadow-2xs"
-                  : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-              }`}
-            >
-              <History className="w-3.5 h-3.5" />
-              <span>Past Dates</span>
-            </button>
+          {/* Top Right Header Controls: Timeframe & Date Range Dropdown */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-2 self-start sm:self-auto shrink-0">
+            <div className="relative flex items-center">
+              <Calendar className="w-4 h-4 text-slate-500 absolute left-3 pointer-events-none" />
+              <select
+                value={datePreset}
+                onChange={(e) => setDatePreset(e.target.value as DatePresetType)}
+                className="text-xs font-semibold rounded-xl border border-slate-200 bg-white text-slate-800 py-2 pl-9 pr-8 focus:outline-hidden focus:ring-2 focus:ring-slate-300 focus:border-slate-400 cursor-pointer shadow-2xs transition hover:border-slate-300"
+                aria-label="Select date range"
+              >
+                <option value="today">Today</option>
+                <option value="yesterday">Yesterday</option>
+                <option value="custom">Between Two Dates (Custom Range)</option>
+                <option value="last_7_days">Past 7 Days</option>
+                <option value="this_week">This Week</option>
+                <option value="this_month">This Month</option>
+                <option value="last_month">Last Month</option>
+                <option value="last_30_days">Past 30 Days</option>
+                <option value="this_fy">This Financial Year (FY)</option>
+                <option value="all">All Time</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Sub-selector for Past Dates */}
-        {timeFilter === "past" && (
-          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 text-xs animate-in fade-in duration-200">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-bold text-slate-800 flex items-center gap-1">
-                <Calendar className="w-3.5 h-3.5 text-slate-600" />
-                Past Range:
+        {/* Between Two Dates Range Picker Panel */}
+        {datePreset === "custom" && (
+          <div className="flex flex-wrap items-center justify-between gap-3 bg-slate-50 p-3 sm:p-4 rounded-xl border border-slate-200 text-xs animate-in fade-in duration-200">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <span className="font-bold text-slate-800 flex items-center gap-1.5">
+                <Calendar className="w-4 h-4 text-slate-700" />
+                Choose Between Two Dates:
               </span>
-              <button
-                onClick={() => setPastMode("past7")}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  pastMode === "past7"
-                    ? "bg-slate-900 text-white shadow-2xs"
-                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-                }`}
-              >
-                Past 7 Days
-              </button>
-              <button
-                onClick={() => setPastMode("past30")}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  pastMode === "past30"
-                    ? "bg-slate-900 text-white shadow-2xs"
-                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-                }`}
-              >
-                Past 30 Days
-              </button>
-              <button
-                onClick={() => setPastMode("allPast")}
-                className={`px-2.5 py-1 rounded-md font-semibold transition-all ${
-                  pastMode === "allPast"
-                    ? "bg-slate-900 text-white shadow-2xs"
-                    : "bg-white text-slate-700 hover:bg-slate-100 border border-slate-200"
-                }`}
-              >
-                All Past
-              </button>
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">From</span>
+                <input
+                  type="date"
+                  value={startDate}
+                  max={endDate || new Date().toISOString().split("T")[0]}
+                  onChange={(e) => setStartDate(e.target.value)}
+                  className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-hidden cursor-pointer"
+                />
+              </div>
+              <span className="text-slate-400 font-bold">to</span>
+              <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs">
+                <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">To</span>
+                <input
+                  type="date"
+                  value={endDate}
+                  min={startDate}
+                  max={new Date().toISOString().split("T")[0]}
+                  onChange={(e) => setEndDate(e.target.value)}
+                  className="text-xs font-semibold text-slate-800 bg-transparent focus:outline-hidden cursor-pointer"
+                />
+              </div>
+              {rangeDaysCount !== null && (
+                <span className="inline-flex items-center px-2.5 py-1 rounded-md text-[11px] font-bold bg-slate-200/80 text-slate-700">
+                  {rangeDaysCount} {rangeDaysCount === 1 ? "day" : "days"} selected
+                </span>
+              )}
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-slate-600 text-[11px] font-medium">
-                Or pick specific date:
-              </span>
-              <input
-                type="date"
-                max={
-                  new Date(Date.now() - 86400000).toISOString().split("T")[0]
-                }
-                value={specificPastDate}
-                onChange={(e) => {
-                  setSpecificPastDate(e.target.value);
-                  setPastMode("specific");
+            {/* Quick Range Shortcuts */}
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now);
+                  start.setDate(start.getDate() - 7);
+                  setStartDate(start.toISOString().split("T")[0]);
+                  setEndDate(now.toISOString().split("T")[0]);
                 }}
-                className={`px-2 py-1 text-xs rounded-md border transition-all ${
-                  pastMode === "specific"
-                    ? "border-slate-800 ring-2 ring-slate-800/20 bg-white text-slate-900 font-semibold"
-                    : "border-slate-200 bg-white text-slate-700"
-                }`}
-              />
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                Last 7 Days
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now);
+                  start.setDate(start.getDate() - 14);
+                  setStartDate(start.toISOString().split("T")[0]);
+                  setEndDate(now.toISOString().split("T")[0]);
+                }}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                Last 14 Days
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now);
+                  start.setDate(start.getDate() - 30);
+                  setStartDate(start.toISOString().split("T")[0]);
+                  setEndDate(now.toISOString().split("T")[0]);
+                }}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                Last 30 Days
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const now = new Date();
+                  const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                  setStartDate(start.toISOString().split("T")[0]);
+                  setEndDate(now.toISOString().split("T")[0]);
+                }}
+                className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-slate-100 border border-slate-200 text-slate-700 transition cursor-pointer"
+              >
+                This Month
+              </button>
             </div>
           </div>
         )}
-
         {/* Horizontal Two Columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           {/* PART 1 (LEFT, 7 COLS): Total Sales & Components + Qty sold */}
@@ -657,13 +719,7 @@ const Dashboard: React.FC = () => {
                 <div className="flex items-center gap-2">
                   <Layers className="w-4 h-4 text-slate-700" />
                   <h3 className="font-bold text-gray-900 text-sm sm:text-base">
-                    Components & Quantity Sold (
-                    {timeFilter === "yesterday"
-                      ? "Yesterday"
-                      : timeFilter === "today"
-                      ? "Today"
-                      : "Past Dates"}
-                    )
+                    Components & Quantity Sold ({periodLabel})
                   </h3>
                   <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                     {displayComponents.length}
@@ -691,12 +747,12 @@ const Dashboard: React.FC = () => {
                     <p className="text-sm font-medium text-gray-700">
                       No components sold in this period
                     </p>
-                    {timeFilter === "today" && bills.length > 0 && (
+                    {datePreset === "today" && bills.length > 0 && (
                       <button
-                        onClick={() => setTimeFilter("past")}
-                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900"
+                        onClick={() => setDatePreset("custom")}
+                        className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 hover:text-slate-900 cursor-pointer"
                       >
-                        <span>View past component sales</span>
+                        <span>Choose between two dates</span>
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     )}
@@ -957,10 +1013,13 @@ const Dashboard: React.FC = () => {
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                 <IndianRupee className="w-4 h-4 text-slate-700" />
-                <span>Total Sales</span>
+                <span>Total Sales ({periodLabel})</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                {formatCurrency(allTimeTotalSales)}
+                {formatCurrency(periodSales)}
+              </div>
+              <div className="text-xs text-slate-500 pt-0.5">
+                All-Time Sales: <strong className="text-slate-800 font-semibold">{formatCurrency(allTimeTotalSales)}</strong>
               </div>
             </div>
 
@@ -969,24 +1028,24 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          {/* No of Bills Card (Today's) */}
+          {/* No of Bills Card */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-2xs p-6 flex items-center justify-between hover:border-slate-300 transition-all">
             <div className="space-y-1">
               <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-slate-500">
                 <FileText className="w-4 h-4 text-slate-700" />
-                <span>No. of Bills</span>
+                <span>No. of Bills ({periodLabel})</span>
               </div>
               <div className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-                {todayBills.length}
+                {periodActiveBills.length}
               </div>
-              <div className="flex items-center gap-2 pt-0.5">
+              <div className="flex items-center gap-2 pt-0.5 flex-wrap">
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60">
                   <CheckCircle2 className="w-3 h-3" />
-                  {todayPaidBillsCount} Paid Today
+                  {periodPaidBillsCount} Paid / Confirmed
                 </span>
                 <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
                   <Clock className="w-3 h-3" />
-                  {todayPendingBillsCount} Pending Today
+                  {periodPendingBillsCount} Pending
                 </span>
               </div>
             </div>
@@ -1002,12 +1061,12 @@ const Dashboard: React.FC = () => {
       {/* 4. AT THE BOTTOM SECTION: TOP PERFORMED STAFFS                             */}
       {/* ========================================================================= */}
       <section className="space-y-4 pt-2">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-100">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-2 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <Trophy className="w-5 h-5 text-amber-500" />
             <div>
               <h2 className="text-base sm:text-lg font-bold text-gray-900 tracking-tight">
-                Top Performed Staffs
+                Top Performed Staffs {staffPeriodMode === "period" ? `(${periodLabel})` : "(All Time)"}
               </h2>
               <p className="text-xs text-gray-500">
                 Leaderboard ranked by revenue generated and bills closed
@@ -1015,9 +1074,35 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
 
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60 self-start sm:self-auto">
-            {staffLeaderboard.length} staff members ranked
-          </span>
+          <div className="flex items-center gap-2 self-start sm:self-auto">
+            <div className="flex items-center gap-1 bg-slate-100 p-0.5 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setStaffPeriodMode("period")}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                  staffPeriodMode === "period"
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                {datePreset === "custom" ? "Selected Range" : periodLabel}
+              </button>
+              <button
+                type="button"
+                onClick={() => setStaffPeriodMode("all")}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
+                  staffPeriodMode === "all"
+                    ? "bg-slate-900 text-white shadow-2xs"
+                    : "text-slate-600 hover:text-slate-900"
+                }`}
+              >
+                All Time
+              </button>
+            </div>
+            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200/60">
+              {staffLeaderboard.length} ranked
+            </span>
+          </div>
         </div>
 
         {/* Staff Table */}

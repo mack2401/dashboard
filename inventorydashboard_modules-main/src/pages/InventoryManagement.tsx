@@ -54,6 +54,7 @@ import {
 } from 'lucide-react';
 import { db } from "../firebase";
 import { useAuth } from "../App";
+import { isDateInPresetRange } from "../components/common/DateFilter";
 import { 
   collection, 
   addDoc, 
@@ -385,8 +386,17 @@ const InventoryManagement: React.FC = () => {
   // Fast Moving Components States
   const [bills, setBills] = useState<any[]>([]);
   const [enquiries, setEnquiries] = useState<any[]>([]);
-  const [fastMovingPeriod, setFastMovingPeriod] = useState<'today' | 'yesterday' | 'past7' | 'past30' | 'all'>('today');
-  const [fastMovingCustomDate, setFastMovingCustomDate] = useState<string>('');
+  const [fastMovingPreset, setFastMovingPreset] = useState<
+    'today' | 'yesterday' | 'custom' | 'last_7_days' | 'this_week' | 'this_month' | 'last_month' | 'last_30_days' | 'all'
+  >('today');
+  const [fastMovingStartDate, setFastMovingStartDate] = useState<string>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 7);
+    return d.toISOString().split('T')[0];
+  });
+  const [fastMovingEndDate, setFastMovingEndDate] = useState<string>(() => {
+    return new Date().toISOString().split('T')[0];
+  });
   const [fastMovingSearch, setFastMovingSearch] = useState<string>('');
   const [fastMovingFilterLowStock, setFastMovingFilterLowStock] = useState<boolean>(false);
 
@@ -450,7 +460,7 @@ const InventoryManagement: React.FC = () => {
   useEffect(() => {
     setApprovedFastMovingPage(1);
     setEnquiryFastMovingPage(1);
-  }, [fastMovingPeriod, fastMovingCustomDate, fastMovingSearch, fastMovingFilterLowStock]);
+  }, [fastMovingPreset, fastMovingStartDate, fastMovingEndDate, fastMovingSearch, fastMovingFilterLowStock]);
 
   useEffect(() => {
     setTransactionPage(1);
@@ -680,53 +690,72 @@ const InventoryManagement: React.FC = () => {
     return isNaN(d.getTime()) ? null : d;
   };
 
+  const formatDisplayDate = (dateStr: string): string => {
+    if (!dateStr) return '';
+    const [y, m, d] = dateStr.split('-').map(Number);
+    if (!y || !m || !d) return dateStr;
+    const dt = new Date(y, m - 1, d);
+    return dt.toLocaleDateString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const fastMovingPeriodLabel = useMemo(() => {
+    switch (fastMovingPreset) {
+      case 'today':
+        return 'Today';
+      case 'yesterday':
+        return 'Yesterday';
+      case 'custom': {
+        if (fastMovingStartDate && fastMovingEndDate) {
+          if (fastMovingStartDate === fastMovingEndDate) {
+            return formatDisplayDate(fastMovingStartDate);
+          }
+          return `${formatDisplayDate(fastMovingStartDate)} – ${formatDisplayDate(fastMovingEndDate)}`;
+        }
+        if (fastMovingStartDate) return `From ${formatDisplayDate(fastMovingStartDate)}`;
+        if (fastMovingEndDate) return `Up to ${formatDisplayDate(fastMovingEndDate)}`;
+        return 'Between Two Dates';
+      }
+      case 'last_7_days':
+        return 'Past 7 Days';
+      case 'this_week':
+        return 'This Week';
+      case 'this_month':
+        return 'This Month';
+      case 'last_month':
+        return 'Last Month';
+      case 'last_30_days':
+        return 'Past 30 Days';
+      case 'all':
+        return 'All Time';
+      default:
+        return 'Selected Range';
+    }
+  }, [fastMovingPreset, fastMovingStartDate, fastMovingEndDate]);
+
+  const fastMovingRangeDaysCount = useMemo(() => {
+    if (fastMovingPreset !== 'custom' || !fastMovingStartDate || !fastMovingEndDate) return null;
+    const [y1, m1, d1] = fastMovingStartDate.split('-').map(Number);
+    const [y2, m2, d2] = fastMovingEndDate.split('-').map(Number);
+    const start = new Date(y1, m1 - 1, d1);
+    const end = new Date(y2, m2 - 1, d2);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  }, [fastMovingPreset, fastMovingStartDate, fastMovingEndDate]);
+
   const matchesFastMovingPeriod = (
     dateVal: any,
-    period: 'today' | 'yesterday' | 'past7' | 'past30' | 'all',
-    customDate?: string
+    preset: string,
+    start?: string,
+    end?: string
   ): boolean => {
     const d = parseFastMovingDate(dateVal);
-    if (!d) return period === 'all';
-    const now = new Date();
-
-    if (customDate) {
-      const target = new Date(customDate);
-      return (
-        d.getDate() === target.getDate() &&
-        d.getMonth() === target.getMonth() &&
-        d.getFullYear() === target.getFullYear()
-      );
-    }
-
-    if (period === 'today') {
-      return (
-        d.getDate() === now.getDate() &&
-        d.getMonth() === now.getMonth() &&
-        d.getFullYear() === now.getFullYear()
-      );
-    }
-
-    if (period === 'yesterday') {
-      const y = new Date();
-      y.setDate(y.getDate() - 1);
-      return (
-        d.getDate() === y.getDate() &&
-        d.getMonth() === y.getMonth() &&
-        d.getFullYear() === y.getFullYear()
-      );
-    }
-
-    if (period === 'past7') {
-      const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
-      return d >= cutoff && d <= now;
-    }
-
-    if (period === 'past30') {
-      const cutoff = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 30);
-      return d >= cutoff && d <= now;
-    }
-
-    return true; // 'all'
+    if (!d) return preset === 'all';
+    return isDateInPresetRange(d, preset, start, end);
   };
 
   const extractFastMovingBillItems = (bill: any) => {
@@ -791,7 +820,7 @@ const InventoryManagement: React.FC = () => {
 
     bills.forEach((bill) => {
       const dateVal = bill.billDate || bill.createdAt;
-      if (!matchesFastMovingPeriod(dateVal, fastMovingPeriod, fastMovingCustomDate)) return;
+      if (!matchesFastMovingPeriod(dateVal, fastMovingPreset, fastMovingStartDate, fastMovingEndDate)) return;
 
       const items = extractFastMovingBillItems(bill);
       items.forEach((item) => {
@@ -818,7 +847,7 @@ const InventoryManagement: React.FC = () => {
 
     transactions.forEach((tx) => {
       if (tx.type !== 'deliver') return;
-      if (!matchesFastMovingPeriod(tx.createdAt, fastMovingPeriod, fastMovingCustomDate)) return;
+      if (!matchesFastMovingPeriod(tx.createdAt, fastMovingPreset, fastMovingStartDate, fastMovingEndDate)) return;
 
       const key = (tx.productName || '').trim().toLowerCase();
       if (!key) return;
@@ -845,14 +874,14 @@ const InventoryManagement: React.FC = () => {
     });
 
     return Object.values(map).sort((a, b) => b.quantity - a.quantity);
-  }, [bills, transactions, fastMovingPeriod, fastMovingCustomDate, productLookup, products]);
+  }, [bills, transactions, fastMovingPreset, fastMovingStartDate, fastMovingEndDate, productLookup, products]);
 
   const enquiryFastMovingItems = useMemo(() => {
     const map: Record<string, FastMovingComponentItem> = {};
 
     enquiries.forEach((enq) => {
       const dateVal = enq.createdAt || enq.date;
-      if (!matchesFastMovingPeriod(dateVal, fastMovingPeriod, fastMovingCustomDate)) return;
+      if (!matchesFastMovingPeriod(dateVal, fastMovingPreset, fastMovingStartDate, fastMovingEndDate)) return;
 
       const items = extractFastMovingEnquiryMaterials(enq);
       items.forEach((item) => {
@@ -878,7 +907,7 @@ const InventoryManagement: React.FC = () => {
     });
 
     return Object.values(map).sort((a, b) => b.quantity - a.quantity);
-  }, [enquiries, fastMovingPeriod, fastMovingCustomDate, productLookup]);
+  }, [enquiries, fastMovingPreset, fastMovingStartDate, fastMovingEndDate, productLookup]);
 
   const filteredApprovedFastMoving = useMemo(() => {
     let list = approvedFastMovingItems;
@@ -4606,7 +4635,7 @@ const InventoryManagement: React.FC = () => {
           </div>
         </div>
 
-        {/* Action Buttons inside heading (Import, Export, Show History, Delete Requests, Add Stock, Add Product) */}
+        {/* Action Buttons inside heading: Only Add Stock and Add Product */}
         <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
           <input
             type="file"
@@ -4615,54 +4644,6 @@ const InventoryManagement: React.FC = () => {
             accept=".xlsx,.xls,.csv"
             className="hidden"
           />
-          {canAddProduct() && (
-            <button
-              onClick={() => importExcelInputRef.current?.click()}
-              disabled={isImporting}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-emerald-700 rounded-xl border border-emerald-300/80 shadow-2xs transition cursor-pointer disabled:opacity-50"
-              title="Import Excel sheet to overwrite existing products and flag missed ones as Old Stock"
-            >
-              <Upload className="w-3.5 h-3.5" />
-              {isImporting ? 'Importing...' : 'Import Excel'}
-            </button>
-          )}
-
-          <button
-            onClick={handleExportCSV}
-            disabled={isExporting}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-2xs transition cursor-pointer disabled:opacity-50"
-            title="Export Excel sheet"
-          >
-            <Download className="w-3.5 h-3.5" />
-            {isExporting ? 'Exporting...' : 'Export Excel'}
-          </button>
-
-          {canViewTransactions() && (
-            <button
-              onClick={() => setShowTransactions(!showTransactions)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-gray-50 text-gray-700 rounded-xl border border-gray-200/90 shadow-2xs transition cursor-pointer"
-              title="Toggle transaction audit log"
-            >
-              {showTransactions ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {showTransactions ? 'Hide History' : 'Show History'}
-            </button>
-          )}
-
-          {user.role === 'admin' && (
-            <button
-              onClick={() => setIsDeleteRequestsModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl border border-amber-300 shadow-2xs transition cursor-pointer relative"
-              title="View product delete requests"
-            >
-              <ClipboardList className="w-3.5 h-3.5" />
-              Delete Requests
-              {products.filter(p => p.deleteRequested).length > 0 && (
-                <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.2 rounded-full shadow-xs">
-                  {products.filter(p => p.deleteRequested).length}
-                </span>
-              )}
-            </button>
-          )}
 
           {canAddProduct() && (
             <>
@@ -4815,127 +4796,139 @@ const InventoryManagement: React.FC = () => {
 
       {activeTab === 'fast-moving' && (
           <div className="space-y-6 mb-6">
-            {/* Header controls: Periods (Yesterday, Today, Past Dates) and Specific Date Picker on the right */}
-            <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4 sm:p-5">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-3 sm:gap-4">
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
-                    <span className="w-2.5 h-6 bg-blue-600 rounded-full inline-block"></span>
-                    Fast Moving Components
-                  </h2>
-
-                  {/* Period Pills: Yesterday, Today, Past Dates */}
-                  <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200/80 shrink-0">
-                    <button
-                      onClick={() => {
-                        setFastMovingPeriod('yesterday');
-                        setFastMovingCustomDate('');
-                      }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                        fastMovingPeriod === 'yesterday' && !fastMovingCustomDate
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      Yesterday
-                    </button>
-                    <button
-                      onClick={() => {
-                        setFastMovingPeriod('today');
-                        setFastMovingCustomDate('');
-                      }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer ${
-                        fastMovingPeriod === 'today' && !fastMovingCustomDate
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      Today
-                    </button>
-                    <button
-                      onClick={() => {
-                        if (fastMovingPeriod !== 'all' && fastMovingPeriod !== 'past7' && fastMovingPeriod !== 'past30') {
-                          setFastMovingPeriod('all');
-                        }
-                        setFastMovingCustomDate('');
-                      }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1 cursor-pointer ${
-                        (fastMovingPeriod === 'all' || fastMovingPeriod === 'past7' || fastMovingPeriod === 'past30') && !fastMovingCustomDate
-                          ? 'bg-blue-600 text-white shadow-xs'
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                      }`}
-                    >
-                      <History className="w-3.5 h-3.5" />
-                      <span>Past Dates</span>
-                    </button>
+            {/* Header controls: Fast Moving Range Selection (Today, Yesterday, Between Two Dates, Presets) */}
+            <div className="bg-white rounded-2xl shadow-xs border border-gray-200/80 p-4 sm:p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="w-2.5 h-6 bg-blue-600 rounded-full inline-block"></span>
+                  <div>
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight flex items-center gap-2">
+                      Fast Moving Components
+                    </h2>
+                    <span className="text-xs text-gray-500 font-medium">
+                      Showing: <strong className="text-blue-700">{fastMovingPeriodLabel}</strong>
+                    </span>
                   </div>
                 </div>
 
-                {/* Specific Date Option on Right Side */}
-                <div className="flex items-center gap-2 self-start lg:self-auto shrink-0">
-                  <span className="text-xs text-gray-500 font-medium flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-gray-400" />
-                    Specific Date:
-                  </span>
-                  <input
-                    type="date"
-                    value={fastMovingCustomDate}
-                    onChange={(e) => setFastMovingCustomDate(e.target.value)}
-                    className={`px-2.5 py-1.5 text-xs rounded-lg border transition-all ${
-                      fastMovingCustomDate
-                        ? 'border-blue-500 ring-2 ring-blue-500/20 bg-white font-semibold text-blue-900'
-                        : 'border-gray-300 bg-white text-gray-700'
-                    }`}
-                  />
-                  {fastMovingCustomDate && (
-                    <button
-                      onClick={() => setFastMovingCustomDate('')}
-                      className="text-xs text-gray-400 hover:text-gray-600 underline cursor-pointer"
+                {/* Right Side: Preset & Date Range Selector */}
+                <div className="flex items-center gap-2 self-start sm:self-auto shrink-0">
+                  <div className="relative flex items-center">
+                    <Calendar className="w-4 h-4 text-gray-400 absolute left-3 pointer-events-none" />
+                    <select
+                      value={fastMovingPreset}
+                      onChange={(e) => setFastMovingPreset(e.target.value as any)}
+                      className="text-xs font-semibold rounded-xl border border-gray-300 bg-white text-gray-800 py-2 pl-9 pr-8 focus:outline-hidden focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 cursor-pointer shadow-2xs transition hover:border-gray-400"
+                      aria-label="Select date range for fast moving items"
                     >
-                      Clear
-                    </button>
-                  )}
+                      <option value="today">Today</option>
+                      <option value="yesterday">Yesterday</option>
+                      <option value="custom">Between Two Dates (Custom Range)</option>
+                      <option value="last_7_days">Past 7 Days</option>
+                      <option value="this_week">This Week</option>
+                      <option value="this_month">This Month</option>
+                      <option value="last_month">Last Month</option>
+                      <option value="last_30_days">Past 30 Days</option>
+                      <option value="all">All Time</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
-              {/* Sub-range for Past Dates */}
-              {(fastMovingPeriod === 'all' || fastMovingPeriod === 'past7' || fastMovingPeriod === 'past30') && !fastMovingCustomDate && (
-                <div className="flex flex-wrap items-center gap-2 pt-3 mt-3 border-t border-gray-100 text-xs animate-in fade-in duration-200">
-                  <span className="font-semibold text-gray-500">Past Range:</span>
-                  <button
-                    onClick={() => setFastMovingPeriod('past7')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                      fastMovingPeriod === 'past7'
-                        ? 'bg-blue-600 text-white shadow-2xs'
-                        : 'bg-white text-blue-800 hover:bg-blue-50 border border-blue-200/60'
-                    }`}
-                  >
-                    Past 7 Days
-                  </button>
-                  <button
-                    onClick={() => setFastMovingPeriod('past30')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                      fastMovingPeriod === 'past30'
-                        ? 'bg-blue-600 text-white shadow-2xs'
-                        : 'bg-white text-blue-800 hover:bg-blue-50 border border-blue-200/60'
-                    }`}
-                  >
-                    Past 30 Days
-                  </button>
-                  <button
-                    onClick={() => setFastMovingPeriod('all')}
-                    className={`px-2.5 py-1 rounded-md font-semibold transition-all cursor-pointer ${
-                      fastMovingPeriod === 'all'
-                        ? 'bg-blue-600 text-white shadow-2xs'
-                        : 'bg-white text-blue-800 hover:bg-blue-50 border border-blue-200/60'
-                    }`}
-                  >
-                    All Previous Dates
-                  </button>
+              {/* Between Two Dates Range Picker Panel */}
+              {fastMovingPreset === 'custom' && (
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-blue-50/60 p-3 sm:p-3.5 rounded-xl border border-blue-200/70 text-xs animate-in fade-in duration-200">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                    <span className="font-bold text-blue-900 flex items-center gap-1.5">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      Date Range:
+                    </span>
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-2xs">
+                      <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">From</span>
+                      <input
+                        type="date"
+                        value={fastMovingStartDate}
+                        max={fastMovingEndDate || new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setFastMovingStartDate(e.target.value)}
+                        className="text-xs font-semibold text-gray-800 bg-transparent focus:outline-hidden cursor-pointer"
+                      />
+                    </div>
+                    <span className="text-gray-400 font-bold">to</span>
+                    <div className="flex items-center gap-2 bg-white px-3 py-1.5 rounded-lg border border-blue-200 shadow-2xs">
+                      <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wide">To</span>
+                      <input
+                        type="date"
+                        value={fastMovingEndDate}
+                        min={fastMovingStartDate}
+                        max={new Date().toISOString().split('T')[0]}
+                        onChange={(e) => setFastMovingEndDate(e.target.value)}
+                        className="text-xs font-semibold text-gray-800 bg-transparent focus:outline-hidden cursor-pointer"
+                      />
+                    </div>
+                    {fastMovingRangeDaysCount !== null && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold bg-blue-100 text-blue-800 border border-blue-200/60">
+                        {fastMovingRangeDaysCount} {fastMovingRangeDaysCount === 1 ? 'day' : 'days'}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Quick Shortcuts */}
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const start = new Date(now);
+                        start.setDate(start.getDate() - 7);
+                        setFastMovingStartDate(start.toISOString().split('T')[0]);
+                        setFastMovingEndDate(now.toISOString().split('T')[0]);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-blue-50 border border-blue-200 text-blue-800 transition cursor-pointer"
+                    >
+                      Last 7D
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const start = new Date(now);
+                        start.setDate(start.getDate() - 14);
+                        setFastMovingStartDate(start.toISOString().split('T')[0]);
+                        setFastMovingEndDate(now.toISOString().split('T')[0]);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-blue-50 border border-blue-200 text-blue-800 transition cursor-pointer"
+                    >
+                      Last 14D
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const start = new Date(now);
+                        start.setDate(start.getDate() - 30);
+                        setFastMovingStartDate(start.toISOString().split('T')[0]);
+                        setFastMovingEndDate(now.toISOString().split('T')[0]);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-blue-50 border border-blue-200 text-blue-800 transition cursor-pointer"
+                    >
+                      Last 30D
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const start = new Date(now.getFullYear(), now.getMonth(), 1);
+                        setFastMovingStartDate(start.toISOString().split('T')[0]);
+                        setFastMovingEndDate(now.toISOString().split('T')[0]);
+                      }}
+                      className="px-2.5 py-1 text-[11px] font-semibold rounded-md bg-white hover:bg-blue-50 border border-blue-200 text-blue-800 transition cursor-pointer"
+                    >
+                      This Month
+                    </button>
+                  </div>
                 </div>
               )}
             </div>
-
             {/* Search Bar (Left) + Compact Low Stock Toggle (Right) */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4">
               {/* Search Bar */}
@@ -4989,7 +4982,7 @@ const InventoryManagement: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-green-600" />
                     <h3 className="font-bold text-gray-900 text-sm sm:text-base">
-                      Approved / Sold Fast Moving Components
+                      Approved / Sold Fast Moving ({fastMovingPeriodLabel})
                     </h3>
                   </div>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -5061,15 +5054,7 @@ const InventoryManagement: React.FC = () => {
                             <p className="text-sm font-medium text-gray-700">
                               {fastMovingFilterLowStock
                                 ? "No low stock items found among fast-moving sales for this period"
-                                : `No fast moving sales found for ${
-                                    fastMovingCustomDate
-                                      ? `date ${fastMovingCustomDate}`
-                                      : fastMovingPeriod === 'today'
-                                      ? "today"
-                                      : fastMovingPeriod === 'yesterday'
-                                      ? "yesterday"
-                                      : "this period"
-                                  }`}
+                                : `No fast moving sales found for ${fastMovingPeriodLabel}`}
                             </p>
                             {fastMovingFilterLowStock ? (
                               <button
@@ -5083,15 +5068,12 @@ const InventoryManagement: React.FC = () => {
                                 <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
                                   Sold items in bills will automatically rank here.
                                 </p>
-                                {fastMovingPeriod === 'today' && (
+                                {fastMovingPreset === 'today' && (
                                   <button
-                                    onClick={() => {
-                                      setFastMovingPeriod('all');
-                                      setFastMovingCustomDate('');
-                                    }}
-                                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                    onClick={() => setFastMovingPreset('custom')}
+                                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
                                   >
-                                    <span>View all previous dates</span>
+                                    <span>Choose date range</span>
                                     <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
                                   </button>
                                 )}
@@ -5134,7 +5116,7 @@ const InventoryManagement: React.FC = () => {
                   <div className="flex items-center gap-2">
                     <TrendingUp className="w-4 h-4 text-blue-600" />
                     <h3 className="font-bold text-gray-900 text-sm sm:text-base">
-                      Enquiry Fast Moving Components
+                      Enquiry Fast Moving ({fastMovingPeriodLabel})
                     </h3>
                   </div>
                   <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -5206,15 +5188,7 @@ const InventoryManagement: React.FC = () => {
                             <p className="text-sm font-medium text-gray-700">
                               {fastMovingFilterLowStock
                                 ? "No low stock items found among enquiry fast-movers for this period"
-                                : `No enquiry demands found for ${
-                                    fastMovingCustomDate
-                                      ? `date ${fastMovingCustomDate}`
-                                      : fastMovingPeriod === 'today'
-                                      ? "today"
-                                      : fastMovingPeriod === 'yesterday'
-                                      ? "yesterday"
-                                      : "this period"
-                                  }`}
+                                : `No enquiry demands found for ${fastMovingPeriodLabel}`}
                             </p>
                             {fastMovingFilterLowStock ? (
                               <button
@@ -5228,15 +5202,12 @@ const InventoryManagement: React.FC = () => {
                                 <p className="text-xs text-gray-400 mt-1 max-w-xs mx-auto">
                                   Enquiry materials will automatically rank here.
                                 </p>
-                                {fastMovingPeriod === 'today' && (
+                                {fastMovingPreset === 'today' && (
                                   <button
-                                    onClick={() => {
-                                      setFastMovingPeriod('all');
-                                      setFastMovingCustomDate('');
-                                    }}
-                                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                                    onClick={() => setFastMovingPreset('custom')}
+                                    className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 cursor-pointer"
                                   >
-                                    <span>View all previous dates</span>
+                                    <span>Choose date range</span>
                                     <ChevronDown className="w-3.5 h-3.5 -rotate-90" />
                                   </button>
                                 )}
@@ -5574,7 +5545,7 @@ const InventoryManagement: React.FC = () => {
                   title="Import Excel"
                 >
                   <Upload className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">{isImporting ? 'Importing...' : 'Import'}</span>
+                  <span>{isImporting ? 'Importing...' : 'Import Excel'}</span>
                 </button>
               )}
 
@@ -5586,8 +5557,20 @@ const InventoryManagement: React.FC = () => {
                 title="Export Excel"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span className="hidden md:inline">{isExporting ? 'Exporting...' : 'Export'}</span>
+                <span>{isExporting ? 'Exporting...' : 'Export Excel'}</span>
               </button>
+
+              {canViewTransactions() && (
+                <button
+                  type="button"
+                  onClick={() => setShowTransactions(!showTransactions)}
+                  className="p-1.5 bg-white/10 hover:bg-white/20 rounded-xl transition cursor-pointer text-white flex items-center gap-1.5 text-xs font-medium px-2.5 shadow-xs"
+                  title="Toggle transaction history"
+                >
+                  {showTransactions ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  <span>{showTransactions ? 'Hide History' : 'Show History'}</span>
+                </button>
+              )}
 
               {(searchTerm || filterCategory !== 'all' || filterStock !== 'all') && (
                 <button
@@ -5624,111 +5607,85 @@ const InventoryManagement: React.FC = () => {
           </div>
 
           {/* Table */}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto min-h-[320px] pb-28">
             <table className="w-full text-xs">
-              <thead className="bg-slate-50/90 border-b border-gray-200/90 text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+              <thead className="bg-slate-50/90 border-b border-gray-200/90 text-[11px] font-bold text-slate-800 uppercase tracking-wider">
                 <tr>
-                  <th className="py-3 px-3 text-center w-14 border-r border-gray-100">
-                    Image
+                  <th className="py-3 px-3 text-center w-14 border-r border-gray-100 font-bold uppercase tracking-wider">
+                    IMAGE
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-gray-100">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 font-bold uppercase tracking-wider">
                     <button
                       onClick={() => {
                         setSortField('hsnCode');
                         setSortDirection(sortField === 'hsnCode' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold uppercase tracking-wider text-slate-800 hover:text-blue-600 cursor-pointer"
                     >
-                      HSN Code
-                      {sortField === 'hsnCode' && (
-                        sortDirection === 'asc' ? 
-                          <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
-                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                      )}
+                      HSN CODE
                     </button>
                   </th>
-                  <th className="py-3 px-3 text-left border-r border-gray-100">
+                  <th className="py-3 px-3 text-left border-r border-gray-100 font-bold uppercase tracking-wider">
                     <button
                       onClick={() => {
                         setSortField('name');
                         setSortDirection(sortField === 'name' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-start font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-start font-bold uppercase tracking-wider text-slate-800 hover:text-blue-600 cursor-pointer"
                     >
-                      Item Name
-                      {sortField === 'name' && (
-                        sortDirection === 'asc' ? 
-                          <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
-                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                      )}
+                      ITEM NAME
                     </button>
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-gray-100">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 font-bold uppercase tracking-wider">
                     <button
                       onClick={() => {
                         setSortField('category');
                         setSortDirection(sortField === 'category' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold uppercase tracking-wider text-slate-800 hover:text-blue-600 cursor-pointer"
                     >
-                      Category
-                      {sortField === 'category' && (
-                        sortDirection === 'asc' ? 
-                          <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
-                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                      )}
+                      CATEGORY
                     </button>
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap font-bold uppercase tracking-wider">
                     <button
                       onClick={() => {
                         setSortField('totalQuantity');
                         setSortDirection(sortField === 'totalQuantity' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold uppercase tracking-wider text-slate-800 hover:text-blue-600 cursor-pointer"
                     >
                       SOH
-                      {sortField === 'totalQuantity' && (
-                        sortDirection === 'asc' ? 
-                          <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
-                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                      )}
                     </button>
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap font-bold uppercase tracking-wider">
                     <button
                       onClick={() => {
                         setSortField('currentPrice');
                         setSortDirection(sortField === 'currentPrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold uppercase tracking-wider text-slate-800 hover:text-blue-600 cursor-pointer"
                     >
-                      Purchase Price
-                      {sortField === 'currentPrice' && (
-                        sortDirection === 'asc' ? 
-                          <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
-                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                      )}
+                      PURCHASE PRICE
                     </button>
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap font-bold uppercase tracking-wider">
                     <button
                       onClick={() => {
                         setSortField('purchasePrice');
                         setSortDirection(sortField === 'purchasePrice' && sortDirection === 'asc' ? 'desc' : 'asc');
                       }}
-                      className="inline-flex items-center justify-center font-bold text-slate-700 hover:text-blue-600 cursor-pointer"
+                      className="inline-flex items-center justify-center font-bold uppercase tracking-wider text-slate-800 hover:text-blue-600 cursor-pointer"
                     >
-                      Selling Price
-                      {sortField === 'purchasePrice' && (
-                        sortDirection === 'asc' ? 
-                          <ChevronUp className="w-3.5 h-3.5 ml-1" /> : 
-                          <ChevronDown className="w-3.5 h-3.5 ml-1" />
-                      )}
+                      SELLING PRICE
                     </button>
                   </th>
-                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap">Status</th>
-                  <th className="py-3 px-3 text-center w-14">Actions</th>
+                  <th className="py-3 px-3 text-center border-r border-gray-100 whitespace-nowrap font-bold uppercase tracking-wider">
+                    STATUS
+                  </th>
+                  <th className="py-3 px-3 text-center w-14 font-bold uppercase tracking-wider">
+                    ACTIONS
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-100 text-xs">
@@ -5747,6 +5704,8 @@ const InventoryManagement: React.FC = () => {
                           data-highlight-id={product.id}
                           data-highlight-match={isRowMatch ? "true" : undefined}
                           className={`group cursor-pointer transition-colors ${
+                            activeDropdownProductId === product.id ? 'relative z-20' : ''
+                          } ${
                             isRowMatch
                               ? "bg-amber-50/90 hover:bg-amber-100/90"
                               : index % 2 === 0
@@ -5810,7 +5769,7 @@ const InventoryManagement: React.FC = () => {
                           <td className="py-3 px-3 text-center whitespace-nowrap border-r border-gray-100/80">
                             {renderStockBadge(product)}
                           </td>
-                          <td className="py-3 px-3 text-center w-14 relative" onClick={(e) => e.stopPropagation()}>
+                          <td className={`py-3 px-3 text-center w-14 ${activeDropdownProductId === product.id ? 'relative z-30' : 'relative'}`} onClick={(e) => e.stopPropagation()}>
                             <div className="relative inline-block text-left">
                               <button
                                 type="button"
@@ -5831,7 +5790,7 @@ const InventoryManagement: React.FC = () => {
                               {activeDropdownProductId === product.id && (
                                 <>
                                   <div 
-                                    className="fixed inset-0 z-20" 
+                                    className="fixed inset-0 z-40" 
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setActiveDropdownProductId(null);
@@ -5839,10 +5798,10 @@ const InventoryManagement: React.FC = () => {
                                   />
                                   <div 
                                     className={`absolute right-0 ${
-                                      index >= currentItems.length - 2 && currentItems.length > 3
+                                      index >= currentItems.length - 2 && currentItems.length > 4
                                         ? 'bottom-full mb-1' 
                                         : 'top-full mt-1'
-                                    } z-30 w-48 bg-white rounded-xl shadow-xl border border-gray-100 py-1.5 focus:outline-none`}
+                                    } z-50 w-48 bg-white rounded-xl shadow-2xl border border-gray-200 py-1.5 focus:outline-none`}
                                   >
                                     <button
                                       type="button"

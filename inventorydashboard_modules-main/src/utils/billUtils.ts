@@ -436,7 +436,7 @@ export function getBillTotal(bill: any): number {
  * Extract unified Date from a bill document.
  */
 export function getBillDate(b: any): Date {
-  const raw = b?.billDate || b?.createdAt || b?.updatedAt;
+  const raw = b?.billDate || b?.date || b?.invoiceDate || b?.createdAt || b?.updatedAt;
   if (raw?.toDate && typeof raw.toDate === "function") return raw.toDate();
   if (raw instanceof Date) return isNaN(raw.getTime()) ? new Date(0) : raw;
   if (typeof raw === "object" && typeof raw?.seconds === "number") return new Date(raw.seconds * 1000);

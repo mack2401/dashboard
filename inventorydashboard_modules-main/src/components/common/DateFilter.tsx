@@ -104,10 +104,18 @@ export function isDateInPresetRange(
       return d >= startOfLastMonth && d <= endOfLastMonth;
     }
 
+    case "past7":
+    case "last_7_days": {
+      const sevenDaysAgo = new Date(startOfToday);
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      return d >= sevenDaysAgo && d <= endOfToday;
+    }
+
+    case "past30":
     case "last_30_days": {
       const thirtyDaysAgo = new Date(startOfToday);
       thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return d >= thirtyDaysAgo;
+      return d >= thirtyDaysAgo && d <= endOfToday;
     }
 
     case "this_quarter": {
@@ -128,10 +136,22 @@ export function isDateInPresetRange(
 
     case "custom": {
       if (!customStart && !customEnd) return true;
-      const start = customStart ? new Date(customStart) : new Date(0);
-      start.setHours(0, 0, 0, 0);
-      const end = customEnd ? new Date(customEnd) : new Date(2100, 0, 1);
-      end.setHours(23, 59, 59, 999);
+      let start: Date;
+      if (customStart) {
+        const parts = customStart.split("-").map(Number);
+        start = new Date(parts[0], parts[1] - 1, parts[2], 0, 0, 0, 0);
+      } else {
+        start = new Date(0);
+      }
+
+      let end: Date;
+      if (customEnd) {
+        const parts = customEnd.split("-").map(Number);
+        end = new Date(parts[0], parts[1] - 1, parts[2], 23, 59, 59, 999);
+      } else {
+        end = new Date(2100, 0, 1, 23, 59, 59, 999);
+      }
+
       return d >= start && d <= end;
     }
 
@@ -151,10 +171,11 @@ export const DEFAULT_DATE_PRESETS: DateFilterPresetOption[] = [
   { value: "all", label: "All Time" },
   { value: "today", label: "Today" },
   { value: "yesterday", label: "Yesterday" },
+  { value: "last_7_days", label: "Past 7 Days" },
   { value: "this_week", label: "This Week" },
   { value: "this_month", label: "This Month" },
   { value: "last_month", label: "Last Month" },
-  { value: "last_30_days", label: "Last 30 Days" },
+  { value: "last_30_days", label: "Past 30 Days" },
   { value: "this_quarter", label: "This Quarter" },
   { value: "this_fy", label: "This Financial Year (FY)" },
   { value: "custom", label: "Custom Date Range..." },
