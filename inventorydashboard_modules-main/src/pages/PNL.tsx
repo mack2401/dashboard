@@ -1610,7 +1610,6 @@ export default function PNL() {
             </div>
             <div>
               <span className="text-xs font-bold text-gray-800">Date Range Filter</span>
-              <p className="text-[11px] text-gray-400">Filter sales, purchase cost, and margins by date period</p>
             </div>
           </div>
 
@@ -1657,7 +1656,6 @@ export default function PNL() {
               <p className="text-xl font-bold text-gray-900 tracking-tight truncate">
                 {formatCurrency(summaryMetrics.totalSales)}
               </p>
-              <p className="text-[11px] text-gray-400 mt-0.5 truncate">Academic + E-commerce</p>
             </div>
           </div>
 
@@ -1672,13 +1670,6 @@ export default function PNL() {
             <div className="mt-2.5">
               <p className="text-xl font-bold text-teal-700 tracking-tight truncate">
                 {formatCurrency(summaryMetrics.ecommerceSales)}
-              </p>
-              <p className="text-[11px] text-teal-600 mt-0.5 truncate">
-                {summaryMetrics.ecommerceCount} Orders &bull;{" "}
-                {summaryMetrics.totalSales > 0
-                  ? ((summaryMetrics.ecommerceSales / summaryMetrics.totalSales) * 100).toFixed(0)
-                  : 0}
-                % share (Components)
               </p>
             </div>
           </div>
@@ -1695,13 +1686,6 @@ export default function PNL() {
               <p className="text-xl font-bold text-purple-700 tracking-tight truncate">
                 {formatCurrency(summaryMetrics.academicSales)}
               </p>
-              <p className="text-[11px] text-purple-600 mt-0.5 truncate">
-                {summaryMetrics.academicCount} Orders &bull;{" "}
-                {summaryMetrics.totalSales > 0
-                  ? ((summaryMetrics.academicSales / summaryMetrics.totalSales) * 100).toFixed(0)
-                  : 0}
-                % share (Courses & Training)
-              </p>
             </div>
           </div>
 
@@ -1717,7 +1701,6 @@ export default function PNL() {
               <p className="text-xl font-bold text-indigo-900 tracking-tight truncate">
                 {formatCurrency(summaryMetrics.totalPurchaseCost)}
               </p>
-              <p className="text-[11px] text-gray-400 mt-0.5 truncate">Cost of Goods Sold &bull; Billed Purchase</p>
             </div>
           </div>
 
@@ -1732,9 +1715,6 @@ export default function PNL() {
             <div className="mt-2.5">
               <p className="text-xl font-bold text-rose-600 tracking-tight truncate">
                 {formatCurrency(summaryMetrics.totalWastageCost)}
-              </p>
-              <p className="text-[11px] text-rose-500 mt-0.5 truncate">
-                {summaryMetrics.totalWastageUnits.toLocaleString()} units &bull; Remaining Inventory Stock
               </p>
             </div>
           </div>
@@ -1760,10 +1740,6 @@ export default function PNL() {
                   }`}
               >
                 {formatCurrency(summaryMetrics.netMargin)}
-              </p>
-              <p className="text-[11px] font-semibold text-emerald-700 mt-0.5 truncate">
-                {summaryMetrics.marginPct >= 0 ? "+" : ""}
-                {summaryMetrics.marginPct.toFixed(1)}% margin &bull; Sale - Purchase
               </p>
             </div>
           </div>
@@ -1837,7 +1813,6 @@ export default function PNL() {
             <div className="p-4 border-b border-gray-100 flex items-center justify-between">
               <div>
                 <h3 className="font-bold text-sm text-gray-900">Category-wise Profit & Loss Breakdown</h3>
-                <p className="text-xs text-gray-500">Grouped by product categories in your inventory</p>
               </div>
               <span className="text-xs text-gray-400 font-medium">
                 {sortedCategoryData.length} {sortedCategoryData.length === 1 ? "Category" : "Categories"}

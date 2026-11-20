@@ -2225,7 +2225,6 @@ const TaskManagement: React.FC = () => {
             icon={<ListTodo className="w-4 h-4" />}
             iconBg="bg-indigo-50"
             iconColor="text-indigo-600"
-            subtitle={`${subTaskStats.total} subtasks overall`}
             isActive={filterStatus === 'all'}
             activeRingColor="border-indigo-400 ring-2 ring-indigo-500/20 bg-indigo-50/20"
             onClick={() => setFilterStatus('all')}
@@ -2240,7 +2239,6 @@ const TaskManagement: React.FC = () => {
             iconColor={filterStatus === 'inprogress' ? 'text-white' : 'text-blue-600'}
             valueColor="text-blue-700"
             badge={filterStatus === 'inprogress' ? { text: "Filtered", variant: "info" } : undefined}
-            subtitle={filterStatus !== 'inprogress' ? `${subTaskStats.inprogress} subtasks active • Filter →` : `${subTaskStats.inprogress} subtasks active`}
             isActive={filterStatus === 'inprogress'}
             activeRingColor="bg-blue-50/70 border-blue-400 ring-2 ring-blue-500 shadow-xs"
             onClick={() => setFilterStatus(filterStatus === 'inprogress' ? 'all' : 'inprogress')}
@@ -2255,7 +2253,6 @@ const TaskManagement: React.FC = () => {
             iconColor={filterStatus === 'completed' ? 'text-white' : 'text-emerald-600'}
             valueColor="text-emerald-700"
             badge={filterStatus === 'completed' ? { text: "Filtered", variant: "success" } : undefined}
-            subtitle={filterStatus !== 'completed' ? `${subTaskStats.completed} subtasks done • Filter →` : `${subTaskStats.completed} subtasks done`}
             isActive={filterStatus === 'completed'}
             activeRingColor="bg-emerald-50/70 border-emerald-400 ring-2 ring-emerald-500 shadow-xs"
             onClick={() => setFilterStatus(filterStatus === 'completed' ? 'all' : 'completed')}
@@ -2270,7 +2267,6 @@ const TaskManagement: React.FC = () => {
             iconColor={filterStatus === 'delayed' ? 'text-white' : 'text-rose-600'}
             valueColor="text-rose-600"
             badge={filterStatus === 'delayed' ? { text: "Filtered", variant: "danger" } : undefined}
-            subtitle={filterStatus !== 'delayed' ? `${subTaskStats.delayed} subtasks delayed • Filter →` : `${subTaskStats.delayed} subtasks delayed`}
             isActive={filterStatus === 'delayed'}
             activeRingColor="bg-rose-50/70 border-rose-400 ring-2 ring-rose-500 shadow-xs"
             onClick={() => setFilterStatus(filterStatus === 'delayed' ? 'all' : 'delayed')}
@@ -2285,86 +2281,11 @@ const TaskManagement: React.FC = () => {
             iconColor={(filterStatus === 'assigned' || filterStatus === 'opened') ? 'text-white' : 'text-purple-600'}
             valueColor="text-purple-700"
             badge={(filterStatus === 'assigned' || filterStatus === 'opened') ? { text: "Filtered", variant: "info" } : undefined}
-            subtitle={`${mainTaskStatusCounts.assigned} assigned • ${mainTaskStatusCounts.opened} opened`}
             isActive={filterStatus === 'assigned' || filterStatus === 'opened'}
             activeRingColor="bg-purple-50/70 border-purple-400 ring-2 ring-purple-500 shadow-xs"
             onClick={() => setFilterStatus(filterStatus === 'assigned' ? 'all' : 'assigned')}
             tooltip="Filter newly assigned tasks"
           />
-        </div>
-
-        {/* Quick Filter Pill Tabs with Counts */}
-        <div className="p-1.5 bg-gray-100/90 rounded-2xl border border-gray-200/90 flex flex-wrap items-center gap-1.5">
-          <button
-            onClick={() => setFilterStatus('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterStatus === 'all'
-                ? 'bg-white text-gray-900 shadow-xs border border-gray-200/80'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-            }`}
-          >
-            All ({mainTaskStatusCounts.total})
-          </button>
-          <button
-            onClick={() => setFilterStatus('assigned')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterStatus === 'assigned'
-                ? 'bg-white text-purple-700 shadow-xs border border-purple-200/80'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-            }`}
-          >
-            Assigned ({mainTaskStatusCounts.assigned})
-          </button>
-          <button
-            onClick={() => setFilterStatus('opened')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterStatus === 'opened'
-                ? 'bg-white text-indigo-700 shadow-xs border border-indigo-200/80'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-            }`}
-          >
-            Opened ({mainTaskStatusCounts.opened})
-          </button>
-          <button
-            onClick={() => setFilterStatus('inprogress')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterStatus === 'inprogress'
-                ? 'bg-white text-blue-700 shadow-xs border border-blue-200/80'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-            }`}
-          >
-            In Progress ({mainTaskStatusCounts.inprogress})
-          </button>
-          <button
-            onClick={() => setFilterStatus('completed')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterStatus === 'completed'
-                ? 'bg-white text-emerald-700 shadow-xs border border-emerald-200/80'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-            }`}
-          >
-            Completed ({mainTaskStatusCounts.completed})
-          </button>
-          <button
-            onClick={() => setFilterStatus('delayed')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterStatus === 'delayed'
-                ? 'bg-white text-rose-700 shadow-xs border border-rose-200/80'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-            }`}
-          >
-            Delayed ({mainTaskStatusCounts.delayed})
-          </button>
-          <button
-            onClick={() => setFilterStatus('closed')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              filterStatus === 'closed'
-                ? 'bg-white text-gray-800 shadow-xs border border-gray-300'
-                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200/60'
-            }`}
-          >
-            Closed ({mainTaskStatusCounts.closed})
-          </button>
         </div>
 
         {/* Multi-Criteria Filters Panel */}
@@ -2392,7 +2313,7 @@ const TaskManagement: React.FC = () => {
             )}
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
             {/* 1. Search */}
             <div>
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
@@ -2411,7 +2332,28 @@ const TaskManagement: React.FC = () => {
               </div>
             </div>
 
-            {/* 2. Priority */}
+            {/* 2. Status Dropdown */}
+            <div>
+              <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
+                <CheckCircle className="w-3 h-3 text-indigo-600" />
+                Status
+              </label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value as any)}
+                className="w-full px-3 py-1.5 text-xs bg-gray-50 border border-gray-200 rounded-xl font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20 cursor-pointer"
+              >
+                <option value="all">All Statuses ({mainTaskStatusCounts.total})</option>
+                <option value="assigned">Assigned ({mainTaskStatusCounts.assigned})</option>
+                <option value="opened">Opened ({mainTaskStatusCounts.opened})</option>
+                <option value="inprogress">In Progress ({mainTaskStatusCounts.inprogress})</option>
+                <option value="completed">Completed ({mainTaskStatusCounts.completed})</option>
+                <option value="delayed">Delayed ({mainTaskStatusCounts.delayed})</option>
+                <option value="closed">Closed ({mainTaskStatusCounts.closed})</option>
+              </select>
+            </div>
+
+            {/* 3. Priority */}
             <div>
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Flag className="w-3 h-3 text-orange-600" />
@@ -2430,7 +2372,7 @@ const TaskManagement: React.FC = () => {
               </select>
             </div>
 
-            {/* 3. Category */}
+            {/* 4. Category */}
             <div>
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Tag className="w-3 h-3 text-emerald-600" />
@@ -2450,7 +2392,7 @@ const TaskManagement: React.FC = () => {
               </select>
             </div>
 
-            {/* 4. Employee */}
+            {/* 5. Employee */}
             <div>
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Users className="w-3 h-3 text-purple-600" />
@@ -2470,7 +2412,7 @@ const TaskManagement: React.FC = () => {
               </select>
             </div>
 
-            {/* 5. Deadline Period */}
+            {/* 6. Deadline Period */}
             <div>
               <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1 flex items-center gap-1">
                 <Calendar className="w-3 h-3 text-blue-600" />
