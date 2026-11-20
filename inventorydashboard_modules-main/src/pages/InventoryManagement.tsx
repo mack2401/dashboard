@@ -386,7 +386,7 @@ const InventoryManagement: React.FC = () => {
 
   // Pagination states
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(20);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
 
   // Global search & notification deep-linking highlighter
   const {
@@ -4326,6 +4326,11 @@ const InventoryManagement: React.FC = () => {
         onPageChange={goToPage}
         totalItems={filteredProducts.length}
         itemsPerPage={itemsPerPage}
+        pageSizeOptions={[10, 20, 50, 100]}
+        onPageSizeChange={(newSize) => {
+          setItemsPerPage(newSize);
+          setCurrentPage(1);
+        }}
         itemLabel="products"
         className="mt-6 border border-[#E1E5F0] rounded-2xl"
       />
