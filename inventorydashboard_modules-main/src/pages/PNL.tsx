@@ -21,6 +21,8 @@ import {
   findInventoryProduct,
   getProductUnitCost,
   calculateBillPurchaseCost,
+  getUnifiedBillsWithEnquiries,
+  buildProductsLookupMaps,
 } from "../utils/billUtils";
 import {
   TrendingUp,
@@ -307,20 +309,9 @@ export default function PNL() {
     }
   };
 
-  // Quick lookup maps
-  const productsMap = useMemo(() => {
-    const map = new Map<string, InventoryProduct>();
-    products.forEach((p) => map.set(p.id, p));
-    return map;
-  }, [products]);
-
-  const productsByName = useMemo(() => {
-    const map = new Map<string, InventoryProduct>();
-    products.forEach((p) => {
-      if (p.name) map.set(p.name.trim().toLowerCase(), p);
-      if (p.sku) map.set(p.sku.trim().toLowerCase(), p);
-    });
-    return map;
+  // Quick lookup maps with complete name, SKU, and alphanumeric normalization
+  const { productsMap, productsByName } = useMemo(() => {
+    return buildProductsLookupMaps(products);
   }, [products]);
 
   const enquiriesMap = useMemo(() => {
@@ -479,24 +470,22 @@ export default function PNL() {
     return isDateInPresetRange(dateVal, datePreset, customStartDate, customEndDate);
   };
 
-  // 1.5 Deduplicated Bills (Keep only newest revision per invoice, matching BillTransactions)
-  const deduplicatedBills = useMemo(() => {
-    return deduplicateBills(bills);
-  }, [bills]);
+  // 1.5 Unified Bills (deduplicated, enriched with enquiry, and seamlessly integrates unbilled enquiries)
+  const unifiedBills = useMemo(() => {
+    return getUnifiedBillsWithEnquiries(bills, enquiries);
+  }, [bills, enquiries]);
 
-  // 2. Filtered Bills (Date Filtered & Sold Status Checked - strictly excludes quotations and dropped)
+  // 2. Filtered Active Sold Bills (Date Filtered & Sold Status Checked - strictly excludes quotations and dropped)
   const activeBills = useMemo(() => {
-    return deduplicatedBills
-      .map((b) => resolveBillWithEnquiry(b, enquiriesMap))
-      .filter((b) => {
-        // Exclude dropped or quotations - only include confirmed sold/paid bills
-        if (!isSoldBillRecord(b)) return false;
+    return unifiedBills.filter((b) => {
+      // Exclude dropped or quotations - only include confirmed sold/paid bills
+      if (!isSoldBillRecord(b)) return false;
 
-        // Filter by Date
-        const billDate = getBillDate(b);
-        return isDateInSelectedRange(billDate);
-      });
-  }, [deduplicatedBills, enquiriesMap, datePreset, customStartDate, customEndDate]);
+      // Filter by Date
+      const billDate = getBillDate(b);
+      return isDateInSelectedRange(billDate);
+    });
+  }, [unifiedBills, datePreset, customStartDate, customEndDate]);
 
   // 3. Remaining Products in Inventory (Valued as Wastage @ Cost)
   // Wastage @ Cost is strictly the purchase cost valuation of unsold products remaining in inventory:

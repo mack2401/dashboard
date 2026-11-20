@@ -44,6 +44,7 @@ import {
   getBillTotal,
   getBillDate,
   createBillFromApprovedEnquiry,
+  getUnifiedBillsWithEnquiries,
 } from "../utils/billUtils";
 
 // Clean professional slate & subtle accent palette
@@ -265,45 +266,8 @@ const Dashboard: React.FC = () => {
 
   // Deduplicate and resolve bills with linked enquiry context (100% parity with BillTransactions and PNL)
   const resolvedBills = useMemo(() => {
-    const dedup = deduplicateBills(bills);
-
-    // Track all identifiers already in bills
-    const billedKeys = new Set<string>();
-    dedup.forEach((b: any) => {
-      if (b.enquiryEnqId) billedKeys.add(String(b.enquiryEnqId).trim().toLowerCase());
-      if (b.enquiryId) billedKeys.add(String(b.enquiryId).trim().toLowerCase());
-      if (b.billedTo?.enqId) billedKeys.add(String(b.billedTo.enqId).trim().toLowerCase());
-      if (b.enqId) billedKeys.add(String(b.enqId).trim().toLowerCase());
-      if (b.id) billedKeys.add(String(b.id).trim().toLowerCase());
-      if (b.invoiceNumber) billedKeys.add(String(b.invoiceNumber).trim().toLowerCase());
-    });
-
-    // Check for enquiries not yet in bills collection (seamless real-world sync)
-    const missingApprovedBills: any[] = [];
-    enquiries.forEach((e: any) => {
-      const statusLower = String(e.status || "").toLowerCase().trim();
-      if (statusLower === "dropped") return;
-
-      const enqIdStr = String(e.enqId || "").trim().toLowerCase();
-      const docIdStr = String(e.id || "").trim().toLowerCase();
-      const billIdStr = String(e.billId || "").trim().toLowerCase();
-      const invNumStr = String(e.invoiceNumber || `INV-${e.enqId}`).trim().toLowerCase();
-
-      const alreadyInBills =
-        (enqIdStr && billedKeys.has(enqIdStr)) ||
-        (docIdStr && billedKeys.has(docIdStr)) ||
-        (billIdStr && billedKeys.has(billIdStr)) ||
-        (invNumStr && billedKeys.has(invNumStr));
-
-      if (!alreadyInBills) {
-        const synthBill = createBillFromApprovedEnquiry(e);
-        if (synthBill) missingApprovedBills.push(synthBill);
-      }
-    });
-
-    const allBills = [...dedup, ...missingApprovedBills];
-    return allBills.map((b) => resolveBillWithEnquiry(b, enquiriesMap));
-  }, [bills, enquiries, enquiriesMap]);
+    return getUnifiedBillsWithEnquiries(bills, enquiries);
+  }, [bills, enquiries]);
 
   const formatDisplayDate = (dateStr: string): string => {
     if (!dateStr) return "";

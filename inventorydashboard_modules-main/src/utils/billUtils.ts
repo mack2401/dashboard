@@ -37,8 +37,9 @@ export const isQuotationBill = (bill: any): boolean => {
   const enquiryStatus = String(bill.enquiryStatus || "").toLowerCase().trim();
   const paymentStatus = String(bill.paymentStatus || "").toLowerCase().trim();
   const invoiceNumber = String(bill.invoiceNumber || (bill as any).quotationNumber || (bill as any).quoteNo || "").toUpperCase().trim();
+  const docType = String(bill.documentType || "").toUpperCase().trim();
 
-  // If explicitly flagged as quotation / estimate / proforma or starts with IBQ-
+  // If explicitly flagged as quotation / estimate / proforma or starts with IBQ- or IBPI-
   const isExplicitQuote =
     status === "quotation" ||
     status === "quote" ||
@@ -47,7 +48,10 @@ export const isQuotationBill = (bill: any): boolean => {
     enquiryStatus === "quote" ||
     bill.isQuotation === true ||
     bill.isProformaInvoice === true ||
-    invoiceNumber.startsWith("IBQ-");
+    docType === "QUOTATION" ||
+    docType === "PROFORMA INVOICE" ||
+    invoiceNumber.startsWith("IBQ-") ||
+    invoiceNumber.startsWith("IBPI-");
 
   const isSoldOrApproved =
     paymentStatus === "paid" ||
@@ -79,6 +83,7 @@ export const isSoldBill = (bill: any): boolean => {
   const paymentStatus = String(bill.paymentStatus || "").toLowerCase().trim();
   const enquiryStatus = String(bill.enquiryStatus || "").toLowerCase().trim();
   const invoiceNumber = String(bill.invoiceNumber || (bill as any).quotationNumber || (bill as any).quoteNo || "").toUpperCase().trim();
+  const docType = String(bill.documentType || "").toUpperCase().trim();
 
   const isQuote =
     status === "quotation" ||
@@ -87,7 +92,11 @@ export const isSoldBill = (bill: any): boolean => {
     enquiryStatus === "quotation" ||
     enquiryStatus === "quote" ||
     bill.isQuotation === true ||
-    invoiceNumber.startsWith("IBQ-");
+    bill.isProformaInvoice === true ||
+    docType === "QUOTATION" ||
+    docType === "PROFORMA INVOICE" ||
+    invoiceNumber.startsWith("IBQ-") ||
+    invoiceNumber.startsWith("IBPI-");
 
   // If marked as quotation or proforma, only consider sold if explicitly approved or paid
   if (isQuote) {
@@ -327,15 +336,55 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
   const paymentStatus = enquiryData?.paymentStatus || bill.paymentStatus || "";
   const paymentSubStatus = bill.paymentSubStatus || enquiryData?.paymentSubStatus || enquiryData?.paymentType || "";
 
-  let status: "quotation" | "paid" | "dropped" = "quotation";
-  let transactionPaymentStatus: "pending" | "completed" = "pending";
+  const invoiceNumberRaw =
+    bill.invoiceNumber ||
+    bill.billNumber ||
+    bill.quoteNo ||
+    bill.quotationNumber ||
+    bill.proformaInvoiceNumber ||
+    bill.billId ||
+    "";
+
+  const docType = String(bill.documentType || "").toUpperCase().trim();
+  const isExplicitQuotation =
+    String(productStatus).toLowerCase() === "quotation" ||
+    String(productStatus).toLowerCase() === "quote" ||
+    String(enquiryData?.status).toLowerCase() === "quotation" ||
+    String(enquiryData?.status).toLowerCase() === "quote" ||
+    bill.isQuotation === true ||
+    bill.isProformaInvoice === true ||
+    docType === "QUOTATION" ||
+    docType === "PROFORMA INVOICE" ||
+    String(bill.status).toLowerCase() === "quotation" ||
+    String(bill.status).toLowerCase() === "quote" ||
+    String(bill.status).toLowerCase() === "proforma" ||
+    String(invoiceNumberRaw).toUpperCase().startsWith("IBQ-") ||
+    String(invoiceNumberRaw).toUpperCase().startsWith("IBPI-");
+
+  const isExplicitApproved =
+    String(productStatus).toLowerCase() === "approved" ||
+    String(productStatus).toLowerCase() === "delivered" ||
+    String(productStatus).toLowerCase() === "dispatched" ||
+    String(enquiryData?.status).toLowerCase() === "approved" ||
+    String(enquiryData?.status).toLowerCase() === "delivered" ||
+    String(enquiryData?.status).toLowerCase() === "dispatched";
+
+  const isExplicitPaid =
+    String(paymentStatus).toLowerCase() === "paid" ||
+    String(enquiryData?.paymentStatus).toLowerCase() === "paid" ||
+    String(bill.paymentStatus).toLowerCase() === "paid" ||
+    String(bill.status).toLowerCase() === "paid";
 
   const billWithContext = {
     ...bill,
     enquiryStatus: productStatus,
     paymentStatus,
     paymentSubStatus,
+    isQuotation: isExplicitQuotation,
   };
+
+  let status: "quotation" | "paid" | "dropped" = "quotation";
+  let transactionPaymentStatus: "pending" | "completed" = "pending";
 
   if (
     String(productStatus).toLowerCase() === "dropped" ||
@@ -345,18 +394,13 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
   ) {
     status = "dropped";
     transactionPaymentStatus = "pending";
-  } else if (
-    productStatus === "Approved" ||
-    productStatus === "Delivered" ||
-    productStatus === "Dispatched" ||
-    String(paymentStatus).toLowerCase() === "paid" ||
-    String(bill.paymentStatus).toLowerCase() === "completed" ||
-    String(bill.status).toLowerCase() === "paid" ||
-    String(bill.status).toLowerCase() === "completed" ||
-    isSoldBill(billWithContext)
-  ) {
+  } else if (isExplicitQuotation && !isExplicitApproved && !isExplicitPaid) {
+    // Quotations strictly remain quotation status unless approved or paid
+    status = "quotation";
+    transactionPaymentStatus = "pending";
+  } else if (isExplicitApproved || isExplicitPaid || isSoldBill(billWithContext)) {
     status = "paid";
-    transactionPaymentStatus = "completed";
+    transactionPaymentStatus = isExplicitPaid ? "completed" : "pending";
   } else {
     status = "quotation";
     transactionPaymentStatus = "pending";
@@ -374,14 +418,21 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
   if (!Array.isArray(resolvedItems) || resolvedItems.length === 0) {
     const alt = bill.materials || bill.products;
     if (Array.isArray(alt)) resolvedItems = alt;
+    else if (typeof alt === "string") {
+      try {
+        resolvedItems = JSON.parse(alt);
+      } catch {
+        resolvedItems = [];
+      }
+    }
   }
   if ((!resolvedItems || !Array.isArray(resolvedItems) || resolvedItems.length === 0) && enquiryData) {
     try {
       let parsed = enquiryData.materials || enquiryData.products || enquiryData.items;
       if (typeof parsed === "string") parsed = JSON.parse(parsed);
       if (Array.isArray(parsed)) {
-        resolvedItems = parsed.map((m: any) => ({
-          productId: m.productId || m.id,
+        resolvedItems = parsed.map((m: any, idx: number) => ({
+          productId: m.productId || m.id || `PROD-${idx}`,
           productName: m.productName || m.name || "Item",
           quantity: Number(m.quantity) || 1,
           price: Number(m.price) || 0,
@@ -400,8 +451,118 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
     }
   }
 
+  const rawCustomerGstin = (
+    bill.billedTo?.gstin ||
+    enquiryData?.companyDetails?.companyGST ||
+    enquiryData?.gstin ||
+    ""
+  ).trim().toUpperCase();
+
+  const isCompanyGstin =
+    rawCustomerGstin === "33AAKCP9459K1ZO" ||
+    rawCustomerGstin.includes("33AAKCP9459K1ZO") ||
+    rawCustomerGstin.includes("AAMCP9459K");
+
+  const dummyGstins = [
+    "URP", "N/A", "NA", "NONE", "NIL", "NULL", "UNDEFINED",
+    "UNREGISTERED", "NOT APPLICABLE", "CONSUMER", "NOT PROVIDED", "-"
+  ];
+
+  const customerGstinForDisplay = !isCompanyGstin && !dummyGstins.includes(rawCustomerGstin) ? rawCustomerGstin : "";
+
+  const hasTax =
+    (bill.cgst && bill.cgst > 0) ||
+    (bill.sgst && bill.sgst > 0) ||
+    (bill.igst && bill.igst > 0) ||
+    bill.taxType === "cgst_sgst" ||
+    bill.taxType === "igst";
+
+  const isGST = !!customerGstinForDisplay || hasTax;
+  const companyName = enquiryData?.companyDetails?.companyName || bill.companyName || "";
+  const placeOfSupply = bill.placeOfSupply || bill.billedTo?.state || enquiryData?.state || "Tamil Nadu";
+
+  const enqType = String(
+    enquiryData?.type ||
+    enquiryData?.customerType ||
+    enquiryData?.clientType ||
+    enquiryData?.enquiryType ||
+    enquiryData?.customer?.type ||
+    ""
+  ).toUpperCase().trim();
+
+  const clientType = String(
+    bill.clientType ||
+    bill.customerType ||
+    bill.enquiryType ||
+    bill.billType ||
+    ""
+  ).toUpperCase().trim();
+
+  let billType: "B2B" | "B2C" = "B2C";
+  if (enqType.includes("B2C") || clientType.includes("B2C")) {
+    billType = "B2C";
+  } else if (enqType.includes("B2B") || clientType.includes("B2B") || !!customerGstinForDisplay) {
+    billType = "B2B";
+  } else if (
+    companyName &&
+    (companyName.toLowerCase().includes("pvt") ||
+      companyName.toLowerCase().includes("ltd") ||
+      companyName.toLowerCase().includes("inc") ||
+      companyName.toLowerCase().includes("technologies") ||
+      companyName.toLowerCase().includes("solutions") ||
+      companyName.toLowerCase().includes("enterprises") ||
+      companyName.toLowerCase().includes("corporation") ||
+      companyName.toLowerCase().includes("llp"))
+  ) {
+    billType = "B2B";
+  }
+
+  const customerName =
+    bill.customerName ||
+    bill.billedTo?.name ||
+    bill.clientName ||
+    bill.customer ||
+    enquiryData?.customerName ||
+    enquiryData?.name ||
+    enquiryData?.contactPerson ||
+    "Customer";
+
+  const customerContact =
+    bill.customerContact ||
+    bill.billedTo?.contactNumber ||
+    bill.phone ||
+    bill.mobile ||
+    enquiryData?.contactNumber ||
+    enquiryData?.customerContact ||
+    enquiryData?.customer?.contactNumber ||
+    enquiryData?.phone ||
+    enquiryData?.mobile ||
+    "-";
+
+  const customerAddress = String(
+    bill.customerAddress ||
+    bill.billedTo?.address ||
+    enquiryData?.customerAddress ||
+    enquiryData?.address ||
+    ""
+  ).trim();
+
+  const invoiceNumber =
+    bill.invoiceNumber ||
+    bill.billNumber ||
+    bill.quoteNo ||
+    bill.quotationNumber ||
+    bill.proformaInvoiceNumber ||
+    bill.billId ||
+    "";
+
   return {
     ...bill,
+    id: bill.id,
+    customerName,
+    customerContact,
+    customerAddress,
+    invoiceNumber,
     items: Array.isArray(resolvedItems) ? resolvedItems : [],
     status,
     paymentStatus: transactionPaymentStatus,
@@ -409,6 +570,23 @@ export function resolveBillWithEnquiry(bill: any, enquiriesMap?: Map<string, any
     paymentSubStatus,
     enquiryEnqId: bill.enquiryEnqId || enquiryData?.enqId || "",
     enquiryStatus: productStatus,
+    shipmentStatus: bill.shipmentStatus || enquiryData?.shipmentStatus || bill.shippingStatus || "",
+    placeOfSupply,
+    gstin: customerGstinForDisplay,
+    isGST,
+    billType,
+    companyName,
+    isQuotation: status === "quotation",
+    billedTo: {
+      ...(bill.billedTo || {}),
+      name: bill.billedTo?.name || customerName,
+      contactNumber: bill.billedTo?.contactNumber || customerContact,
+      address: bill.billedTo?.address || customerAddress,
+      gstin: bill.billedTo?.gstin || customerGstinForDisplay,
+      state: bill.billedTo?.state || placeOfSupply,
+      city: bill.billedTo?.city || enquiryData?.city || "",
+      enqId: bill.billedTo?.enqId || bill.enquiryEnqId || enquiryData?.enqId || "",
+    },
   };
 }
 
@@ -643,14 +821,14 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     materials = [];
   }
 
-  const items = (Array.isArray(materials) ? materials : []).map((m: any) => {
+  const items = (Array.isArray(materials) ? materials : []).map((m: any, idx: number) => {
     const qty = Number(m.quantity) || 1;
     const price = Number(m.price) || 0;
     const rate = m.taxRate !== undefined && m.taxRate !== null ? Number(m.taxRate) : (Number(enq.gstRate) || 0);
     const taxable = m.taxableValue !== undefined ? Number(m.taxableValue) : (price * qty);
     const tax = m.taxAmount !== undefined ? Number(m.taxAmount) : ((taxable * rate) / 100);
     return {
-      productId: m.productId || m.id || "",
+      productId: m.productId || m.id || `PROD-${idx}`,
       productName: m.productName || m.name || "Item",
       quantity: qty,
       price: price,
@@ -659,6 +837,11 @@ export function createBillFromApprovedEnquiry(enq: any): any {
       taxAmount: tax,
       taxRate: rate,
       originalPrice: Number(m.originalPrice) || price,
+      purchasePrice: m.purchasePrice !== undefined ? Number(m.purchasePrice) : undefined,
+      costPrice: m.costPrice !== undefined ? Number(m.costPrice) : undefined,
+      cost: m.cost !== undefined ? Number(m.cost) : undefined,
+      sku: m.sku || "",
+      category: m.category || "",
       hsn: m.hsnCode || m.hsn || "",
     };
   });
@@ -667,6 +850,15 @@ export function createBillFromApprovedEnquiry(enq: any): any {
   const totalAmount = Number(enq.finalTotal || enq.value || computedItemsTotal || 0);
   const subtotal = Number(enq.subtotal || enq.taxableValue || (items.length > 0 ? items.reduce((s, it) => s + (it.taxableValue || 0), 0) : totalAmount));
   const taxAmount = Number(enq.gstAmount || (items.length > 0 ? items.reduce((s, it) => s + (it.taxAmount || 0), 0) : 0));
+
+  const statusLower = String(enq.status || "").toLowerCase().trim();
+  const paymentLower = String(enq.paymentStatus || "").toLowerCase().trim();
+  const isApproved = statusLower === "approved" || statusLower === "delivered" || statusLower === "dispatched";
+  const isPaid = paymentLower === "paid" || paymentLower === "completed";
+  const isQuotation = !isApproved && (statusLower === "quotation" || statusLower === "proforma invoice" || String(enq.type || "").toLowerCase().includes("quotation"));
+  const hasItems = items.length > 0;
+  const isActionable = isApproved || isPaid || isQuotation || statusLower === "testing" || hasItems || totalAmount > 0;
+  if (!isActionable) return null;
 
   // If no material items but total amount is positive, provide a synthesized item for component analytics
   if (items.length === 0 && totalAmount > 0) {
@@ -684,38 +876,55 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     });
   }
 
-  const statusLower = String(enq.status || "").toLowerCase().trim();
-  const paymentLower = String(enq.paymentStatus || "").toLowerCase().trim();
-  const isApproved = statusLower === "approved" || statusLower === "delivered" || statusLower === "dispatched";
-  const isPaid = paymentLower === "paid" || paymentLower === "completed";
-  const isQuotation = !isApproved && (statusLower === "quotation" || statusLower === "proforma invoice" || String(enq.type || "").toLowerCase().includes("quotation"));
-
   // Effective transaction date: if approved, use approvedAt / updatedAt if newer than createdAt
   const effectiveDate = enq.approvedAt || enq.billDate || (isApproved && enq.updatedAt ? enq.updatedAt : enq.createdAt) || new Date();
-  const invoiceNumber = enq.invoiceNumber || enq.proformaInvoiceNumber || (isQuotation ? `IBQ-${String(enq.enqId || Date.now()).replace(/\D/g, "").slice(-6)}` : `INV-${enq.enqId || String(enq.id || "").slice(-4)}`);
+  const cleanNum = String(enq.enqId || Date.now()).replace(/\D/g, "");
+  const fallbackQuoteNum = `IBQ-${cleanNum.slice(-6) || "000001"}`;
+  const fallbackInvNum = `IBIN-${cleanNum.slice(-8) || "00000001"}`;
+  const invoiceNumber = enq.invoiceNumber || enq.proformaInvoiceNumber || (isQuotation ? (enq.quotationNumber || enq.quoteNo || fallbackQuoteNum) : fallbackInvNum);
+
+  const customerName = enq.customerName || enq.customer?.name || enq.contactPerson || enq.name || enq.clientName || "Customer";
+  const customerContact = enq.contactNumber || enq.customerContact || enq.customer?.contactNumber || enq.phone || enq.mobile || "-";
+  const customerAddress = String(enq.customerAddress || enq.address || "").trim();
+  const custGstin = String(enq.companyDetails?.companyGST || enq.gstin || "").trim().toUpperCase();
+
+  const taxType = enq.taxType || (enq.state && String(enq.state).toLowerCase().includes("tamil nadu") ? "cgst_sgst" : (enq.state ? "igst" : "cgst_sgst"));
+  const isIgst = taxType === "igst";
+  const cgst = isIgst ? 0 : taxAmount / 2;
+  const sgst = isIgst ? 0 : taxAmount / 2;
+  const igst = isIgst ? taxAmount : 0;
 
   return {
-    id: enq.billId || `bill-enq-${enq.id || enq.enqId}`,
-    billId: enq.billId || `BILL-${enq.enqId || Date.now()}`,
+    id: enq.id || enq.billId || `bill-enq-${enq.enqId || Date.now()}`,
+    billId: enq.billId || enq.enqId || enq.id,
     invoiceNumber: invoiceNumber,
     billDate: effectiveDate,
     date: effectiveDate,
     dueDate: effectiveDate,
-    customerName: enq.customerName || enq.name || "",
-    customerContact: enq.contactNumber || enq.phone || "",
+    customerName,
+    customerContact,
     customerCity: enq.city || "",
+    customerAddress,
     totalAmount: totalAmount,
     subtotal: subtotal,
     taxAmount: taxAmount,
-    discountAmount: 0,
+    discountAmount: Number(enq.discountAmount) || 0,
+    discountPercentage: Number(enq.discountPercentage) || 0,
+    shippingCharges: Number(enq.shippingCharges) || 0,
+    taxType,
+    taxRate: Number(enq.gstRate) || 0,
+    cgst,
+    sgst,
+    igst,
     assignedTo: enq.assignedTo || "",
     assignedToName: enq.assignedTo || "Unassigned",
     createdBy: enq.assignedTo || "",
     createdByRole: "staff",
     status: isApproved || isPaid ? "completed" : (isQuotation ? "quotation" : "completed"),
     paymentStatus: isPaid ? "paid" : "pending",
-    paymentType: enq.paymentType || "",
-    paymentSubStatus: enq.paymentSubStatus || "",
+    paymentType: enq.paymentType || enq.paymentSubStatus || "N/A",
+    paymentSubStatus: enq.paymentSubStatus || "N/A",
+    shipmentStatus: enq.shipmentStatus || "",
     items: items,
     billedBy: {
       name: "Protowiz Private Limited",
@@ -724,16 +933,15 @@ export function createBillFromApprovedEnquiry(enq: any): any {
       pan: "AAKCP9459K",
     },
     billedTo: {
-      name: enq.customerName || enq.name || "",
+      name: customerName,
       enqId: enq.enqId || "",
-      contactNumber: enq.contactNumber || enq.phone || "",
+      contactNumber: customerContact,
       city: enq.city || "",
-      state: enq.state || "",
-      address: enq.customerAddress || enq.address || "",
+      state: enq.state || "Tamil Nadu",
+      address: customerAddress,
+      gstin: custGstin,
     },
-    taxType: "GST",
-    taxRate: Number(enq.gstRate) || 0,
-    placeOfSupply: enq.state || "",
+    placeOfSupply: enq.state || "Tamil Nadu",
     enquiryId: enq.id || "",
     enquiryEnqId: enq.enqId || "",
     enquiryStatus: enq.status || (isApproved ? "Approved" : "Quotation"),
@@ -744,4 +952,103 @@ export function createBillFromApprovedEnquiry(enq: any): any {
     createdAt: effectiveDate,
     updatedAt: enq.updatedAt || effectiveDate,
   };
+}
+
+/**
+ * Build fast lookup maps from products catalog for accurate purchase cost valuation.
+ */
+export function buildProductsLookupMaps(productsList: any[]): {
+  productsMap: Map<string, any>;
+  productsByName: Map<string, any>;
+} {
+  const pMap = new Map<string, any>();
+  const pNameMap = new Map<string, any>();
+
+  (productsList || []).forEach((prod) => {
+    if (!prod) return;
+    pMap.set(prod.id, prod);
+
+    if (prod.name) {
+      const trimmedLower = String(prod.name).trim().toLowerCase();
+      pNameMap.set(trimmedLower, prod);
+
+      const alphaNum = trimmedLower.replace(/[^a-z0-9]/g, "");
+      if (alphaNum && alphaNum !== trimmedLower) {
+        pNameMap.set(alphaNum, prod);
+      }
+    }
+
+    if (prod.sku) {
+      const skuLower = String(prod.sku).trim().toLowerCase();
+      pNameMap.set(skuLower, prod);
+    }
+  });
+
+  return { productsMap: pMap, productsByName: pNameMap };
+}
+
+/**
+ * Universal Unified Bills Engine:
+ * Combines deduplicated bills with synthesized unbilled enquiries so that:
+ * - BillTransactions (Billing)
+ * - PNL (Profit & Loss)
+ * - Dashboard (Executive Overview)
+ * share the exact same transactions, sales metrics, purchase costs, and net margins.
+ */
+export function getUnifiedBillsWithEnquiries(
+  rawBills: any[],
+  rawEnquiries: any[],
+  defaultBankDetailsObj?: any
+): any[] {
+  const dedupedBills = deduplicateBills(rawBills || []);
+  const enquiriesMap = buildEnquiriesMap(rawEnquiries || []);
+
+  // Track all identifiers already present in bills
+  const billedKeys = new Set<string>();
+  dedupedBills.forEach((b: any) => {
+    const explicitEnqId = b.enquiryEnqId || b.enquiryId || b.billedTo?.enqId || b.enqId;
+    if (explicitEnqId) billedKeys.add(String(explicitEnqId).trim().toLowerCase());
+    if (b.id) billedKeys.add(String(b.id).trim().toLowerCase());
+    if (b.billId) billedKeys.add(String(b.billId).trim().toLowerCase());
+    if (b.invoiceNumber) billedKeys.add(String(b.invoiceNumber).trim().toLowerCase());
+  });
+
+  const missingEnquiryBills: any[] = [];
+  (rawEnquiries || []).forEach((e: any) => {
+    if (!e) return;
+    const statusLower = String(e.status || "").toLowerCase().trim();
+    if (statusLower === "dropped") return;
+
+    const enqIdStr = String(e.enqId || "").trim().toLowerCase();
+    const docIdStr = String(e.id || "").trim().toLowerCase();
+    const billIdStr = String(e.billId || "").trim().toLowerCase();
+    const invNumStr = String(e.invoiceNumber || `INV-${e.enqId}`).trim().toLowerCase();
+
+    const alreadyInBills =
+      (enqIdStr && billedKeys.has(enqIdStr)) ||
+      (docIdStr && billedKeys.has(docIdStr)) ||
+      (billIdStr && billedKeys.has(billIdStr)) ||
+      (invNumStr && billedKeys.has(invNumStr));
+
+    if (!alreadyInBills) {
+      const synthBill = createBillFromApprovedEnquiry(e);
+      if (synthBill) {
+        if (defaultBankDetailsObj && !synthBill.billedBy) {
+          synthBill.billedBy = defaultBankDetailsObj;
+        }
+        missingEnquiryBills.push(synthBill);
+      }
+    }
+  });
+
+  const allBills = [...dedupedBills, ...missingEnquiryBills];
+  const resolved = allBills.map((b) => resolveBillWithEnquiry(b, enquiriesMap));
+
+  resolved.sort((a, b) => {
+    const da = getBillDate(a)?.getTime() || 0;
+    const dbTime = getBillDate(b)?.getTime() || 0;
+    return dbTime - da;
+  });
+
+  return resolved;
 }

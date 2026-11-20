@@ -65,7 +65,7 @@ const defaultBankDetails: BankDetails = {
 const defaultTerms: TermsCondition[] = [
   { id: 1, text: "Payment: 100% advance" },
   { id: 2, text: "Delivery: 10-12 days maximum from advance initiation" },
-  { id: 3, text: "Quote Validity: 2 days" },
+  { id: 3, text: "PI Validity: 2 days" },
 ];
 
 const ProformaInvoiceGeneratorModal: React.FC<ProformaInvoiceGeneratorModalProps> = ({
@@ -1101,7 +1101,7 @@ const ProformaInvoiceGeneratorModal: React.FC<ProformaInvoiceGeneratorModalProps
                     : `
                       <li>1. Payment: 100% advance</li>
                       <li>2. Delivery: 10-12 days maximum from advance initiation</li>
-                      <li>3. Quote Validity: 2 days</li>
+                      <li>3. PI Validity: 2 days</li>
                     `
                   }
                 </ul>
